@@ -237,6 +237,10 @@
     position: sticky; left: 0; margin: 0; padding: 10px 12px 16px; font-size: 12px; color: var(--muted);
     display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
   }
+  .zoom-reset {
+    font: inherit; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-weak);
+    border: 1px solid var(--accent); border-radius: 12px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+  }
   .main-foot [data-bug] { margin-left: auto; } /* 不具合報告は右下 */
   .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
@@ -962,7 +966,7 @@
     }
 
     const all = visibleReservations();
-    let html = `<div class="tl"><div class="tl-head"><div class="tl-corner">${corner}</div><div class="tl-scale">`;
+    let html = `<div class="tl"><div class="tl-head"><div class="tl-corner"><span class="corner-text">${corner}</span><button type="button" class="zoom-reset" data-zoom-reset hidden>幅をリセット</button></div><div class="tl-scale">`;
     const nowHourShown = state.view === 'day' && state.data.from === today;
     for (let h = t0; h < t1; h += 60) {
       html += `<span${nowHourShown && now >= h && now < h + 60 ? ' class="now"' : ''}>${h / 60}:00</span>`;
@@ -1008,16 +1012,15 @@
     });
     html += '</div>';
     if (!rows.length) html += `<p class="empty">${state.rooms.length ? '該当する部屋がありません。' : '部屋が登録されていません（部屋マスタを確認してください）。'}</p>`;
-    html += footHtml('', true);
+    html += footHtml('');
     $('main').innerHTML = html;
     $('main').classList.add('has-tl');
     fitLabelColumn();
   }
 
   /** 予約表の下端（操作の案内・不具合報告） */
-  function footHtml(text, zoomable) {
-    const reset = zoomable ? `<button type="button" class="link-btn" data-zoom-reset${state.zoom === 1 ? ' hidden' : ''}>幅をリセット</button>` : '';
-    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${reset}${state.settings && state.settings.notice ? '' : '<button type="button" class="link-btn" data-bug>不具合を報告</button>'}</p>`;
+  function footHtml(text) {
+    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${state.settings && state.settings.notice ? '' : '<button type="button" class="link-btn" data-bug>不具合を報告</button>'}</p>`;
   }
 
   /**
@@ -1030,6 +1033,12 @@
     tl.classList.add('measuring');
     let max = 0;
     for (const el of tl.querySelectorAll('.tl-corner, .tl-label')) max = Math.max(max, el.offsetWidth);
+    // 左上の「幅をリセット」も入る幅にしておく（ピンチの途中で列幅が変わらないように）
+    const reset = tl.querySelector('.zoom-reset');
+    const resetHidden = reset.hidden;
+    reset.hidden = false;
+    max = Math.max(max, reset.offsetWidth + 14);
+    reset.hidden = resetHidden;
     tl.classList.remove('measuring');
     if (max < 40) return; // 画面が非表示などで計測できないときは既定の幅のまま
     const cap = window.innerWidth <= 600 ? 140 : 240;
@@ -1055,8 +1064,9 @@
     tl.classList.toggle('tiny', hourW < 28);
     state.hourW = hourW;
     state.zoom = hourW === state.hourBase ? 1 : hourW / state.hourBase;
-    const reset = $('main').querySelector('[data-zoom-reset]');
-    if (reset) reset.hidden = state.zoom === 1;
+    // 幅を変えている間は、左上の「部屋 ＼ 時刻」の所に「幅をリセット」を出す
+    tl.querySelector('[data-zoom-reset]').hidden = state.zoom === 1;
+    tl.querySelector('.corner-text').hidden = state.zoom !== 1;
   }
 
   /** 画面上の x 座標 clientX にある時刻を、拡大・縮小の後も同じ位置に保つ */

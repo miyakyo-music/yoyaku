@@ -84,9 +84,16 @@
   .form-grid .full { grid-column: 1 / -1; }
   /* 時刻・数値の欄は内容に合った固定幅にし、単位（分・回など）はすぐ横に置く */
   .time { display: flex; align-items: center; gap: 4px; color: var(--text); }
-  .time select { flex: none; width: 76px; }
+  /* 時刻は数字を中央に寄せ、数字に合った幅にする（予約画面と同じ見た目） */
+  .time select, .suffix select {
+    flex: none; width: 64px; padding: 0 18px 0 6px; text-align: center; text-align-last: center;
+    -webkit-appearance: none; appearance: none;
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 7px center;
+  }
   .suffix { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; font-size: 14px; }
-  .suffix input, .suffix select { flex: none; width: 110px; }
+  /* 数値の欄も数字を中央に寄せ、4桁が入る程度の幅にする（増減の矢印は出さない） */
+  .suffix input { flex: none; width: 76px; padding: 0 6px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+  .suffix input::-webkit-inner-spin-button, .suffix input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .weekdays { display: flex; flex-wrap: wrap; gap: 6px; }
   .weekdays label, .check {
     display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer;
