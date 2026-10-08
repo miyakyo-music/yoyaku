@@ -934,7 +934,7 @@ function validateBooking_(ctx, input, isAdmin) {
     return { error: '学籍番号/所属は' + SYSTEM.MAX_AFFILIATION_LENGTH + '文字以内で入力してください。' };
   }
   if (!value.name || value.name.length > SYSTEM.MAX_NAME_LENGTH) {
-    return { error: '氏名・団体名・授業名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
+    return { error: '氏名／団体名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
   }
   if (value.memo.length > SYSTEM.MAX_MEMO_LENGTH) return { error: '備考は' + SYSTEM.MAX_MEMO_LENGTH + '文字以内で入力してください。' };
   // スプレッドシートで数式として解釈される先頭文字を拒否（数式インジェクション対策）

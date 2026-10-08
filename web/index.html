@@ -113,6 +113,8 @@
 
   /* ---------- タイムライン（一覧・部屋別） ---------- */
   .main { flex: 1; overflow: auto; position: relative; background: var(--surface); -webkit-overflow-scrolling: touch; }
+  /* 2本指の操作は時間軸の拡大・縮小に使うので、ページ自体の拡大は止める */
+  .main.has-tl { touch-action: pan-x pan-y; }
   body.loading .main > * { opacity: .65; transition: opacity .2s; }
   .tl { width: max-content; min-width: 100%; }
   /* 重なり順: 予約ブロック(1) < 現在時刻線(3) < ドラッグ中の枠(5) < 部屋名の列(6) < 時刻見出し(7) */
@@ -128,6 +130,12 @@
     padding: 6px 0 0 4px; height: 28px; border-left: 1px solid var(--line-strong);
   }
   .tl-scale span.now { color: var(--accent); background: var(--accent-weak); }
+  /* 時間軸を縮めて時刻の文字が入らないときは、2時間おき・3時間おきに表示する */
+  .tl.narrow .tl-scale span { font-size: 11px; padding-left: 2px; }
+  .tl.narrow .tl-scale span:nth-child(even) { color: transparent; }
+  .tl.tiny .tl-scale span:nth-child(even) { color: var(--muted); }
+  .tl.tiny .tl-scale span:not(:nth-child(3n+1)) { color: transparent; }
+  .tl.narrow .tl-scale span.now:not(:nth-child(even)), .tl.tiny .tl-scale span.now:nth-child(3n+1) { color: var(--accent); }
   .tl-scale span:last-child { box-shadow: inset -1px 0 0 var(--line-strong); }
   .tl-row { display: flex; border-bottom: 1px solid var(--line); }
   .tl-label { padding: 2px 6px; display: flex; flex-direction: column; justify-content: center; min-height: var(--row-h); overflow: hidden; }
@@ -187,6 +195,8 @@
     cursor: crosshair; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   }
   .tl-track.stopped { background-color: var(--closed); cursor: not-allowed; }
+  /* 時間軸を縮めたときは30分の線を省き、線が詰まって見づらくならないようにする */
+  .tl.narrow .tl-track { background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px); background-size: var(--hour-w) 100%; }
   .past { position: absolute; top: 0; bottom: 0; left: 0; background: var(--past); pointer-events: none; z-index: 0; }
   .now-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #e5484d; pointer-events: none; z-index: 3; }
   .blk {
@@ -266,6 +276,8 @@
   .summary dt { color: var(--muted); font-size: 12px; }
   .summary dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* 氏名と学籍番号は、スマホでは入力例が切れないよう縦に並べる */
+  @media (max-width: 600px) { .grid2.person { grid-template-columns: 1fr; } }
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
   .field input, .field select { height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-size: 16px; color: var(--text); background: var(--surface); width: 100%; }
   /* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
@@ -420,9 +432,9 @@
         <div class="field">終了<div class="time"><select id="bEndH" aria-label="終了（時）"></select>:<select id="bEndM" aria-label="終了（分）"></select></div></div>
       </div>
       <p class="duration" id="bDuration"></p>
-      <div class="grid2">
-        <label class="field">学籍番号 / 所属（任意）<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032"></label>
-        <label class="field">氏名・団体名・授業名<input id="bPerson" maxlength="50" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎／宮教オケ／ピアノI"></label>
+      <div class="grid2 person">
+        <label class="field">氏名／団体名<input id="bPerson" maxlength="50" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎／宮教オケ"></label>
+        <label class="field">学籍番号／所属（任意）<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032／〇〇大学／教員"></label>
       </div>
       <label class="field">備考（任意）<input id="bMemo" maxlength="100" autocomplete="off" spellcheck="false" placeholder="例：伴奏合わせ、レッスン"></label>
       <label class="field" id="bPinField"><span id="bPinLabel">編集用パスワード（任意・4桁の数字）</span>
@@ -446,7 +458,7 @@
       <label class="field" id="bAdminField" hidden><span id="bAdminLabel">管理用パスワード</span>
         <input id="bAdmin" type="password" autocomplete="off">
       </label>
-      <p class="hint" id="bHint">団体・授業として予約する場合は、団体名・授業名だけで構いません（学籍番号 / 所属は空欄可）。個人の場合、他大学の方は所属に大学名、教員は「教員」と入力してください。入力内容はこの端末に保存され、次回から自動で入力されます。</p>
+      <p class="hint" id="bHint">入力内容はこの端末に記憶され、次回から自動で入ります。</p>
       <p class="error" id="bError"></p>
       <ul class="conflicts" id="bConflicts"></ul>
       <div class="actions">
@@ -535,6 +547,7 @@
     mine: 'prr.myReservations',    // { [reservationId]: 'YYYY-MM-DD' }
     filter: 'prr.equipFilter',
     view: 'prr.view',
+    zoom: 'prr.zoom',              // 時間軸の拡大率（ピンチ操作）
     room: 'prr.room',
     viewKey: 'prr.viewKey',
   };
@@ -546,6 +559,8 @@
   const WEEKDAYS = '日月火水木金土';
   const AUTO_REFRESH_MS = 60 * 1000;
   const LONG_PRESS_MS = 400;
+  const MIN_HOUR_W = 16;  // 時間軸を縮めたときの1時間の最小幅（px）
+  const MAX_HOUR_W = 480; // 時間軸を広げたときの1時間の最大幅（px）
 
   const $ = (id) => document.getElementById(id);
   const state = {
@@ -560,6 +575,8 @@
     seq: 0,
     viewKey: load_(LS.viewKey, ''),
     booking: null,        // 予約ダイアログの状態
+    zoom: Math.min(10, Math.max(0.05, Number(load_(LS.zoom, 1)) || 1)), // 時間軸の拡大率
+    hourBase: 0, hourMin: MIN_HOUR_W, hourW: 0,
     detail: null,
     skipConflicts: false,
     adminPw: sessionGet(ADMIN_SESSION_KEY),
@@ -961,14 +978,18 @@
     html += '</div>';
     if (!rows.length) html += `<p class="empty">${state.rooms.length ? '該当する部屋がありません。' : '部屋が登録されていません（部屋マスタを確認してください）。'}</p>`;
     const touchDevice = window.matchMedia && matchMedia('(pointer: coarse)').matches;
-    html += footHtml(touchDevice ? '空いている所をタップして予約（長押ししてなぞると時間を指定）' : '空いている所をクリック、またはドラッグして予約');
+    html += footHtml(touchDevice
+      ? '空いている所をタップして予約（長押ししてなぞると時間を指定）。2本指で広げる・縮めると時間軸の幅を変えられます'
+      : '空いている所をクリック、またはドラッグして予約。Ctrlキー＋ホイール（トラックパッドではピンチ）で時間軸の幅を変えられます', true);
     $('main').innerHTML = html;
+    $('main').classList.add('has-tl');
     fitLabelColumn();
   }
 
   /** 予約表の下端（操作の案内・不具合報告） */
-  function footHtml(text) {
-    return `<p class="main-foot"><span>${esc(text)}</span><button type="button" class="link-btn" data-bug>不具合を報告</button></p>`;
+  function footHtml(text, zoomable) {
+    const reset = zoomable ? `<button type="button" class="link-btn" data-zoom-reset${state.zoom === 1 ? ' hidden' : ''}>時間軸の幅を元に戻す</button>` : '';
+    return `<p class="main-foot"><span>${esc(text)}</span>${reset}<button type="button" class="link-btn" data-bug>不具合を報告</button></p>`;
   }
 
   /**
@@ -989,10 +1010,38 @@
     tl.style.removeProperty('--hour-w');
     const base = parseFloat(getComputedStyle(tl).getPropertyValue('--hour-w')) || 96;
     const hours = state.geo ? state.geo.total / 60 : 15;
-    // 1時間の幅は偶数px にして、30分の線が半端な位置でぼやけたり消えたりしないようにする
-    const fit = Math.floor(($('main').clientWidth - labelW - 1) / hours / 2) * 2;
-    if (fit > base) tl.style.setProperty('--hour-w', `${fit}px`);
+    const fit = ($('main').clientWidth - labelW - 1) / hours; // 時間軸全体がちょうど画面に入る幅
+    state.hourBase = Math.max(base, Math.floor(fit / 2) * 2);
+    state.hourMin = Math.max(MIN_HOUR_W, Math.min(state.hourBase, Math.floor(fit / 2) * 2));
+    applyHourWidth(state.hourBase * state.zoom);
   }
+
+  /** 時間軸の1時間の幅を設定する。拡大率は「既定の幅（画面に合わせた幅）」に対する比で覚えておく */
+  function applyHourWidth(w) {
+    const tl = $('main').querySelector('.tl');
+    if (!tl || !state.hourBase) return;
+    // 1時間の幅は偶数px にして、30分の線が半端な位置でぼやけたり消えたりしないようにする
+    const hourW = Math.round(Math.min(MAX_HOUR_W, Math.max(state.hourMin, w)) / 2) * 2;
+    tl.style.setProperty('--hour-w', `${hourW}px`);
+    tl.classList.toggle('narrow', hourW < 44);
+    tl.classList.toggle('tiny', hourW < 28);
+    state.hourW = hourW;
+    state.zoom = hourW === state.hourBase ? 1 : hourW / state.hourBase;
+    const reset = $('main').querySelector('[data-zoom-reset]');
+    if (reset) reset.hidden = state.zoom === 1;
+  }
+
+  /** 画面上の x 座標 clientX にある時刻を、拡大・縮小の後も同じ位置に保つ */
+  function zoomAround(clientX, w) {
+    const track = $('main').querySelector('.tl-track');
+    if (!track || !state.geo) return;
+    let rect = track.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / rect.width;
+    applyHourWidth(w);
+    rect = track.getBoundingClientRect();
+    $('main').scrollLeft += rect.left + ratio * rect.width - clientX;
+  }
+  function saveZoom() { save_(LS.zoom, state.zoom); }
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
@@ -1035,6 +1084,7 @@
       }
       html += '</div>';
     }
+    $('main').classList.remove('has-tl');
     $('main').innerHTML = html + '</div>' + footHtml('日付を押すと、その日の一覧を表示します');
   }
 
@@ -1143,6 +1193,55 @@
     mouse = null;
     if (m.dragging) finishDrag();
     else tapTrack(m.track, m.x);
+  });
+
+  // ---------------- 時間軸の拡大・縮小（ピンチ） ----------------
+  let pinch = null;
+  const touchDist = (ts) => Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+  const touchMidX = (ts) => (ts[0].clientX + ts[1].clientX) / 2;
+  $('main').addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2 || !$('main').querySelector('.tl')) return;
+    // 1本目の指で始めたタップ・長押しは取りやめて、拡大・縮小に切り替える
+    if (touch) { clearTimeout(touch.timer); touch = null; }
+    cancelDrag();
+    pinch = { dist: touchDist(e.touches) || 1, w: state.hourW };
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    zoomAround(touchMidX(e.touches), pinch.w * touchDist(e.touches) / pinch.dist);
+  }, { passive: false });
+  document.addEventListener('touchend', (e) => {
+    if (pinch && e.touches.length < 2) { pinch = null; saveZoom(); }
+  });
+  document.addEventListener('touchcancel', () => { if (pinch) { pinch = null; saveZoom(); } });
+  // iPhone の Safari が独自に行うページの拡大を止める（時間軸の上だけ）
+  for (const type of ['gesturestart', 'gesturechange']) {
+    $('main').addEventListener(type, (e) => { if ($('main').querySelector('.tl')) e.preventDefault(); }, { passive: false });
+  }
+  // PC: Ctrl＋ホイール（トラックパッドのピンチも Ctrl＋ホイールとして届く）
+  let wheelSaveTimer;
+  $('main').addEventListener('wheel', (e) => {
+    if (!e.ctrlKey || !$('main').querySelector('.tl')) return;
+    e.preventDefault();
+    // マウスのホイール1目盛り（deltaY ≒ 100）で約1.35倍。トラックパッドは小刻みに届くので滑らかに変わる
+    const dy = Math.max(-60, Math.min(60, e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY));
+    zoomAround(e.clientX, state.hourW * Math.exp(-dy * 0.005));
+    clearTimeout(wheelSaveTimer);
+    wheelSaveTimer = setTimeout(saveZoom, 300);
+  }, { passive: false });
+  // Mac の Safari: トラックパッドのピンチは gesture イベントで届く
+  if (!('ontouchstart' in window)) {
+    let gesture = null;
+    $('main').addEventListener('gesturestart', (e) => { gesture = { w: state.hourW }; });
+    $('main').addEventListener('gesturechange', (e) => { if (gesture) zoomAround(e.clientX, gesture.w * e.scale); });
+    $('main').addEventListener('gestureend', () => { gesture = null; saveZoom(); });
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-zoom-reset]')) return;
+    const main = $('main');
+    zoomAround(main.getBoundingClientRect().left + main.clientWidth / 2, state.hourBase);
+    saveZoom();
   });
 
   // タッチ: タップで予約画面、長押ししてからなぞると時間指定（通常のスワイプはスクロール）
@@ -1270,9 +1369,9 @@
     resetConflicts();
     updateBookingUi();
     $('bookDialog').showModal();
-    // 新規予約は学籍番号欄から入力できるようにする。
+    // 新規予約は氏名／団体名の欄から入力できるようにする。
     // 変更時は入力欄に触れない（iPhoneでは部屋の選択肢やキーボードが勝手に開いてしまうため、見出しを選択状態にしている）
-    if (!edit) $('bAff').focus();
+    if (!edit) $('bPerson').focus();
   }
 
   function updateBookingUi() {
@@ -1410,7 +1509,7 @@
     };
     if (!payload.date) return fail('日付を指定してください。', 'bDate');
     if (toMin(payload.end) <= toMin(payload.start)) return fail('終了は開始より後にしてください。', 'bEndH');
-    if (!payload.name) return fail('氏名・団体名・授業名を入力してください。', 'bPerson');
+    if (!payload.name) return fail('氏名／団体名を入力してください。', 'bPerson');
     if (!edit && payload.pin && !/^\d{4}$/.test(payload.pin)) return fail('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。', 'bPin');
     if (edit && !$('bPinField').hidden && !payload.pin) return fail('編集用パスワードを入力してください。', 'bPin');
 
