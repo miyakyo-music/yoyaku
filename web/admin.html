@@ -43,6 +43,7 @@
   h1 { font-size: 17px; margin: 0; }
   .app-name { color: var(--muted); font-size: 13px; }
   .spacer { flex: 1; }
+  #sheetLink { margin-left: auto; } /* 折り返したときも右端に寄せ、左の「予約表に戻る」と離す */
   .wrap { max-width: 1080px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 80px; }
 
   .btn {
@@ -218,11 +219,11 @@
 </head>
 <body>
   <header class="topbar">
+    <a class="btn small" id="backLink" href="./">‹ 予約表に戻る</a>
     <h1>管理画面</h1>
     <span class="app-name" id="appName"></span>
     <span class="spacer"></span>
     <a class="btn small" id="sheetLink" target="_blank" rel="noopener" hidden title="予約台帳・操作ログ・部屋マスタなどが入ったスプレッドシートを開く（共有されている Google アカウントのみ）">データベース</a>
-    <a class="btn small" id="backLink" href="./">予約表に戻る</a>
     <button type="button" class="btn small" id="logoutBtn" hidden>ログアウト</button>
   </header>
 
