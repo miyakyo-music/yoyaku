@@ -128,8 +128,12 @@
     padding: 6px 0 0 4px; height: 28px; border-left: 1px solid var(--line-strong);
   }
   .tl-scale span.now { color: var(--accent); background: var(--accent-weak); }
+  .tl-scale span:last-child { box-shadow: inset -1px 0 0 var(--line-strong); }
   .tl-row { display: flex; border-bottom: 1px solid var(--line); }
   .tl-label { padding: 2px 6px; display: flex; flex-direction: column; justify-content: center; min-height: var(--row-h); overflow: hidden; }
+  /* 列幅の計測中だけ、部屋名を折り返さずに本来の幅で並べる */
+  .tl.measuring .tl-corner, .tl.measuring .tl-label { width: max-content; }
+  .tl.measuring .tl-label .nm { display: block; white-space: nowrap; }
   .tl-label .nm {
     font-size: 13px; font-weight: 600; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
@@ -138,6 +142,12 @@
   .tl-label .sub { display: flex; gap: 4px; margin-top: 2px; }
   .tl-row.today .tl-label { background: #f0f6ff; }
   .tl-row.week-start { border-top: 2px solid var(--line-strong); }
+  .tl-label[data-room] { cursor: pointer; }
+  .tl-label[data-room]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (hover: hover) {
+    .tl-label[data-room]:hover { background: #f6f9ff; }
+    .tl-label[data-room]:hover .nm { color: var(--accent); text-decoration: underline; }
+  }
   .tag { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; line-height: 15px; font-weight: 600; background: #eceff3; color: #4a5562; white-space: nowrap; }
   .tag.t-admin { background: #fde8e8; color: #9b2c2c; }
   /* 部屋の特徴タグ（大・GP・UP・電子P など） */
@@ -173,6 +183,7 @@
     width: calc(var(--hour-w) * var(--hours));
     background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px);
     background-size: var(--hour-w) 100%, calc(var(--hour-w) / 2) 100%;
+    box-shadow: inset -1px 0 0 var(--line-strong); /* 時間軸の右端（終了時刻ちょうど）の線 */
     cursor: crosshair; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   }
   .tl-track.stopped { background-color: var(--closed); cursor: not-allowed; }
@@ -189,6 +200,9 @@
     position: sticky; left: calc(var(--label-w) + 4px);
   }
   .blk b { font-weight: 700; }
+  .blk span { font-weight: 400; opacity: .85; }
+  /* 予約を送信中（サーバーの結果待ち）の表示 */
+  .blk.res.pending { opacity: .7; border-style: dashed; }
   .blk.res { background: var(--res); color: var(--res-text); border: 1px solid var(--res-border); }
   .blk.res.mine { background: var(--mine); color: var(--mine-text); border: 2px solid var(--mine-border); }
   .blk.res.ended { opacity: .6; }
@@ -205,6 +219,11 @@
     font-size: 11px; font-weight: 700; padding: 1px 4px; white-space: nowrap; overflow: visible;
   }
   .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+  .main-foot {
+    position: sticky; left: 0; margin: 0; padding: 10px 12px 16px; font-size: 12px; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
+  }
+  .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
   /* ---------- カレンダー（月表示） ---------- */
   /* 1日あたり48px未満にはせず、それより狭い画面では横スクロール */
@@ -228,11 +247,13 @@
   /* ---------- ダイアログ ---------- */
   dialog {
     border: none; border-radius: 14px; padding: 0; width: min(480px, calc(100vw - 20px));
-  }
-  #bookDialog { width: min(560px, calc(100vw - 20px));
-    max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); overflow: auto; overscroll-behavior: contain;
+    max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px);
+    /* 中身が横にはみ出しても横には動かさない（縦スクロールのみ） */
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
     box-shadow: 0 20px 50px rgba(15, 23, 42, .25); color: var(--text); background: var(--surface);
   }
+  #bookDialog { width: min(520px, calc(100vw - 20px)); }
+  dialog h2:focus { outline: none; }
   dialog:not([open]) { display: none; }
   dialog::backdrop { background: rgba(15, 23, 42, .45); }
   /* <dialog> 非対応ブラウザ（iOS 15.3以前など）向けの代替表示 */
@@ -247,11 +268,28 @@
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
   .field input, .field select { height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-size: 16px; color: var(--text); background: var(--surface); width: 100%; }
+  /* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
+  .field input[type="date"] {
+    -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%;
+    text-align: left; line-height: 38px;
+  }
+  .field input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+  /* 開始・終了の時刻: 数字に合った幅で中央揃え */
   .time { display: flex; align-items: center; gap: 4px; }
-  .time select { flex: 1; min-width: 0; padding: 0 4px; }
+  .time select {
+    flex: none; width: 64px; padding: 0 18px 0 6px; text-align: center; text-align-last: center;
+    -webkit-appearance: none; appearance: none;
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 7px center;
+  }
+  .field textarea {
+    min-height: 110px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+    font-size: 16px; color: var(--text); background: var(--surface); width: 100%; resize: vertical;
+  }
+  .env-info { font-size: 12px; color: var(--muted); }
+  .env-info pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; margin: 6px 0 0; max-height: 160px; overflow: auto; }
   .duration { font-size: 13px; font-weight: 600; margin: -4px 0 0; }
   .field input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  /* 暗証番号は password 型にせず伏字表示にする（ブラウザのパスワード提案・保存の対象にしないため） */
+  /* 編集用パスワードは password 型にせず伏字表示にする（ブラウザのパスワード提案・保存の対象にしないため） */
   .pin-input { -webkit-text-security: disc; text-security: disc; letter-spacing: .1em; }
   .pin-input::placeholder { letter-spacing: normal; }
   .hint { margin: 0; font-size: 12px; color: var(--muted); }
@@ -266,7 +304,6 @@
   .actions .spacer { flex: 1; }
   .check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
   .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
-  .admin-note { color: #9b2c2c; font-size: 12px; margin-left: 2px; }
   .box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
   .repeat-summary { margin: 0; font-size: 13px; font-weight: 600; }
   .conflicts { margin: 0; padding: 8px 10px 8px 26px; background: #fff3f3; border-radius: 8px; font-size: 13px; max-height: 140px; overflow: auto; }
@@ -358,6 +395,7 @@
         <span><i class="sw res"></i>予約済み</span>
         <span><i class="sw mine"></i>この端末の予約</span>
         <span><i class="sw closed"></i>利用不可</span>
+        <button type="button" class="link-btn" data-bug>不具合を報告</button>
       </span>
     </div>
   </header>
@@ -367,10 +405,10 @@
   <!-- 予約・変更ダイアログ -->
   <dialog id="bookDialog">
     <form id="bookForm" novalidate>
-      <h2 id="bTitle">新規予約</h2>
+      <h2 id="bTitle" tabindex="-1" autofocus>新規予約</h2>
       <label class="field">部屋<select id="bRoom"></select></label>
       <div class="box" id="bMultiBox">
-        <label class="check"><input type="checkbox" id="bMulti"><span>他の部屋も同時に予約する<small class="admin-note" hidden>（管理者のみ）</small></span></label>
+        <label class="check"><input type="checkbox" id="bMulti"><span>他の部屋も同時に予約する</span></label>
         <div id="bMultiArea" hidden>
           <p class="hint" style="margin-bottom:8px">同じ名前の部屋は、名前のボタンでまとめて選択できます。</p>
           <div class="room-picker" id="bRoomPicker"></div>
@@ -383,16 +421,16 @@
       </div>
       <p class="duration" id="bDuration"></p>
       <div class="grid2">
-        <label class="field">学籍番号 / 所属<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032"></label>
-        <label class="field">氏名<input id="bPerson" maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎"></label>
+        <label class="field">学籍番号 / 所属（任意）<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032"></label>
+        <label class="field">氏名・団体名・授業名<input id="bPerson" maxlength="50" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎／宮教オケ／ピアノI"></label>
       </div>
       <label class="field">備考（任意）<input id="bMemo" maxlength="100" autocomplete="off" spellcheck="false" placeholder="例：伴奏合わせ、レッスン"></label>
-      <label class="field" id="bPinField"><span id="bPinLabel">キャンセル用暗証番号（任意・4桁の数字）</span>
+      <label class="field" id="bPinField"><span id="bPinLabel">編集用パスワード（任意・4桁の数字）</span>
         <input id="bPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="8" placeholder="4桁の数字">
         <span class="hint" id="bPinHint">設定しない場合、誰でもこの予約を変更・取消できます。</span>
       </label>
       <div class="box" id="bRepeatBox">
-        <label class="check"><input type="checkbox" id="bRepeat"><span>くり返し予約する<small class="admin-note" hidden>（管理者のみ）</small></span></label>
+        <label class="check"><input type="checkbox" id="bRepeat"><span>くり返し予約する</span></label>
         <div id="bRepeatArea" class="grid2" hidden>
           <label class="field">くり返し
             <select id="bInterval">
@@ -408,7 +446,7 @@
       <label class="field" id="bAdminField" hidden><span id="bAdminLabel">管理用パスワード</span>
         <input id="bAdmin" type="password" autocomplete="off">
       </label>
-      <p class="hint" id="bHint">学籍番号の代わりに、他大学の方は大学名、教員は「教員」と入力してください。所属・氏名・暗証番号はこの端末に保存され、次回から自動で入力されます。</p>
+      <p class="hint" id="bHint">団体・授業として予約する場合は、団体名・授業名だけで構いません（学籍番号 / 所属は空欄可）。個人の場合、他大学の方は所属に大学名、教員は「教員」と入力してください。入力内容はこの端末に保存され、次回から自動で入力されます。</p>
       <p class="error" id="bError"></p>
       <ul class="conflicts" id="bConflicts"></ul>
       <div class="actions">
@@ -421,7 +459,7 @@
   <!-- 予約詳細ダイアログ -->
   <dialog id="detailDialog">
     <form id="detailForm" novalidate>
-      <h2>予約の詳細</h2>
+      <h2 tabindex="-1" autofocus>予約の詳細</h2>
       <dl class="summary">
         <dt>部屋</dt><dd id="dRoom"></dd>
         <dt>日付</dt><dd id="dDate"></dd>
@@ -430,7 +468,7 @@
         <dt id="dMemoDt">備考</dt><dd id="dMemo"></dd>
       </dl>
       <div id="dOps">
-        <label class="field">暗証番号（予約時に設定した4桁）
+        <label class="field">編集用パスワード（予約時に設定した4桁）
           <input id="dPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="4桁の数字">
         </label>
       </div>
@@ -449,7 +487,7 @@
   <!-- この端末の予約一覧 -->
   <dialog id="myDialog">
     <div class="body">
-      <h2>この端末で作成した予約</h2>
+      <h2 tabindex="-1" autofocus>この端末で作成した予約</h2>
       <p class="hint">今日以降の予約を表示しています。タップすると予約表の該当日に移動します。</p>
       <ul class="mylist" id="myList"></ul>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
@@ -467,6 +505,22 @@
     </form>
   </dialog>
 
+  <!-- 不具合報告 -->
+  <dialog id="bugDialog">
+    <form id="bugForm" novalidate>
+      <h2 tabindex="-1" autofocus>不具合を報告</h2>
+      <p class="hint">気づいた不具合や使いにくい点を管理者に送れます。画像は添付できません。どの画面で何をしたらどうなったかを書いてください。</p>
+      <label class="field">内容<textarea id="bugMsg" maxlength="2000" placeholder="例：予約確定を押しても画面が変わらない"></textarea></label>
+      <label class="field">連絡先（任意・返信が必要な場合）<input id="bugContact" maxlength="100" autocomplete="off" placeholder="例：メールアドレス"></label>
+      <details class="env-info"><summary>一緒に送る端末・画面の情報</summary><pre id="bugEnv"></pre></details>
+      <p class="error" id="bugError"></p>
+      <div class="actions">
+        <button type="button" class="btn" data-close>閉じる</button>
+        <button type="submit" class="btn primary" id="bugSubmit">送信</button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="dialog-backdrop" id="dialogBackdrop"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -481,8 +535,9 @@
     view: 'prr.view',
     room: 'prr.room',
     viewKey: 'prr.viewKey',
-    hinted: 'prr.hinted',        // 操作方法の案内を表示済みか
   };
+  const APP_VERSION = '2026-10-08';
+  const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
   const ADMIN_SESSION_KEY = 'prr.adminPw'; // 管理画面と共通（このタブで管理画面にログインしている間は管理者モード）
   const ADMIN_ONLY = '管理者のみ';
   const STOPPED = '使用停止';
@@ -506,6 +561,13 @@
     detail: null,
     skipConflicts: false,
     adminPw: sessionGet(ADMIN_SESSION_KEY),
+    cache: new Map(),     // 期間（"from|to"）→ { res, at }  取得済みの予約データ
+    cacheGen: 0,          // キャッシュを破棄した回数（破棄前に始まった取得結果を保存しないため）
+    inflight: new Map(),  // 取得中の期間 → Promise
+    shownKey: '',         // いま表示しているデータの表示形式と期間
+    pending: [],          // 楽観的に画面へ反映した新規予約 { r, status: 'sending' | 'done' }
+    hidden: new Map(),    // 楽観的に画面から消した予約 id → 予約日
+    lastError: '',
   };
 
   // ---------------- 汎用 ----------------
@@ -569,6 +631,7 @@
 
   let toastTimer;
   function toast(message, type, ms) {
+    if (type === 'error') state.lastError = `${new Date().toLocaleString('ja-JP')} ${message}`;
     const el = $('toast');
     el.textContent = message;
     el.className = 'toast show' + (type === 'error' ? ' error' : '');
@@ -623,31 +686,55 @@
     return { from: state.date, to: state.date };
   }
 
+  // ---------------- 予約データの取得とキャッシュ ----------------
+  function rangeKey(r) { return `${r.from}|${r.to}`; }
+
+  /** GAS から期間の予約データを取得してキャッシュに入れる（同じ期間を取得中なら、その結果を共用する） */
+  function fetchRange(range, force) {
+    const key = rangeKey(range);
+    if (!force && state.inflight.has(key)) return state.inflight.get(key);
+    const gen = state.cacheGen;
+    const p = api('getSchedule', range).then((res) => {
+      if (!res || !res.ok) throw new Error(res && res.message);
+      if (gen === state.cacheGen) state.cache.set(key, { res, at: Date.now() });
+      return res;
+    });
+    state.inflight.set(key, p);
+    p.catch(() => {}).then(() => { if (state.inflight.get(key) === p) state.inflight.delete(key); });
+    return p;
+  }
+
+  /** 指定した日を含むキャッシュを捨てる（日付を省略するとすべて） */
+  function invalidate(dates) {
+    state.cacheGen++;
+    for (const key of [...state.cache.keys()]) {
+      const [from, to] = key.split('|');
+      if (!dates || dates.some((d) => d >= from && d <= to)) state.cache.delete(key);
+    }
+  }
+
+  /**
+   * いまの表示に必要なデータを表示する。キャッシュがあれば通信せずに即座に描画する。
+   * @param {{force?:boolean, then?:Function}} opts force: キャッシュを使わず取り直す
+   */
   async function load(opts) {
+    opts = opts || {};
     const seq = ++state.seq;
     const range = currentRange();
+    const key = rangeKey(range);
+    const hit = state.cache.get(key);
+    if (!opts.force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      document.body.classList.remove('loading');
+      show(hit, key);
+      afterShow(opts);
+      return;
+    }
     document.body.classList.add('loading');
     try {
-      const res = await api('getSchedule', range);
+      const res = await fetchRange(range, opts.force);
       if (seq !== state.seq) return; // 表示切替を連続で行った場合は古い応答を捨てる
-      if (!res || !res.ok) throw new Error(res && res.message);
-      const keyChanged = !state.data || state.data.from !== res.from || state.data.view !== state.view;
-      res.view = state.view;
-      state.data = res;
-      state.settings = res.settings;
-      state.rooms = res.rooms;
-      applySettings();
-      render();
-      if (keyChanged) scrollToNow();
-      const n = new Date();
-      $('statusText').textContent = `${n.getHours()}:${pad(n.getMinutes())} 更新`;
-      if (!load_(LS.hinted, false) && state.view !== 'month') {
-        save_(LS.hinted, true);
-        const touchDevice = window.matchMedia && matchMedia('(pointer: coarse)').matches;
-        toast(touchDevice ? '空いている所をタップして予約できます（長押ししてなぞると時間を指定）'
-          : '空いている所をクリック、またはドラッグして予約できます', 'info', 7000);
-      }
-      if (opts && opts.then) opts.then();
+      show(state.cache.get(key) || { res, at: Date.now() }, key);
+      afterShow(opts);
     } catch (e) {
       if (seq === state.seq && !(e instanceof AuthError)) {
         toast(errMessage(e), 'error');
@@ -656,6 +743,48 @@
     } finally {
       if (seq === state.seq) document.body.classList.remove('loading');
     }
+  }
+
+  function show(entry, key) {
+    const res = entry.res;
+    const shownKey = `${state.view}|${key}`;
+    const keyChanged = state.shownKey !== shownKey;
+    state.shownKey = shownKey;
+    state.data = res;
+    state.settings = res.settings;
+    state.rooms = res.rooms;
+    // サーバーの台帳に反映された楽観的更新を片付ける
+    const ids = new Set(res.reservations.map((r) => r.id));
+    state.pending = state.pending.filter((p) => p.status === 'sending' || !ids.has(p.r.id));
+    for (const [id, date] of state.hidden) if (date >= res.from && date <= res.to && !ids.has(id)) state.hidden.delete(id);
+    applySettings();
+    render();
+    if (keyChanged) scrollToNow();
+    const t = new Date(entry.at);
+    $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
+  }
+
+  function afterShow(opts) {
+    if (opts.then) opts.then();
+    prefetchNext();
+  }
+
+  /** 一覧表示では翌日分を裏で取得しておき、「翌日」を押したときにすぐ表示できるようにする */
+  function prefetchNext() {
+    if (state.view !== 'day') return;
+    const next = addDays(state.date, 1);
+    const hit = state.cache.get(rangeKey({ from: next, to: next }));
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) return;
+    fetchRange({ from: next, to: next }).catch(() => { /* 先読みの失敗は無視（表示時に取り直す） */ });
+  }
+
+  /** 表示中の予約（サーバーのデータ + 送信中・確定直後の予約 − 取消中の予約） */
+  function visibleReservations() {
+    const { from, to, reservations } = state.data;
+    const ids = new Set(reservations.map((r) => r.id));
+    const list = reservations.filter((r) => !state.hidden.has(r.id));
+    for (const p of state.pending) if (p.r.date >= from && p.r.date <= to && !ids.has(p.r.id)) list.push(p.r);
+    return list;
   }
 
   function applySettings() {
@@ -790,9 +919,10 @@
         const cls = (date === today ? ' today' : '') + (weekday(date) === 0 && date !== state.data.from ? ' week-start' : '');
         rows.push({ date, room, label: `<span class="nm ${dayClass(date)}">${esc(mdLabel(date))}</span>`, cls });
       }
-      corner = room ? esc(roomText(room)) : '';
+      corner = '日付 ＼ 時刻'; // 部屋名は上の部屋選択欄に表示している
     }
 
+    const all = visibleReservations();
     let html = `<div class="tl"><div class="tl-head"><div class="tl-corner">${corner}</div><div class="tl-scale">`;
     const nowHourShown = state.view === 'day' && state.data.from === today;
     for (let h = t0; h < t1; h += 60) {
@@ -801,14 +931,18 @@
     html += '</div></div>';
 
     state.rows = rows.map((row, i) => {
-      const reservations = state.data.reservations
+      const reservations = all
         .filter((r) => r.date === row.date && r.roomId === row.room.id)
         .sort((a, b) => a.start.localeCompare(b.start));
       const closures = closuresFor(row.date, row.room.id);
       const busy = reservations.map((r) => [toMin(r.start), toMin(r.end)]).concat(closures.map((c) => [c.start, c.end]));
       const stopped = row.room.restriction === STOPPED;
 
-      html += `<div class="tl-row${row.cls}"><div class="tl-label">${row.label}</div>` +
+      // 一覧では部屋名を押すと、その部屋の部屋別表示（この日から1か月分）へ移動する
+      const labelAttrs = state.view === 'day'
+        ? ` data-room="${esc(row.room.id)}" role="button" tabindex="0" title="${esc(roomText(row.room))} の予約を1か月分表示"`
+        : '';
+      html += `<div class="tl-row${row.cls}"><div class="tl-label"${labelAttrs}>${row.label}</div>` +
         `<div class="tl-track${stopped ? ' stopped' : ''}" data-i="${i}">`;
       if (open > t0) html += `<div class="blk off" style="${span(t0, open)}"></div>`;
       if (close < t1) html += `<div class="blk off" style="${span(close, t1)}"></div>`;
@@ -824,20 +958,59 @@
         const cls = ['blk', 'res'];
         if (Object.prototype.hasOwnProperty.call(mine, r.id)) cls.push('mine');
         if (r.date < today || (r.date === today && toMin(r.end) <= now)) cls.push('ended');
-        const title = `${hm(r.start)}〜${hm(r.end)} ${r.affiliation} ${r.name}${r.memo ? '（' + r.memo + '）' : ''}`;
+        if (r.pending) cls.push('mine', 'pending'); // 送信中の予約も自分の予約の色で表示する
+        const title = `${hm(r.start)}〜${hm(r.end)} ${personText(r)}${r.memo ? '　' + r.memo : ''}${r.pending ? '（送信中）' : ''}`;
+        // 予約者名を太字で先に、学籍番号/所属は2行目に細字で
         html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}" title="${esc(title)}">` +
-          `<b>${r.groupId ? '↻' : ''}${esc(r.affiliation)}</b><span>${esc(r.name)}</span></div>`;
+          `<b>${r.groupId ? '↻' : ''}${esc(r.name)}</b>${r.affiliation ? `<span>${esc(r.affiliation)}</span>` : ''}</div>`;
       }
       html += '</div></div>';
       return { date: row.date, roomId: row.room.id, stopped, busy };
     });
     html += '</div>';
     if (!rows.length) html += `<p class="empty">${state.rooms.length ? '該当する部屋がありません。' : '部屋が登録されていません（部屋マスタを確認してください）。'}</p>`;
+    const touchDevice = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    html += footHtml(touchDevice ? '空いている所をタップして予約（長押ししてなぞると時間を指定）' : '空いている所をクリック、またはドラッグして予約');
     $('main').innerHTML = html;
+    fitLabelColumn();
   }
 
+  /** 予約表の下端（操作の案内・不具合報告） */
+  function footHtml(text) {
+    return `<p class="main-foot"><span>${esc(text)}</span><button type="button" class="link-btn" data-bug>不具合を報告</button></p>`;
+  }
+
+  /**
+   * 部屋名（日付）の列幅を、いちばん長い表示内容にぴったり合わせる。極端に長い名前は上限幅で折り返す。
+   * 画面が広いときは、時間軸を画面の右端まで広げる。
+   */
+  function fitLabelColumn() {
+    const tl = $('main').querySelector('.tl');
+    if (!tl) return;
+    tl.classList.add('measuring');
+    let max = 0;
+    for (const el of tl.querySelectorAll('.tl-corner, .tl-label')) max = Math.max(max, el.offsetWidth);
+    tl.classList.remove('measuring');
+    if (max < 40) return; // 画面が非表示などで計測できないときは既定の幅のまま
+    const cap = window.innerWidth <= 600 ? 140 : 240;
+    const labelW = Math.min(cap, Math.ceil(max) + 2);
+    tl.style.setProperty('--label-w', `${labelW}px`);
+    tl.style.removeProperty('--hour-w');
+    const base = parseFloat(getComputedStyle(tl).getPropertyValue('--hour-w')) || 96;
+    const hours = state.geo ? state.geo.total / 60 : 15;
+    // 1時間の幅は偶数px にして、30分の線が半端な位置でぼやけたり消えたりしないようにする
+    const fit = Math.floor(($('main').clientWidth - labelW - 1) / hours / 2) * 2;
+    if (fit > base) tl.style.setProperty('--hour-w', `${fit}px`);
+  }
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitLabelColumn, 150);
+  });
+
   function renderMonth() {
-    const { from, to, reservations } = state.data;
+    const { from, to } = state.data;
+    const reservations = visibleReservations();
     const month = state.date.slice(0, 7);
     const today = todayStr();
     const roomId = state.roomId;
@@ -871,7 +1044,7 @@
       }
       html += '</div>';
     }
-    $('main').innerHTML = html + '</div>';
+    $('main').innerHTML = html + '</div>' + footHtml('日付を押すと、その日の一覧を表示します');
   }
 
   function scrollToNow() {
@@ -1016,11 +1189,17 @@
     const blk = e.target.closest('.blk.res');
     if (blk) { openDetail(blk.dataset.id); return; }
     const cell = e.target.closest('.mc');
-    if (cell) { state.date = cell.dataset.date; setView('day'); }
+    if (cell) { state.date = cell.dataset.date; setView('day'); return; }
+    const label = e.target.closest('.tl-label[data-room]');
+    if (label) {
+      state.roomId = label.dataset.room;
+      save_(LS.room, state.roomId);
+      setView('room');
+    }
   });
   $('main').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const el = e.target.closest('.blk.res, .mc');
+    const el = e.target.closest('.blk.res, .mc, .tl-label[data-room]');
     if (el) { e.preventDefault(); el.click(); }
   });
 
@@ -1050,7 +1229,7 @@
     const s = state.settings;
     const edit = o.mode === 'edit';
     const r = o.reservation;
-    state.booking = { mode: o.mode, id: r ? r.id : null };
+    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null };
     $('bTitle').textContent = edit ? '予約の変更' : '新規予約';
     $('bSubmit').textContent = edit ? '変更を保存' : '予約確定';
 
@@ -1077,20 +1256,20 @@
     $('bPerson').value = edit ? r.name : (profile.name || '');
     $('bMemo').value = edit ? r.memo : '';
     $('bPin').value = edit ? (o.pin || '') : (profile.pin || '');
-    // 変更時: 暗証番号のない予約・管理者モードでは暗証番号欄を出さない
+    // 変更時: 編集用パスワードのない予約・管理者モードでは編集用パスワード欄を出さない
     $('bPinField').hidden = edit && (!r.hasPin || isAdminMode());
-    $('bPinLabel').textContent = edit ? '暗証番号（予約時に設定した4桁）' : 'キャンセル用暗証番号（任意・4桁の数字）';
+    $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（任意・4桁の数字）';
     $('bPinHint').hidden = edit;
     $('bHint').hidden = edit;
 
-    $('bRepeatBox').hidden = edit;
+    // くり返し予約・複数部屋の同時予約は、管理者モードか、管理者が全員に許可しているときだけ出す
+    const showBulk = !edit && (isAdminMode() || !s.bulkRequiresAdmin);
+    $('bRepeatBox').hidden = !showBulk;
     $('bRepeat').checked = false;
     $('bRepeatArea').hidden = true;
     $('bInterval').value = '7';
     $('bUntil').value = addDays(date, 7 * 14);
-    $('bMultiBox').hidden = edit;
-    // まとめて予約が管理者限定の設定なら、選ぶ前から分かるように表示する
-    for (const n of document.querySelectorAll('#bookDialog .admin-note')) n.hidden = !s.bulkRequiresAdmin || isAdminMode();
+    $('bMultiBox').hidden = !showBulk;
     $('bMulti').checked = false;
     $('bMultiArea').hidden = true;
     state.extraRooms = new Set();
@@ -1100,8 +1279,9 @@
     resetConflicts();
     updateBookingUi();
     $('bookDialog').showModal();
-    const firstEmpty = ['bAff', 'bPerson'].find((id) => !$(id).value);
-    if (firstEmpty && !o.silentFocus) $(firstEmpty).focus();
+    // 新規予約は学籍番号欄から入力できるようにする。
+    // 変更時は入力欄に触れない（iPhoneでは部屋の選択肢やキーボードが勝手に開いてしまうため、見出しを選択状態にしている）
+    if (!edit) $('bAff').focus();
   }
 
   function updateBookingUi() {
@@ -1239,10 +1419,9 @@
     };
     if (!payload.date) return fail('日付を指定してください。', 'bDate');
     if (toMin(payload.end) <= toMin(payload.start)) return fail('終了は開始より後にしてください。', 'bEndH');
-    if (!payload.affiliation) return fail('学籍番号 / 所属を入力してください。', 'bAff');
-    if (!payload.name) return fail('氏名を入力してください。', 'bPerson');
-    if (!edit && payload.pin && !/^\d{4}$/.test(payload.pin)) return fail('暗証番号は4桁の数字で入力してください（設定しない場合は空欄）。', 'bPin');
-    if (edit && !$('bPinField').hidden && !payload.pin) return fail('暗証番号を入力してください。', 'bPin');
+    if (!payload.name) return fail('氏名・団体名・授業名を入力してください。', 'bPerson');
+    if (!edit && payload.pin && !/^\d{4}$/.test(payload.pin)) return fail('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。', 'bPin');
+    if (edit && !$('bPinField').hidden && !payload.pin) return fail('編集用パスワードを入力してください。', 'bPin');
 
     if (!$('bAdminField').hidden) {
       if (!$('bAdmin').value) return fail('管理用パスワードを入力してください。', 'bAdmin');
@@ -1255,6 +1434,21 @@
     if (!edit && $('bRepeat').checked && !dates.length) return fail('最終日を正しく指定してください。', 'bUntil');
     if (bulk && total > s.maxBulkCount) return fail(`まとめて予約は最大${s.maxBulkCount}件までです（今回${total}件）。部屋か期間を減らしてください。`);
     if (!edit) save_(LS.profile, { affiliation: payload.affiliation, name: payload.name, pin: payload.pin }); // 予約確定時にこの端末へ保存
+
+    // 1件の新規予約は、サーバーの結果を待たずに画面へ反映する（失敗したら元に戻す）
+    if (!edit && !bulk) {
+      if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
+        const clash = visibleReservations().find((r) => r.date === payload.date && r.roomId === payload.roomId &&
+          toMin(r.start) < toMin(payload.end) && toMin(payload.start) < toMin(r.end));
+        if (clash) return fail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
+        // 休館・定休日と重なる時間は、画面に反映せずにその場で知らせる
+        const closed = closuresFor(payload.date, payload.roomId)
+          .find((c) => c.start < toMin(payload.end) && toMin(payload.start) < c.end);
+        if (closed) return fail(`${hm(toHHMM(closed.start))}〜${hm(toHHMM(closed.end))} は利用できません（${closed.reason}）。`);
+      }
+      createOptimistic(payload);
+      return;
+    }
 
     const btn = $('bSubmit');
     const label = btn.textContent;
@@ -1272,9 +1466,10 @@
         if (!edit) addMine(list);
         $('bookDialog').close();
         const skipped = res.skipped && res.skipped.length ? `（予約できなかった${res.skipped.length}件を除く）` : '';
-        toast(edit ? '予約を変更しました' : bulk ? `${list.length}件予約しました${skipped}` : '予約しました');
+        toast(edit ? '予約を変更しました' : `${list.length}件予約しました${skipped}`);
+        invalidate(list.map((r) => r.date).concat(edit ? [state.booking.origDate] : []));
         if (!edit && list[0].date !== state.date && state.view === 'day') setDate(list[0].date);
-        else load();
+        else load({ force: true });
         return;
       }
       if (res && res.code === 'PARTIAL_CONFLICT') {
@@ -1287,7 +1482,7 @@
         return;
       }
       err.textContent = (res && res.message) || '処理に失敗しました。';
-      if (res && res.code === 'CONFLICT') load();
+      if (res && res.code === 'CONFLICT') { invalidate([payload.date]); load({ force: true }); }
       btn.textContent = label;
     } catch (ex) {
       if (!(ex instanceof AuthError)) err.textContent = errMessage(ex);
@@ -1296,16 +1491,60 @@
     btn.disabled = false;
   }
 
+  /** 新規予約（1件）を楽観的に反映してから送信する。失敗したら表示を戻し、入力内容を残したまま予約画面を開き直す。 */
+  async function createOptimistic(payload) {
+    const temp = Object.assign({}, payload, { id: `tmp_${Date.now()}`, groupId: '', hasPin: !!payload.pin, pending: true });
+    delete temp.pin;
+    delete temp.adminPassword;
+    const entry = { r: temp, status: 'sending' };
+    state.pending.push(entry);
+    $('bookDialog').close();
+    if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
+    else if (state.data) render();
+    try {
+      const res = await api('createReservation', payload);
+      if (!res || !res.ok) {
+        throw Object.assign(new Error((res && res.message) || '予約できませんでした。'), { code: res && res.code });
+      }
+      // 確定した予約は、再取得で台帳のデータに現れるまでこのまま表示しておく
+      entry.r = res.reservation;
+      entry.status = 'done';
+      addMine([res.reservation]);
+      toast('予約しました');
+      invalidate([payload.date]);
+      if (state.data) render();
+      load({ force: true });
+    } catch (ex) {
+      state.pending = state.pending.filter((x) => x !== entry); // 画面を予約前の状態に戻す
+      if (state.data) render();
+      if (ex instanceof AuthError) return;
+      const message = errMessage(ex);
+      toast(message, 'error');
+      if (ex.code === 'CONFLICT') { invalidate([payload.date]); load({ force: true }); }
+      if (!anyDialogOpen()) {
+        openBooking({ mode: 'create', roomId: payload.roomId, date: payload.date, start: toMin(payload.start), end: toMin(payload.end) });
+        $('bAff').value = payload.affiliation;
+        $('bPerson').value = payload.name;
+        $('bMemo').value = payload.memo;
+        $('bPin').value = payload.pin;
+        $('bError').textContent = message;
+      }
+    }
+  }
+
   // ---------------- 詳細ダイアログ ----------------
+  function personText(r) { return r.affiliation ? `${r.name}（${r.affiliation}）` : r.name; }
+
   function openDetail(id) {
-    const r = state.data.reservations.find((x) => x.id === id);
+    const r = visibleReservations().find((x) => x.id === id);
     if (!r) return;
+    if (r.pending) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
     state.detail = r;
     const room = roomById(r.roomId);
     $('dRoom').textContent = room ? roomText(room) : r.roomId;
     $('dDate').textContent = fullDateLabel(r.date);
     $('dTime').textContent = `${hm(r.start)} 〜 ${hm(r.end)}（${durationLabel(toMin(r.end) - toMin(r.start))}）`;
-    $('dName').textContent = `${r.affiliation} ${r.name}`;
+    $('dName').textContent = personText(r);
     $('dMemo').textContent = r.memo;
     $('dMemo').hidden = $('dMemoDt').hidden = !r.memo;
     $('dError').textContent = '';
@@ -1313,7 +1552,7 @@
     const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
     const mine = isMine(r.id);
     const admin = isAdminMode();
-    // 暗証番号欄は「暗証番号が設定された予約」を管理者モード以外で操作するときだけ出す
+    // 編集用パスワード欄は「編集用パスワードが設定された予約」を管理者モード以外で操作するときだけ出す
     $('dOps').hidden = ended || admin || !r.hasPin;
     $('dEdit').hidden = $('dCancel').hidden = ended;
     $('dCancel').disabled = $('dEdit').disabled = false;
@@ -1323,8 +1562,7 @@
     if (ended) notes.push('この予約は終了しています。');
     if (r.groupId) notes.push('まとめて登録された予約（くり返し・複数部屋）の1件です。');
     if (mine) notes.push('この端末で作成した予約です。');
-    if (!ended && admin) notes.push('管理者モード: 暗証番号なしで変更・取消できます。');
-    else if (!ended && !r.hasPin) notes.push('暗証番号が設定されていないため、誰でも変更・取消できます。');
+    if (!ended && admin) notes.push('管理者モード: 編集用パスワードなしで変更・取消できます。');
     if (!admin && room && room.restriction === ADMIN_ONLY && !ended) notes.push('この部屋の予約の変更・取消は管理者のみ行えます。');
     $('dNote').hidden = !notes.length;
     $('dNote').textContent = notes.join(' ');
@@ -1334,40 +1572,53 @@
 
   function editFromDetail() {
     const pin = $('dPin').value.trim();
-    if (!$('dOps').hidden && !pin) { $('dError').textContent = '変更するには暗証番号を入力してください。'; $('dPin').focus(); return; }
+    if (!$('dOps').hidden && !pin) { $('dError').textContent = '変更するには編集用パスワードを入力してください。'; $('dPin').focus(); return; }
     $('detailDialog').close();
-    openBooking({ mode: 'edit', reservation: state.detail, pin, silentFocus: true });
+    openBooking({ mode: 'edit', reservation: state.detail, pin });
   }
 
   async function submitCancel(e) {
     e.preventDefault();
     const pin = $('dPin').value.trim();
     const err = $('dError');
-    if (!$('dOps').hidden && !pin) { err.textContent = '暗証番号を入力してください。'; $('dPin').focus(); return; }
+    if (!$('dOps').hidden && !pin) { err.textContent = '編集用パスワードを入力してください。'; $('dPin').focus(); return; }
     const series = !$('dSeriesArea').hidden && $('dSeries').checked;
     if (!confirm(series ? '同じまとめ予約のうち、この日以降の分をすべて取り消しますか？' : 'この予約を取り消しますか？')) return;
 
-    const id = state.detail.id;
-    const btn = $('dCancel');
-    btn.disabled = true;
-    btn.textContent = '処理中…';
-    err.textContent = '';
+    const r = state.detail;
+    const scope = series ? 'following' : 'single';
+    // サーバーの結果を待たずに画面から消す（失敗したら元に戻す）
+    const targets = series
+      ? visibleReservations().filter((x) => x.groupId === r.groupId && x.date >= r.date)
+      : [r];
+    targets.forEach((x) => state.hidden.set(x.id, x.date));
+    $('detailDialog').close();
+    render();
     try {
-      const res = await api('cancelReservation', { id, pin, scope: series ? 'following' : 'single' });
-      if (res && res.ok) {
-        removeMine(res.cancelledIds);
-        $('detailDialog').close();
-        toast(res.cancelledIds.length > 1 ? `${res.cancelledIds.length}件の予約を取り消しました` : '予約を取り消しました');
-        load();
-      } else {
-        err.textContent = (res && res.message) || '取り消しに失敗しました。';
-        if (res && res.code === 'NOT_FOUND') { removeMine([id]); load(); }
-      }
+      const res = await api('cancelReservation', { id: r.id, pin, scope });
+      if (!res || !res.ok) throw Object.assign(new Error((res && res.message) || '取り消しに失敗しました。'), { code: res && res.code });
+      removeMine(res.cancelledIds);
+      toast(res.cancelledIds.length > 1 ? `${res.cancelledIds.length}件の予約を取り消しました` : '予約を取り消しました');
+      invalidate(series ? undefined : [r.date]); // くり返し予約は他の日にもまたがるのですべて取り直す
+      load({ force: true });
     } catch (ex) {
-      if (!(ex instanceof AuthError)) err.textContent = errMessage(ex);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '取消';
+      targets.forEach((x) => state.hidden.delete(x.id)); // 画面を取消前の状態に戻す
+      if (ex instanceof AuthError) { render(); return; }
+      const message = errMessage(ex);
+      if (ex.code === 'NOT_FOUND') {
+        removeMine([r.id]);
+        toast(message);
+        invalidate([r.date]);
+        load({ force: true });
+        return;
+      }
+      render();
+      toast(message, 'error');
+      if (!anyDialogOpen()) {
+        openDetail(r.id);
+        $('dPin').value = pin;
+        $('dError').textContent = message;
+      }
     }
   }
 
@@ -1391,7 +1642,7 @@
         const room = res.rooms.find((x) => x.id === r.roomId);
         return `<li><button type="button" data-date="${r.date}" data-id="${esc(r.id)}">` +
           `<b>${esc(mdLabel(r.date))} ${esc(hm(r.start))}〜${esc(hm(r.end))}</b>` +
-          `<span>${esc(room ? roomText(room) : r.roomId)}　${esc(r.affiliation)} ${esc(r.name)}${r.groupId ? '　↻まとめ予約' : ''}</span></button></li>`;
+          `<span>${esc(room ? roomText(room) : r.roomId)}　${esc(personText(r))}${r.groupId ? '　↻まとめ予約' : ''}</span></button></li>`;
       }).join('') : '<li class="hint">予約はありません。</li>';
     } catch (e) {
       if (!(e instanceof AuthError)) list.innerHTML = `<li class="error">${esc(errMessage(e))}</li>`;
@@ -1422,7 +1673,8 @@
     state.viewKey = $('lPass').value;
     save_(LS.viewKey, state.viewKey);
     $('loginDialog').close();
-    load();
+    invalidate();
+    load({ force: true });
   });
   $('loginDialog').addEventListener('cancel', (e) => e.preventDefault());
 
@@ -1431,7 +1683,7 @@
   $('nextBtn').addEventListener('click', () => shift(1));
   $('todayBtn').addEventListener('click', () => setDate(todayStr()));
   $('datePicker').addEventListener('change', (e) => setDate(e.target.value));
-  $('refreshBtn').addEventListener('click', () => load());
+  $('refreshBtn').addEventListener('click', () => { invalidate(); load({ force: true }); });
   $('newBtn').addEventListener('click', () => {
     if (!state.settings) return;
     const date = state.view === 'day' && state.date >= todayStr() ? state.date : todayStr();
@@ -1479,8 +1731,57 @@
   }
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
-  setInterval(() => { if (!document.hidden && !anyDialogOpen() && !drag) load(); }, AUTO_REFRESH_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && !anyDialogOpen() && !drag && state.data) load(); });
+  setInterval(() => { if (!document.hidden && !anyDialogOpen() && !drag) load({ force: true }); }, AUTO_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !anyDialogOpen() && !drag && state.data) load({ force: true }); });
+
+  // ---------------- 不具合報告 ----------------
+  /** 報告に添える実行環境の情報 */
+  function collectEnv() {
+    let storage = 'ok';
+    try { localStorage.setItem('prr.test', '1'); localStorage.removeItem('prr.test'); } catch (e) { storage = '使用不可'; }
+    const viewName = { day: '一覧', room: '部屋別', month: 'カレンダー' }[state.view];
+    const room = state.view !== 'day' ? roomById(state.roomId) : null;
+    return {
+      appVersion: APP_VERSION,
+      reportedAt: new Date().toLocaleString('ja-JP'),
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      screen: `画面 ${screen.width}×${screen.height}（${window.devicePixelRatio}倍）/ 表示領域 ${window.innerWidth}×${window.innerHeight}`,
+      page: `${viewName} ${state.date}${room ? ' ' + roomText(room) : ''}`,
+      touch: !!(window.matchMedia && matchMedia('(pointer: coarse)').matches),
+      adminMode: isAdminMode(),
+      localStorage: storage,
+      profileSaved: !!load_(LS.profile, null),
+      myReservations: Object.keys(getMine()).length,
+      online: navigator.onLine,
+      lastError: state.lastError,
+    };
+  }
+  function openBug() {
+    $('bugMsg').value = '';
+    $('bugError').textContent = '';
+    $('bugEnv').textContent = Object.entries(collectEnv()).map(([k, v]) => `${k}: ${v}`).join('\n');
+    $('bugDialog').showModal();
+  }
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-bug]')) openBug(); });
+  $('bugForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = $('bugMsg').value.trim();
+    if (!message) { $('bugError').textContent = '内容を入力してください。'; $('bugMsg').focus(); return; }
+    const btn = $('bugSubmit');
+    btn.disabled = true;
+    $('bugError').textContent = '';
+    try {
+      const res = await api('submitBugReport', { message, contact: $('bugContact').value.trim(), env: collectEnv() });
+      if (!res || !res.ok) throw new Error((res && res.message) || '送信できませんでした。');
+      $('bugDialog').close();
+      toast('報告を送信しました。ご協力ありがとうございます。');
+    } catch (ex) {
+      if (!(ex instanceof AuthError)) $('bugError').textContent = errMessage(ex);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // ---------------- 起動 ----------------
   if (!['day', 'room', 'month'].includes(state.view)) state.view = 'day';

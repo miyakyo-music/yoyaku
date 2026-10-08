@@ -60,12 +60,16 @@
   h3 { font-size: 14px; margin: 0 0 8px; }
   .lead { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line-strong); margin-bottom: 16px; overflow-x: auto; }
-  .tabs button {
-    border: 0; background: none; padding: 10px 14px; cursor: pointer; white-space: nowrap; color: var(--muted);
-    border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 600;
+  /* タブの列: 下線は内側に描いて縦にはみ出さないようにし、狭い画面では横方向だけスクロールさせる */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 16px; box-shadow: inset 0 -1px 0 var(--line-strong);
+    overflow-x: auto; overflow-y: hidden; touch-action: pan-x; overscroll-behavior-x: contain; scrollbar-width: none;
   }
-  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button {
+    flex: none; border: 0; background: none; padding: 10px 14px; cursor: pointer; white-space: nowrap; color: var(--muted); font-weight: 600;
+  }
+  .tabs button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
   .tabs .dot { color: var(--danger); margin-left: 4px; }
 
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
@@ -146,7 +150,22 @@
   .empty { padding: 20px; text-align: center; color: var(--muted); }
   /* 時間帯の欄が出入りしても崩れないよう、各欄の幅を個別に決めて下端で揃える */
   .add-form { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
-  .add-form .f-date { flex: 0 0 160px; }
+  .add-form .f-date { flex: 0 0 160px; min-width: 0; }
+  /* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
+  input[type="date"].in, .field input[type="date"] {
+    -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%;
+    text-align: left; line-height: 36px;
+  }
+  input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+  /* 不具合報告 */
+  .bug-list { display: flex; flex-direction: column; gap: 10px; }
+  .bug { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .bug.done { opacity: .6; }
+  .bug-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .bug-head select { height: 30px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; font-size: 13px; margin-left: auto; }
+  .bug-msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+  .bug-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .bug details pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 11px; margin: 6px 0 0; }
   .add-form .f-room { flex: 1 1 160px; }
   .add-form .f-allday { flex: none; height: 38px; }
   .add-form .f-time { flex: 0 0 auto; }
@@ -198,6 +217,7 @@
         <button type="button" role="tab" data-tab="settings" aria-selected="false">利用時間・制限<span class="dot" id="dotSettings" hidden>●</span></button>
         <button type="button" role="tab" data-tab="closures" aria-selected="false">休館・利用停止</button>
         <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
+        <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合報告</button>
       </nav>
 
       <!-- 練習室 -->
@@ -281,6 +301,19 @@
           <div class="full"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
         </form>
         <p class="msg error" id="pwError"></p>
+      </div>
+
+      <!-- 不具合報告 -->
+      <div class="card" data-panel="bugs" hidden>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <h2 style="margin:0">不具合報告</h2>
+          <span class="spacer"></span>
+          <label class="check"><input type="checkbox" id="showDone">対応済みも表示</label>
+          <button type="button" class="btn small" id="bugReload">再読み込み</button>
+        </div>
+        <p class="lead" style="margin-top:6px">予約表の「不具合を報告」から送られた内容です（新しい順）。スプレッドシートの「不具合報告」シートにも記録されています。</p>
+        <p class="msg error" id="bugsError"></p>
+        <div class="bug-list" id="bugList"></div>
       </div>
     </section>
   </div>
@@ -659,8 +692,59 @@
     t.addEventListener('click', () => {
       for (const x of document.querySelectorAll('.tabs [data-tab]')) x.setAttribute('aria-selected', String(x === t));
       for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== t.dataset.tab;
+      if (t.dataset.tab === 'bugs') loadBugs();
     });
   }
+
+  // ---------------- 不具合報告 ----------------
+  let bugData = null;
+  async function loadBugs() {
+    $('bugsError').textContent = '';
+    $('bugList').innerHTML = '<p class="empty">読み込み中…</p>';
+    try {
+      const res = await api('adminGetBugReports', {});
+      if (!res.ok) throw new Error(res.message);
+      bugData = res;
+      renderBugs();
+    } catch (ex) {
+      $('bugList').innerHTML = '';
+      $('bugsError').textContent = errMessage(ex);
+    }
+  }
+  function renderBugs() {
+    const closed = ['対応済み', '対応しない'];
+    const list = bugData.reports.filter((b) => $('showDone').checked || closed.indexOf(b.status) < 0);
+    $('bugList').innerHTML = list.length ? list.map((b) => {
+      let env = b.env;
+      try { env = Object.entries(JSON.parse(b.env)).map(([k, v]) => `${k}: ${v}`).join('\n'); } catch (e) { /* そのまま表示 */ }
+      return `<div class="bug${closed.indexOf(b.status) >= 0 ? ' done' : ''}">
+        <div class="bug-head"><span>${esc(b.receivedAt)}</span><span>${esc(b.page)}</span>
+          <select data-bug-id="${esc(b.id)}" aria-label="状態">${bugData.statuses.map((st) => `<option${st === b.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select></div>
+        <div class="bug-msg">${esc(b.message)}</div>
+        ${b.contact ? `<div class="bug-meta">連絡先: ${esc(b.contact)}</div>` : ''}
+        <div class="bug-meta">${esc(b.screen)}</div>
+        <details><summary class="bug-meta">端末・環境の詳細</summary><pre>${esc(env)}</pre></details>
+      </div>`;
+    }).join('') : '<p class="empty">表示する報告はありません。</p>';
+  }
+  $('showDone').addEventListener('change', () => { if (bugData) renderBugs(); });
+  $('bugReload').addEventListener('click', loadBugs);
+  $('bugList').addEventListener('change', async (e) => {
+    const sel = e.target.closest('select[data-bug-id]');
+    if (!sel) return;
+    sel.disabled = true;
+    try {
+      const res = await api('adminSetBugStatus', { id: sel.dataset.bugId, status: sel.value });
+      if (!res.ok) throw new Error(res.message);
+      const b = bugData.reports.find((x) => x.id === sel.dataset.bugId);
+      if (b) b.status = sel.value;
+      renderBugs();
+      toast('状態を変更しました');
+    } catch (ex) {
+      $('bugsError').textContent = errMessage(ex);
+      sel.disabled = false;
+    }
+  });
   $('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });
   $('logoutBtn').addEventListener('click', () => {
     if ((state.dirty.rooms || state.dirty.settings) && !confirm('保存していない変更があります。ログアウトしますか？')) return;

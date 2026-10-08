@@ -22,24 +22,29 @@ const SHEETS = {
   closures: '休館・利用停止',
   settings: '設定',
   log: '操作ログ',
+  bugs: '不具合報告',
 };
 
 const HEADERS = {
-  reservations: ['予約ID', '予約日', '部屋ID', '開始時刻', '終了時刻', '学籍番号/所属', '氏名', '暗証番号', '作成日時', 'グループID', '備考', '更新日時'],
+  // 列の順番は変えないこと（台帳は列の位置で読み書きしている）
+  reservations: ['予約ID', '予約日', '部屋ID', '開始時刻', '終了時刻', '学籍番号/所属', '氏名・団体名', '編集用パスワード', '作成日時', 'まとめ予約ID', '備考', '更新日時'],
   rooms: ['表示順', '部屋ID', '部屋表示名', '設備区分', '予約制限', '備考', '特徴タグ'],
   closures: ['日付', '部屋ID（空欄=全室）', '開始時刻（空欄=終日）', '終了時刻', '理由'],
   settings: ['項目', '値', '説明'],
   log: ['日時', '操作', '予約ID', '予約日', '部屋ID', '時間', '予約者', '詳細'],
+  bugs: ['報告ID', '受付日時', '状態', '内容', '連絡先', '端末・ブラウザ', '画面サイズ', '表示していた画面', '環境情報（詳細）'],
 };
+
+const BUG_STATUSES = ['未対応', '対応中', '対応済み', '対応しない'];
 
 const SYSTEM = {
   TIMEZONE: 'Asia/Tokyo',
   LOCK_WAIT_MS: 10000,
   MAX_AFFILIATION_LENGTH: 30,
-  MAX_NAME_LENGTH: 20,
+  MAX_NAME_LENGTH: 50, // 英字の氏名や団体名も入るように長めにとる
   MAX_MEMO_LENGTH: 100,
   MAX_RANGE_DAYS: 42,
-  // 暗証番号・パスワードの総当たり対策
+  // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
   FAILURE_LOCK_SECONDS: 600,
 };
@@ -80,7 +85,7 @@ function doGet(e) {
 // ---------------------------------------------------------------------------
 
 /**
- * 期間内の予約・休館情報と部屋マスタ・設定を返す。暗証番号はクライアントへ返さない。
+ * 期間内の予約・休館情報と部屋マスタ・設定を返す。編集用パスワードはクライアントへ返さない。
  * @param {{from:string, to?:string, viewKey?:string}} p 日付は YYYY-MM-DD
  */
 function getSchedule(p) {
@@ -138,7 +143,7 @@ function createReservation(p) {
   const v = validateBooking_(ctx, p, admin.ok);
   if (v.error) return fail_(v.error);
   const r = v.value;
-  if (r.pin && !/^\d{4}$/.test(r.pin)) return fail_('暗証番号は4桁の数字で入力してください（設定しない場合は空欄）。');
+  if (r.pin && !/^\d{4}$/.test(r.pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
   const ruleError = checkDateRules_(ctx, r, admin.ok) || closureError_(ctx, r);
   if (ruleError) return fail_(ruleError);
 
@@ -187,7 +192,7 @@ function createBulkReservations(p) {
     if (v.error) return fail_(v.error);
     bases.push(v.value);
   }
-  if (bases[0].pin && !/^\d{4}$/.test(bases[0].pin)) return fail_('暗証番号は4桁の数字で入力してください（設定しない場合は空欄）。');
+  if (bases[0].pin && !/^\d{4}$/.test(bases[0].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
 
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
@@ -221,7 +226,7 @@ function createBulkReservations(p) {
 }
 
 /**
- * 予約内容（日付・部屋・時間・予約者・備考）を変更する。暗証番号または管理用パスワードで認証する。
+ * 予約内容（日付・部屋・時間・予約者・備考）を変更する。編集用パスワードまたは管理用パスワードで認証する。
  * @param {{id, pin, date, roomId, start, end, affiliation, name, memo, viewKey?}} p
  */
 function updateReservation(p) {
@@ -294,6 +299,50 @@ function cancelReservation(p) {
     log_(ctx.ss, auth.admin ? '取消（管理者）' : '取消', target,
       targets.length > 1 ? targets.length + '件（' + targets.map(t => t.date).join(', ') + '）' : '');
     return { ok: true, cancelledIds: targets.map(r => r.id) };
+  });
+}
+
+/**
+ * 不具合報告を受け付けて「不具合報告」シートに記録する。画像の添付は受け付けない。
+ * 閲覧パスワードが設定されていても送れるようにし、代わりに全体の送信数を制限する。
+ * @param {{message:string, contact?:string, env?:Object}} p
+ */
+function submitBugReport(p) {
+  p = p || {};
+  const message = String(p.message || '').trim();
+  const contact = String(p.contact || '').trim();
+  if (!message) return fail_('不具合の内容を入力してください。');
+  if (message.length > 2000) return fail_('内容は2000文字以内で入力してください。');
+  if (contact.length > 100) return fail_('連絡先は100文字以内で入力してください。');
+
+  const cache = CacheService.getScriptCache();
+  const count = Number(cache.get('bugreports') || 0);
+  if (count >= 30) return fail_('現在、報告が集中しています。しばらくしてから再度お試しください。');
+  cache.put('bugreports', String(count + 1), 600);
+
+  const env = p.env && typeof p.env === 'object' ? p.env : {};
+  const text = (v, max) => {
+    const t = String(v == null ? '' : v).slice(0, max);
+    return /^[=+\-@]/.test(t) ? ' ' + t : t; // 数式として解釈されないように
+  };
+  const id = newId_('bug');
+  const row = [
+    id,
+    nowStr_('yyyy-MM-dd HH:mm:ss'),
+    BUG_STATUSES[0],
+    text(message, 2000),
+    text(contact, 100),
+    text(env.userAgent, 400),
+    text(env.screen, 100),
+    text(env.page, 200),
+    text(JSON.stringify(env), 3000),
+  ];
+  return withLock_(() => {
+    const ss = getSpreadsheet_();
+    const sheet = ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs);
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+    SpreadsheetApp.flush();
+    return { ok: true, id: id };
   });
 }
 
@@ -496,6 +545,37 @@ function adminSaveClosures(p) {
   });
 }
 
+/** 不具合報告の一覧（新しい順、最大200件）。 */
+function adminGetBugReports(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const sheet = getSpreadsheet_().getSheetByName(SHEETS.bugs);
+  const rows = sheet ? readTable_(sheet, HEADERS.bugs.length) : [];
+  const reports = rows.filter(r => r[0].trim()).map(r => ({
+    id: r[0].trim(), receivedAt: r[1], status: r[2] || BUG_STATUSES[0], message: r[3], contact: r[4],
+    userAgent: r[5], screen: r[6], page: r[7], env: r[8],
+  })).reverse().slice(0, 200);
+  return { ok: true, reports: reports, statuses: BUG_STATUSES };
+}
+
+/** 不具合報告の状態（未対応・対応中・対応済み など）を変更する。 */
+function adminSetBugStatus(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const id = String(p.id || '');
+  const status = String(p.status || '');
+  if (BUG_STATUSES.indexOf(status) < 0) return fail_('状態の値が正しくありません。');
+  return withLock_(() => {
+    const sheet = getSpreadsheet_().getSheetByName(SHEETS.bugs);
+    const rows = sheet ? readTable_(sheet, 1) : [];
+    const idx = rows.findIndex(r => r[0].trim() === id);
+    if (idx < 0) return fail_('報告が見つかりません。');
+    sheet.getRange(idx + 2, 3, 1, 1).setValues([[status]]);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  });
+}
+
 /** 管理用パスワードを変更する（引き継ぎ時など）。 */
 function adminChangePassword(p) {
   const denied = requireAdmin_(p);
@@ -608,7 +688,12 @@ function setup() {
   const ss = getSpreadsheet_();
   ss.setSpreadsheetTimeZone(SYSTEM.TIMEZONE);
 
-  ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations).getRange('A:L').setNumberFormat('@');
+  const resSheet = ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations);
+  resSheet.getRange('A:L').setNumberFormat('@');
+  // 列名を整理した版に合わせて、台帳とアーカイブの見出しを書き換える（列の位置は同じなのでデータはそのまま）
+  ss.getSheets()
+    .filter(sh => sh.getName() === SHEETS.reservations || sh.getName().indexOf(SHEETS.reservations + '_') === 0)
+    .forEach(sh => sh.getRange(1, 1, 1, HEADERS.reservations.length).setValues([HEADERS.reservations]).setFontWeight('bold'));
 
   const rooms = ensureSheet_(ss, SHEETS.rooms, HEADERS.rooms);
   rooms.getRange('B:G').setNumberFormat('@');
@@ -631,6 +716,7 @@ function setup() {
   settings.setColumnWidth(1, 220).setColumnWidth(2, 160).setColumnWidth(3, 480);
 
   ensureSheet_(ss, SHEETS.log, HEADERS.log);
+  ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs).getRange('A:I').setNumberFormat('@');
 
   const blank = ss.getSheetByName('シート1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
@@ -747,9 +833,9 @@ function verifyAdmin_(password) {
 
 /**
  * 予約を変更・取消してよいか確認する。{admin:boolean} / {error}
- * - adminPassword（管理者モード）または暗証番号欄の管理用パスワード → 管理者として常に許可
- * - 暗証番号が設定されていない予約 → 誰でも許可
- * - 暗証番号が設定されている予約 → 一致すれば許可（連続誤入力で一時ロック）
+ * - adminPassword（管理者モード）または編集用パスワード欄の管理用パスワード → 管理者として常に許可
+ * - 編集用パスワードが設定されていない予約 → 誰でも許可
+ * - 編集用パスワードが設定されている予約 → 一致すれば許可（連続誤入力で一時ロック）
  */
 function checkPin_(target, pin, adminPassword) {
   if (adminPassword) {
@@ -760,20 +846,20 @@ function checkPin_(target, pin, adminPassword) {
   const stored = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
   if (code && stored && code === stored) return { admin: true };
   if (!target.pin) return { admin: false };
-  if (!code) return { error: 'この予約には暗証番号が設定されています。暗証番号を入力してください。' };
+  if (!code) return { error: 'この予約には編集用パスワードが設定されています。編集用パスワードを入力してください。' };
 
   const cache = CacheService.getScriptCache();
   const failKey = 'pinfail_' + target.id;
   const failures = Number(cache.get(failKey) || 0);
   if (failures >= SYSTEM.MAX_PIN_FAILURES) {
-    return { error: '暗証番号の誤入力が続いたため、この予約は一時的に操作できません。10分ほど待ってから再度お試しください。' };
+    return { error: '編集用パスワードの誤入力が続いたため、この予約は一時的に操作できません。10分ほど待ってから再度お試しください。' };
   }
   if (code === target.pin) {
     cache.remove(failKey);
     return { admin: false };
   }
   cache.put(failKey, String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS);
-  return { error: '暗証番号が一致しません。' };
+  return { error: '編集用パスワードが一致しません。' };
 }
 
 /** 予約内容の形式チェックと部屋の予約制限。{value} / {error} */
@@ -808,11 +894,12 @@ function validateBooking_(ctx, input, isAdmin) {
   if (!isAdmin && s.maxDurationMinutes && en - st > s.maxDurationMinutes) {
     return { error: '1回に予約できるのは' + durationText_(s.maxDurationMinutes) + 'までです。' };
   }
-  if (!value.affiliation || value.affiliation.length > SYSTEM.MAX_AFFILIATION_LENGTH) {
-    return { error: '学籍番号/所属を' + SYSTEM.MAX_AFFILIATION_LENGTH + '文字以内で入力してください。' };
+  // 学籍番号/所属は任意（団体名・授業名だけでの予約を認める）
+  if (value.affiliation.length > SYSTEM.MAX_AFFILIATION_LENGTH) {
+    return { error: '学籍番号/所属は' + SYSTEM.MAX_AFFILIATION_LENGTH + '文字以内で入力してください。' };
   }
   if (!value.name || value.name.length > SYSTEM.MAX_NAME_LENGTH) {
-    return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
+    return { error: '氏名・団体名・授業名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
   }
   if (value.memo.length > SYSTEM.MAX_MEMO_LENGTH) return { error: '備考は' + SYSTEM.MAX_MEMO_LENGTH + '文字以内で入力してください。' };
   // スプレッドシートで数式として解釈される先頭文字を拒否（数式インジェクション対策）
@@ -852,7 +939,7 @@ function findConflict_(rows, r, excludeId) {
 }
 
 function describe_(r) {
-  return hm_(r.start) + '〜' + hm_(r.end) + ' ' + r.affiliation + ' ' + r.name;
+  return hm_(r.start) + '〜' + hm_(r.end) + ' ' + (r.affiliation ? r.affiliation + ' ' : '') + r.name;
 }
 
 // ---------------------------------------------------------------------------
@@ -996,7 +1083,7 @@ function toPublic_(r) {
   return {
     id: r.id, date: r.date, roomId: r.roomId, start: r.start, end: r.end,
     affiliation: r.affiliation, name: r.name, memo: r.memo || '', groupId: r.groupId || '',
-    hasPin: !!r.pin, // 暗証番号そのものは返さない
+    hasPin: !!r.pin, // 編集用パスワードそのものは返さない
   };
 }
 
@@ -1009,7 +1096,7 @@ function appendRows_(sheet, rows) {
 function log_(ss, action, r, detail) {
   try {
     const sheet = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
-    const row = [nowStr_('yyyy-MM-dd HH:mm:ss'), action, r.id, r.date, r.roomId, r.start + '〜' + r.end, r.affiliation + ' ' + r.name, detail || r.memo || ''];
+    const row = [nowStr_('yyyy-MM-dd HH:mm:ss'), action, r.id, r.date, r.roomId, r.start + '〜' + r.end, (r.affiliation ? r.affiliation + ' ' : '') + r.name, detail || r.memo || ''];
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
   } catch (e) {
     console.error(e); // ログの失敗で予約処理自体は失敗させない
