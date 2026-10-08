@@ -894,7 +894,12 @@
 
     const eq = $('equipFilter');
     const kinds = [...new Set(state.rooms.map((r) => r.equipment).filter(Boolean))];
-    const curEq = load_(LS.filter, '');
+    // 入口の URL から来た直後だけ、限定公開の部屋の設備区分（例：演習室）で絞り込む（端末には記憶しない）。
+    // 記憶されている絞り込みが限定公開の部屋にしかない設備区分なら、次からは使わない
+    const limitedOnly = (k) => state.rooms.some((r) => r.equipment === k) && state.rooms.every((r) => r.equipment !== k || r.restriction === LIMITED);
+    let curEq = load_(LS.filter, '');
+    if (curEq && limitedOnly(curEq)) { curEq = ''; save_(LS.filter, ''); }
+    if (state.equipOnce) curEq = state.equipOnce;
     const allLabel = window.matchMedia && matchMedia('(max-width: 600px)').matches ? '全設備' : 'すべての設備'; // スマホでは欄が狭いので短く
     eq.innerHTML = `<option value="">${allLabel}</option>` + kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
     eq.value = kinds.includes(curEq) ? curEq : '';
@@ -2014,7 +2019,7 @@
     const counts = {};
     for (const r of rooms) if (r.restriction === LIMITED && r.equipment) counts[r.equipment] = (counts[r.equipment] || 0) + 1;
     const equip = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-    if (equip) save_(LS.filter, equip);
+    if (equip) state.equipOnce = equip;
     if (state.view !== 'day') { state.view = 'day'; save_(LS.view, 'day'); updateChrome(); }
   }
   $('limitedMode').addEventListener('click', () => {
@@ -2041,7 +2046,7 @@
     if (state.data) render();
   });
   for (const b of document.querySelectorAll('.tabs .btn')) b.addEventListener('click', () => setView(b.dataset.view));
-  $('equipFilter').addEventListener('change', (e) => { save_(LS.filter, e.target.value); if (state.data) render(); });
+  $('equipFilter').addEventListener('change', (e) => { state.equipOnce = null; save_(LS.filter, e.target.value); if (state.data) render(); });
   $('freeBtn').addEventListener('click', () => {
     state.freeNow = !state.freeNow;
     $('freeBtn').setAttribute('aria-pressed', String(state.freeNow));
