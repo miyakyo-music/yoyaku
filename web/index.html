@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>練習室予約</title>
 <style>
   :root {
@@ -361,7 +361,7 @@
 <body>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" hidden aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者モード</button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者モード</button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
       <div class="tools">
         <button type="button" class="btn" id="myBtn">自分の予約</button>
         <button type="button" class="btn primary" id="newBtn"><span class="lg">＋ 新規予約</span><span class="sm">＋予約</span></button>
@@ -524,6 +524,8 @@
   <div class="dialog-backdrop" id="dialogBackdrop"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
+<script src="api.js"></script>
 <script>
 (() => {
   'use strict';
@@ -652,24 +654,17 @@
   function removeMine(ids) { const mine = getMine(); ids.forEach((id) => delete mine[id]); save_(LS.mine, mine); }
 
   // ---------------- API呼び出し ----------------
-  const isGas = !!(window.google && google.script && google.script.run);
   class AuthError extends Error {}
-  function api(fn, payload) {
-    return new Promise((resolve, reject) => {
-      if (!isGas) { reject(new Error('この画面は Google Apps Script のウェブアプリとして開いてください。')); return; }
-      const body = Object.assign({}, payload, { viewKey: state.viewKey });
-      const adminOps = ['createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation'];
-      if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
-      google.script.run
-        .withSuccessHandler((res) => {
-          if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); reject(new AuthError(res.message)); return; }
-          if (res && !res.ok && state.adminPw && /管理用パスワード/.test(res.message || '')) {
-            exitAdminMode('管理者モードを終了しました（管理用パスワードが変更された可能性があります）。');
-          }
-          resolve(res);
-        })
-        .withFailureHandler(reject)[fn](body);
-    });
+  async function api(fn, payload) {
+    const body = Object.assign({}, payload, { viewKey: state.viewKey });
+    const adminOps = ['createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation'];
+    if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
+    const res = await callApi(fn, body); // web/api.js
+    if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); throw new AuthError(res.message); }
+    if (res && !res.ok && state.adminPw && /管理用パスワード/.test(res.message || '')) {
+      exitAdminMode('管理者モードを終了しました（管理用パスワードが変更された可能性があります）。');
+    }
+    return res;
   }
   function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
 
@@ -793,10 +788,6 @@
     document.title = s.title;
     $('notice').hidden = !s.notice;
     $('notice').textContent = s.notice || '';
-    if (s.appUrl) {
-      $('adminLink').href = s.appUrl + '?page=admin';
-      $('adminLink').hidden = false;
-    }
     $('adminMode').hidden = !isAdminMode();
 
     const eq = $('equipFilter');

@@ -1,6 +1,9 @@
 /**
  * 練習室予約システム — サーバー側（Google Apps Script）
  *
+ * 画面（web/）は GitHub Pages から配信し、このスクリプトは JSON を返す API としてだけ動く。
+ * ウェブアプリ（実行ユーザー: 自分 / アクセス: 全員）としてデプロイし、その URL を web/config.js に書く。
+ *
  * スプレッドシートに紐づく（コンテナバインド）スクリプトとして配置する。
  * 別ファイルのスプレッドシートを使う場合は、スクリプトプロパティ SPREADSHEET_ID にIDを設定する。
  *
@@ -68,20 +71,61 @@ const ROOM_RESTRICTIONS = { ADMIN_ONLY: '管理者のみ', STOPPED: '使用停�
 const WEEKDAYS = '日月火水木金土';
 
 // ---------------------------------------------------------------------------
-// Webアプリ エントリポイント
+// API の入口（ウェブアプリとしてデプロイする）
 // ---------------------------------------------------------------------------
 
-/** 予約表は ...exec、管理画面は ...exec?page=admin で開く */
-function doGet(e) {
-  const admin = !!(e && e.parameter && e.parameter.page === 'admin');
-  const title = loadSettings_(getSpreadsheet_()).title;
-  return HtmlService.createHtmlOutputFromFile(admin ? 'Admin' : 'Index')
-    .setTitle(admin ? title + '（管理画面）' : title)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+/** 画面とAPIの版。呼び出し方や応答の形を変えたら、web/api.js の API_VERSION と一緒に上げる */
+const API_VERSION = 1;
+
+/** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
+const API = {
+  getSchedule: getSchedule,
+  getReservationsByIds: getReservationsByIds,
+  createReservation: createReservation,
+  createBulkReservations: createBulkReservations,
+  updateReservation: updateReservation,
+  cancelReservation: cancelReservation,
+  submitBugReport: submitBugReport,
+  adminGetData: adminGetData,
+  adminSaveSettings: adminSaveSettings,
+  adminSaveRooms: adminSaveRooms,
+  adminSaveClosures: adminSaveClosures,
+  adminGetBugReports: adminGetBugReports,
+  adminSetBugStatus: adminSetBugStatus,
+  adminChangePassword: adminChangePassword,
+};
+
+/**
+ * 画面からの呼び出し口。本文は {"action": 処理名, "params": {...}} の JSON。
+ * CORS の事前確認を避けるため、画面側は Content-Type: text/plain で送ってくる。
+ * パスワード類を含むので、URL のパラメータ（doGet）では受け付けない。
+ */
+function doPost(e) {
+  let result;
+  try {
+    const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
+    result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
+  } catch (err) {
+    console.error(err);
+    result = fail_('サーバーでエラーが発生しました。時間をおいて再度お試しください。', 'SERVER_ERROR');
+  }
+  result = result || { ok: true };
+  result.apiVersion = API_VERSION;
+  return json_(result);
+}
+
+/** 動作確認用（ブラウザで URL を開くと、API が動いているかがわかる） */
+function doGet() {
+  return json_({ ok: true, service: '練習室予約API', apiVersion: API_VERSION, serverNow: nowStr_('yyyy-MM-dd HH:mm') });
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ---------------------------------------------------------------------------
-// 公開API（google.script.run から呼び出される。引数はすべて1つのオブジェクト）
+// 公開API（doPost から呼び出される。引数はすべて1つのオブジェクト）
 // ---------------------------------------------------------------------------
 
 /**
@@ -363,7 +407,6 @@ function adminGetData(p) {
     rooms: readRooms_(ss),
     closures: readClosures_(ss),
     unitOptions: UNIT_OPTIONS,
-    appUrl: appUrl_(),
     today: nowStr_('yyyy-MM-dd'),
   };
 }
@@ -658,14 +701,6 @@ function logAdmin_(ss, action, detail) {
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
   } catch (e) {
     console.error(e);
-  }
-}
-
-function appUrl_() {
-  try {
-    return ScriptApp.getService().getUrl() || '';
-  } catch (e) {
-    return '';
   }
 }
 
@@ -1070,7 +1105,6 @@ function loadSettings_(ss) {
 function publicSettings_(s) {
   const copy = Object.assign({}, s);
   copy.viewPasswordRequired = !!s.viewPassword;
-  copy.appUrl = appUrl_();
   delete copy.viewPassword;
   return copy;
 }

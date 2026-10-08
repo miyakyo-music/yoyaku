@@ -111,26 +111,30 @@
     }),
   };
   window.Logger = { log: console.log };
-  window.ScriptApp = { getService: () => ({ getUrl: () => location.origin + '/' }) };
 
-  // google.script.run の模擬。引数・戻り値はJSONで受け渡す（GASと同様に Date 等は渡せない）
-  const runner = (onSuccess, onFailure) => new Proxy({}, {
-    get(_, prop) {
-      if (prop === 'withSuccessHandler') return (fn) => runner(fn, onFailure);
-      if (prop === 'withFailureHandler') return (fn) => runner(onSuccess, fn);
-      return (...args) => setTimeout(() => {
-        try {
-          const result = window[prop](...JSON.parse(JSON.stringify(args)));
-          save();
-          if (onSuccess) onSuccess(result === undefined ? null : JSON.parse(JSON.stringify(result)));
-        } catch (e) {
-          book = JSON.parse(localStorage.getItem(KEY) || 'null') || book; // 失敗時は書き込みを破棄
-          if (onFailure) onFailure(e);
-        }
-      }, 200);
-    },
-  });
-  window.google = { script: { run: runner() } };
+  window.ContentService = {
+    MimeType: { JSON: 'application/json' },
+    createTextOutput: (text) => ({ setMimeType() { return this; }, getContent: () => text }),
+  };
+
+  // GAS ウェブアプリへの fetch を横取りし、Code.gs の doPost に渡す（本番と同じく本文は JSON 文字列）
+  const realFetch = window.fetch.bind(window);
+  window.fetch = (url, init) => {
+    if (String(url) !== window.GAS_API_URL) return realFetch(url, init);
+    return new Promise((resolve) => setTimeout(() => {
+      let text;
+      try {
+        text = window.doPost({ postData: { contents: init.body, type: 'text/plain' } }).getContent();
+        save();
+      } catch (e) {
+        console.error(e);
+        book = JSON.parse(localStorage.getItem(KEY) || 'null') || book;
+        resolve(new Response('<html>Error</html>', { status: 500 }));
+        return;
+      }
+      resolve(new Response(text, { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    }, 200));
+  };
 
   window.gasStub = {
     reset() { localStorage.removeItem(KEY); localStorage.removeItem(PROPS_KEY); location.reload(); },

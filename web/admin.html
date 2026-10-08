@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>管理画面</title>
 <style>
   :root {
@@ -195,7 +195,7 @@
     <h1>管理画面</h1>
     <span class="app-name" id="appName"></span>
     <span class="spacer"></span>
-    <a class="btn small" id="backLink" hidden>予約表に戻る</a>
+    <a class="btn small" id="backLink" href="./">予約表に戻る</a>
     <button type="button" class="btn small" id="logoutBtn" hidden>ログアウト</button>
   </header>
 
@@ -320,6 +320,8 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
+<script src="api.js"></script>
 <script>
 (() => {
   'use strict';
@@ -360,19 +362,10 @@
     toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
   }
 
-  function api(fn, payload) {
-    return new Promise((resolve, reject) => {
-      if (!(window.google && google.script && google.script.run)) {
-        reject(new Error('この画面は Google Apps Script のウェブアプリとして開いてください。'));
-        return;
-      }
-      google.script.run
-        .withSuccessHandler((res) => {
-          if (res && res.code === 'ADMIN_AUTH') { logout(res.message); reject(new Error(res.message)); return; }
-          resolve(res);
-        })
-        .withFailureHandler(reject)[fn](Object.assign({ adminPassword: state.pw }, payload));
-    });
+  async function api(fn, payload) {
+    const res = await callApi(fn, Object.assign({ adminPassword: state.pw }, payload)); // web/api.js
+    if (res && res.code === 'ADMIN_AUTH') { logout(res.message); throw new Error(res.message); }
+    return res;
   }
   function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
 
@@ -420,7 +413,7 @@
     $('adminView').hidden = false;
     $('logoutBtn').hidden = false;
     $('appName').textContent = d.settings.title;
-    if (d.appUrl) { $('backLink').href = d.appUrl; $('backLink').hidden = false; }
+    document.title = d.settings.title + '（管理画面）';
     state.rooms = d.rooms.map((r) => ({ ...r }));
     state.closures = d.closures.slice();
     renderRooms();
