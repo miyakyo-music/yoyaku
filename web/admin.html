@@ -106,7 +106,10 @@
 
   .savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
-  .copy-row { display: flex; gap: 6px; align-items: center; }
+  .copy-row, .pw-row { display: flex; gap: 6px; align-items: center; }
+  .pw-row input { flex: 1; min-width: 0; }
+  .pw-row .btn { height: 38px; flex: none; min-width: 56px; }
+  #viewPwBox summary { cursor: pointer; }
   .copy-row input { flex: 1; min-width: 0; color: var(--text); background: #f6f8fa; }
   .copy-row .btn { height: 38px; flex: none; }
   .msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-line; }
@@ -306,15 +309,26 @@
 
       <!-- パスワード -->
       <div class="card" data-panel="password" hidden>
-        <h2>限定公開・閲覧のパスワード</h2>
-        <p class="lead">管理用パスワードとは別のパスワードです。これを知っている人も、予約表の設定変更や他人の予約の取消はできません。</p>
-        <form id="accessForm" class="form-grid" novalidate>
-          <label class="field full">限定公開の部屋のパスワード<input id="sLimitedPw" maxlength="50" autocomplete="off" placeholder="空欄なら管理者以外は使えません"><span class="help">予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上）。使う人には、このパスワードと下の入口の URL を伝えてください。変更すると、記憶済みの端末でも表示されなくなります</span></label>
+        <h2>限定公開の部屋（演習室など）</h2>
+        <p class="lead">予約制限が「限定公開」の部屋を使う人（教員・音楽科の特定の学生・オケ幹部など）<b>にだけ</b>、このパスワードと入口の URL を伝えてください。管理用パスワードとは別物で、知っていても設定の変更や他人の予約の取消はできません。</p>
+        <form id="limitedForm" class="form-grid" novalidate>
+          <div class="field full">演習室などのパスワード（6文字以上）<div class="pw-row"><input id="sLimitedPw" class="in" type="password" maxlength="50" autocomplete="new-password" placeholder="空欄なら管理者以外は使えません"><button type="button" class="btn small" data-reveal="sLimitedPw">表示</button></div><span class="help">変更すると、記憶済みの端末でも表示されなくなります（新しいパスワードを伝え直してください）</span></div>
           <div class="field full">入口の URL<div class="copy-row"><input id="limitedUrl" class="in" readonly aria-label="限定公開の部屋の入口の URL"><button type="button" class="btn small" id="copyLimitedUrl">コピー</button></div></div>
-          <label class="field full">閲覧パスワード<input id="sViewPw" maxlength="50" autocomplete="off" placeholder="空欄なら誰でも閲覧・予約できます"><span class="help">設定すると、予約表を開くときにこのパスワードが必要になります（利用者の端末に記憶されます）</span></label>
-          <div class="full"><button type="submit" class="btn primary" id="accessBtn">保存</button></div>
+          <div class="full"><button type="submit" class="btn primary" id="limitedBtn">保存</button></div>
         </form>
-        <p class="msg error" id="accessError"></p>
+        <p class="msg error" id="limitedError"></p>
+      </div>
+
+      <div class="card" data-panel="password" hidden>
+        <details id="viewPwBox">
+          <summary><h2 style="display:inline">予約表全体の閲覧制限</h2> <span class="help">（通常は使いません）</span></summary>
+          <p class="lead">設定すると、<b>利用者全員</b>が予約表を開くときにこのパスワードの入力を求められます（利用者の端末に記憶されます）。学外に予約表を見せたくない場合などに使い、利用者全員に伝えてください。空欄なら誰でも閲覧・予約できます。</p>
+          <form id="viewPwForm" class="form-grid" novalidate>
+            <div class="field full">予約表全体のパスワード<div class="pw-row"><input id="sViewPw" class="in" type="password" maxlength="50" autocomplete="new-password" placeholder="空欄なら誰でも閲覧・予約できます"><button type="button" class="btn small" data-reveal="sViewPw">表示</button></div></div>
+            <div class="full"><button type="submit" class="btn primary" id="viewPwBtn">保存</button></div>
+          </form>
+          <p class="msg error" id="viewPwError"></p>
+        </details>
       </div>
 
       <div class="card" data-panel="password" hidden>
@@ -688,11 +702,24 @@
 
   // ---------------- パスワード ----------------
   function fillPasswords(s) {
-    $('sViewPw').value = s.viewPassword || '';
-    $('sLimitedPw').value = s.limitedPassword || '';
+    for (const [id, v] of [['sLimitedPw', s.limitedPassword], ['sViewPw', s.viewPassword]]) {
+      $(id).value = v || '';
+      reveal(id, false); // 開いたときは伏せ字に戻す
+    }
     $('limitedUrl').value = new URL('./?limited', location.href).href;
-    $('accessError').textContent = '';
+    $('viewPwBox').open = !!s.viewPassword; // 設定されているときだけ最初から開いておく
+    $('limitedError').textContent = '';
+    $('viewPwError').textContent = '';
   }
+  /** パスワード欄の表示・伏せ字を切り替える */
+  function reveal(id, show) {
+    $(id).type = show ? 'text' : 'password';
+    document.querySelector(`[data-reveal="${id}"]`).textContent = show ? '隠す' : '表示';
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-reveal]');
+    if (b) reveal(b.dataset.reveal, $(b.dataset.reveal).type === 'password');
+  });
   $('limitedUrl').addEventListener('focus', (e) => e.target.select());
   $('copyLimitedUrl').addEventListener('click', async () => {
     const input = $('limitedUrl');
@@ -704,27 +731,31 @@
     }
     toast('入口の URL をコピーしました');
   });
-  $('accessForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const err = $('accessError');
+  /** 保存済みの設定のうち、指定したパスワードだけを差し替えて保存する（「利用時間・制限」の未保存の変更は含めない） */
+  async function savePassword(key, inputId, btnId, errId, message) {
+    const err = $(errId);
     err.textContent = '';
-    // 保存済みの設定のうち、パスワードだけを差し替えて保存する（「利用時間・制限」の未保存の変更は含めない）
-    const settings = Object.assign({}, state.data.settings, {
-      viewPassword: $('sViewPw').value,
-      limitedPassword: $('sLimitedPw').value,
-    });
-    $('accessBtn').disabled = true;
+    const settings = Object.assign({}, state.data.settings, { [key]: $(inputId).value });
+    $(btnId).disabled = true;
     try {
       const res = await api('adminSaveSettings', { settings });
       if (!res.ok) throw new Error(res.message);
       state.data.settings = res.settings;
       fillPasswords(res.settings);
-      toast('パスワードを保存しました');
+      toast(message);
     } catch (ex) {
       err.textContent = errMessage(ex);
     } finally {
-      $('accessBtn').disabled = false;
+      $(btnId).disabled = false;
     }
+  }
+  $('limitedForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    savePassword('limitedPassword', 'sLimitedPw', 'limitedBtn', 'limitedError', '演習室などのパスワードを保存しました');
+  });
+  $('viewPwForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    savePassword('viewPassword', 'sViewPw', 'viewPwBtn', 'viewPwError', '予約表全体のパスワードを保存しました');
   });
   $('pwForm').addEventListener('submit', async (e) => {
     e.preventDefault();
