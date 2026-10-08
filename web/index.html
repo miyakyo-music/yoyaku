@@ -333,6 +333,11 @@
   /* 編集用パスワードは password 型にせず伏字表示にする（ブラウザのパスワード提案・保存の対象にしないため） */
   .pin-input { -webkit-text-security: disc; text-security: disc; letter-spacing: .1em; }
   .pin-input::placeholder { letter-spacing: normal; }
+  .pin-input.revealed { -webkit-text-security: none; text-security: none; }
+  /* パスワード欄と「表示」ボタン */
+  .pw-row { display: flex; gap: 6px; align-items: stretch; }
+  .pw-row input { flex: 1; min-width: 0; }
+  .pw-reveal { flex: none; height: auto; padding: 0 10px; font-size: 13px; }
   .hint { margin: 0; font-size: 12px; color: var(--muted); }
   .error { margin: 0; font-size: 13px; color: var(--danger); font-weight: 600; }
   .error:empty { display: none; }
@@ -369,14 +374,21 @@
       /* 4段にまとめる: タイトル・ボタン ／ お知らせ ／ 表示の切替・絞り込み ／ 日付の移動・日付 */
       grid-template-columns: auto minmax(0, 1fr);
       grid-template-areas:
-        "brand  tools"
-        "notice notice"
+        "head   head"
         "tabs   select"
         "nav    date";
     }
     .topbar .row { display: contents; }
-    .brand { grid-area: brand; }
-    .tools { grid-area: tools; justify-content: flex-end; }
+    /* 1段目（タイトル・ボタン・お知らせ）は表の列とは切り離し、ボタンの幅を確保してタイトル側を縮める */
+    .topbar .row:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; grid-area: head; min-width: 0; }
+    .brand { flex: 1 1 0; min-width: 0; overflow: hidden; }
+    .brand h1 { min-width: 0; flex: 0 1 auto; }
+    .admin-mode .lg { display: none; }
+    .brand { gap: 4px; }
+    .brand .admin-mode { font-size: 10px; padding: 1px 4px; }
+    .brand .admin-link { padding: 0 4px; }
+    .topbar { overflow-x: clip; } /* 万一はみ出しても、画面全体が横にずれないようにする */
+    .tools { flex: none; justify-content: flex-end; }
     .tools { gap: 4px; }
     .tools .btn { padding: 0 8px; }
     .tools .lg, .admin-link .lg { display: none; }
@@ -385,7 +397,7 @@
     .tl-label .nm { font-size: 12px; }
     .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
     .legend, .status #statusText { display: none; }
-    .notice-row { grid-area: notice; }
+    .notice-row { order: 3; flex: 1 0 100%; }
     .tools { margin-left: 0; }
     .selects { display: flex; }
     .selects select { flex: 1; }
@@ -409,7 +421,7 @@
 <body>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者モード</button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定公開</button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
       <div class="notice-row" id="noticeRow" hidden>
         <p class="notice" id="notice"></p>
         <button type="button" class="link-btn" data-bug>不具合を報告</button>
@@ -2106,6 +2118,10 @@
       else e.target.blur();
     });
   }
+
+  // パスワード欄に「表示」ボタンを付け、ダイアログを閉じたら伏せ字に戻す（web/api.js）
+  addRevealButtons(document);
+  for (const dlg of dialogs) dlg.addEventListener('close', () => hideSecrets(dlg));
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
   // ---------------- 自動更新（操作の邪魔をしない） ----------------

@@ -109,6 +109,7 @@
   .dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
   .copy-row, .pw-row { display: flex; gap: 6px; align-items: center; }
   .pw-row input { flex: 1; min-width: 0; }
+  .pw-reveal { flex: none; height: auto; padding: 0 10px; font-size: 13px; min-width: 56px; }
   .pw-row .btn { height: 38px; flex: none; min-width: 56px; }
   #viewPwBox summary { cursor: pointer; }
   .copy-row input { flex: 1; min-width: 0; color: var(--text); background: #f6f8fa; }
@@ -395,8 +396,8 @@
         <h2>管理用パスワードの変更</h2>
         <p class="lead">担当者の交代時などに変更してください。変更後は新しいパスワードで管理画面に入ります。</p>
         <form id="pwForm" class="form-grid" novalidate>
-          <label class="field">新しいパスワード（6文字以上）<input id="pwNew" type="password" autocomplete="new-password"></label>
-          <label class="field">新しいパスワード（確認）<input id="pwNew2" type="password" autocomplete="new-password"></label>
+          <label class="field m-full">新しいパスワード（6文字以上）<input id="pwNew" type="password" autocomplete="new-password"></label>
+          <label class="field m-full">新しいパスワード（確認）<input id="pwNew2" type="password" autocomplete="new-password"></label>
           <div class="full"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
         </form>
         <p class="msg error" id="pwError"></p>
@@ -505,6 +506,7 @@
     $('loginView').hidden = false;
     $('loginError').textContent = message || '';
     $('loginPw').value = '';
+    hideSecrets(document);
   }
 
   function showAdmin() {
@@ -533,6 +535,9 @@
   }
 
   // ---------------- 練習室 ----------------
+  // パスワード欄すべてに「表示」ボタンを付ける（web/api.js。演習室など・予約表全体のパスワードは専用のボタンがある）
+  addRevealButtons(document);
+
   // 説明文は PC では最初から開いておく（スマホでは畳んで、部屋の一覧を先に見せる）
   if (window.matchMedia && matchMedia('(min-width: 601px)').matches) $('roomsHowto').open = true;
 

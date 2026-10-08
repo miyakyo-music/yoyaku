@@ -67,4 +67,40 @@
     if (data && data.apiVersion !== API_VERSION) warnVersion();
     return data;
   };
+
+  // ---------------- パスワード欄の「表示」ボタン（予約表・管理画面で共通） ----------------
+  /** 欄の中身を見せる／伏せる */
+  window.setSecretShown = function (input, shown) {
+    if (input.classList.contains('pin-input')) input.classList.toggle('revealed', shown);
+    else input.type = shown ? 'text' : 'password';
+    const btn = input.parentNode.querySelector('.pw-reveal');
+    if (btn) { btn.textContent = shown ? '隠す' : '表示'; btn.setAttribute('aria-pressed', String(shown)); }
+  };
+  /** root の中のパスワード欄すべてに「表示」ボタンを付ける（付いているものは飛ばす） */
+  window.addRevealButtons = function (root) {
+    for (const input of (root || document).querySelectorAll('input[type="password"], input.pin-input')) {
+      if (input.closest('.pw-row')) continue;
+      input.dataset.secret = '1';
+      const wrap = document.createElement('span');
+      wrap.className = 'pw-row';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn pw-reveal';
+      btn.textContent = '表示';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.setAttribute('aria-label', 'パスワードを表示');
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); // ラベルの中にあっても、欄へのフォーカス移動などを起こさない
+        const shown = input.classList.contains('pin-input') ? !input.classList.contains('revealed') : input.type === 'password';
+        window.setSecretShown(input, shown);
+      });
+      wrap.appendChild(btn);
+    }
+  };
+  /** root の中のパスワード欄をすべて伏せ字に戻す */
+  window.hideSecrets = function (root) {
+    for (const input of (root || document).querySelectorAll('.pw-row input[data-secret]')) window.setSecretShown(input, false);
+  };
 })();
