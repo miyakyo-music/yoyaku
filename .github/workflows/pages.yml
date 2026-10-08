@@ -25,9 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      # ブラウザのキャッシュに古い config.js / api.js が残らないよう、公開のたびに読み込み先を変える
-      - name: スクリプトの URL に版を付ける
-        run: sed -i -E "s/src=\"(config|api)\.js\"/src=\"\1.js?v=${GITHUB_SHA::8}\"/" web/*.html && grep -h 'src="[a-z]*\.js' web/*.html
+      # ブラウザのキャッシュに古い config.js / api.js やアイコンが残らないよう、公開のたびに読み込み先を変える
+      - name: スクリプト・アイコンの URL に版を付ける
+        run: |
+          sed -i -E "s/src=\"(config|api)\.js\"/src=\"\1.js?v=${GITHUB_SHA::8}\"/" web/*.html
+          sed -i -E "s/href=\"(favicon\.svg|favicon-32\.png|apple-touch-icon\.png)\"/href=\"\1?v=${GITHUB_SHA::8}\"/" web/*.html
+          grep -hE '(src|href)="[a-z0-9-]*\.(js|svg|png)' web/*.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
