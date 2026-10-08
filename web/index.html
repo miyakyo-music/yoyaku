@@ -64,6 +64,10 @@
   @media (hover: hover) { .admin-link:hover { color: var(--accent); border-color: var(--accent); } }
   .status { font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
   .notice { margin: 0; padding: 6px 10px; border-radius: 8px; background: #fff7e0; color: #6b4e00; font-size: 13px; }
+  /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
+  .notice-row { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
+  .notice-row .notice { flex: 0 1 auto; min-width: 0; }
+  .notice-row [data-bug] { margin-left: auto; white-space: nowrap; }
   .btn {
     height: 34px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px;
     background: var(--surface); cursor: pointer; white-space: nowrap;
@@ -233,6 +237,7 @@
     position: sticky; left: 0; margin: 0; padding: 10px 12px 16px; font-size: 12px; color: var(--muted);
     display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
   }
+  .main-foot [data-bug] { margin-left: auto; } /* 不具合報告は右下 */
   .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
   /* ---------- カレンダー（月表示） ---------- */
@@ -356,7 +361,7 @@
     .tl-label .nm { font-size: 12px; }
     .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
     .legend, .status #statusText { display: none; }
-    .notice { grid-area: notice; }
+    .notice-row { grid-area: notice; }
     .tabs { grid-area: tabs; display: flex; }
     .tabs .btn { flex: 1; }
     .nav { grid-area: nav; display: flex; }
@@ -380,7 +385,10 @@
         <button type="button" class="btn" id="refreshBtn" aria-label="更新"><span class="lg">更新</span><span class="sm">↻</span></button>
       </div>
     </div>
-    <p class="notice" id="notice" hidden></p>
+    <div class="notice-row" id="noticeRow" hidden>
+      <p class="notice" id="notice"></p>
+      <button type="button" class="link-btn" data-bug>不具合を報告</button>
+    </div>
     <div class="row">
       <div class="seg tabs" role="tablist">
         <button type="button" class="btn" data-view="day" aria-pressed="true">一覧</button>
@@ -407,7 +415,6 @@
         <span><i class="sw res"></i>予約済み</span>
         <span><i class="sw mine"></i>この端末の予約</span>
         <span><i class="sw closed"></i>利用不可</span>
-        <button type="button" class="link-btn" data-bug>不具合を報告</button>
       </span>
     </div>
   </header>
@@ -741,13 +748,17 @@
       afterShow(opts);
       return;
     }
-    document.body.classList.add('loading');
+    // 自動更新（opts.background）は裏で取得し、画面を薄くしない
+    if (!opts.background) document.body.classList.add('loading');
     try {
       const res = await fetchRange(range, opts.force);
       if (seq !== state.seq) return; // 表示切替を連続で行った場合は古い応答を捨てる
-      show(state.cache.get(key) || { res, at: Date.now() }, key);
+      const entry = state.cache.get(key) || { res, at: Date.now() };
+      if (opts.background) { showInBackground(entry, key, seq); return; }
+      show(entry, key);
       afterShow(opts);
     } catch (e) {
+      if (opts.background) return; // 自動更新の失敗は知らせない（次の更新で取り直す）
       if (seq === state.seq && !(e instanceof AuthError)) {
         toast(errMessage(e), 'error');
         if (!state.data) $('main').innerHTML = `<p class="empty">${esc(errMessage(e))}</p>`;
@@ -774,6 +785,25 @@
     if (keyChanged) scrollToNow();
     const t = new Date(entry.at);
     $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
+  }
+
+  /**
+   * 自動更新の結果を反映する。内容が変わっていなければ描き直さず、
+   * 操作中（スクロール・タップ・ピンチ・入力など）なら、操作が終わるまで待ってから描き直す。
+   */
+  function showInBackground(entry, key, seq) {
+    const sig = (r) => JSON.stringify([r.reservations, r.closures, r.rooms, r.settings]);
+    if (state.data && state.shownKey === `${state.view}|${key}` && sig(entry.res) === sig(state.data)) {
+      const t = new Date(entry.at);
+      $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
+      return;
+    }
+    const tryShow = () => {
+      if (seq !== state.seq) return; // その間に別の日付・表示へ移った
+      if (userBusy()) { setTimeout(tryShow, 500); return; }
+      show(entry, key);
+    };
+    tryShow();
   }
 
   function afterShow(opts) {
@@ -803,7 +833,8 @@
     const s = state.settings;
     $('title').textContent = s.title;
     document.title = s.title;
-    $('notice').hidden = !s.notice;
+    // お知らせがあるときは「不具合を報告」をその横に、ないときは予約表の右下に置く
+    $('noticeRow').hidden = !s.notice;
     $('notice').textContent = s.notice || '';
     $('adminMode').hidden = !isAdminMode();
 
@@ -986,7 +1017,7 @@
   /** 予約表の下端（操作の案内・不具合報告） */
   function footHtml(text, zoomable) {
     const reset = zoomable ? `<button type="button" class="link-btn" data-zoom-reset${state.zoom === 1 ? ' hidden' : ''}>幅をリセット</button>` : '';
-    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${reset}<button type="button" class="link-btn" data-bug>不具合を報告</button></p>`;
+    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${reset}${state.settings && state.settings.notice ? '' : '<button type="button" class="link-btn" data-bug>不具合を報告</button>'}</p>`;
   }
 
   /**
@@ -1837,8 +1868,22 @@
   }
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
-  setInterval(() => { if (!document.hidden && !anyDialogOpen() && !drag) load({ force: true }); }, AUTO_REFRESH_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && !anyDialogOpen() && !drag && state.data) load({ force: true }); });
+  // ---------------- 自動更新（操作の邪魔をしない） ----------------
+  const IDLE_MS = 3000; // 最後の操作からこの時間が過ぎるまでは、画面を描き直さない
+  let lastActive = 0;
+  for (const type of ['pointerdown', 'pointermove', 'touchstart', 'touchmove', 'wheel', 'scroll', 'keydown', 'input']) {
+    window.addEventListener(type, () => { lastActive = Date.now(); }, { capture: true, passive: true });
+  }
+  /** 操作中か（指やマウスで触れている・ダイアログを開いている・直前に操作した） */
+  function userBusy() {
+    return !!(touch || pinch || mouse || drag) || anyDialogOpen() || Date.now() - lastActive < IDLE_MS;
+  }
+  setInterval(() => {
+    if (!document.hidden && state.data && !userBusy()) load({ force: true, background: true });
+  }, AUTO_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.data && !anyDialogOpen()) load({ force: true, background: true });
+  });
 
   // ---------------- 不具合報告 ----------------
   /** 報告に添える実行環境の情報 */
