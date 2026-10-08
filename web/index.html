@@ -977,10 +977,7 @@
     });
     html += '</div>';
     if (!rows.length) html += `<p class="empty">${state.rooms.length ? '該当する部屋がありません。' : '部屋が登録されていません（部屋マスタを確認してください）。'}</p>`;
-    const touchDevice = window.matchMedia && matchMedia('(pointer: coarse)').matches;
-    html += footHtml(touchDevice
-      ? '空いている所をタップして予約（長押ししてなぞると時間を指定）。2本指で広げる・縮めると時間軸の幅を変えられます'
-      : '空いている所をクリック、またはドラッグして予約。Ctrlキー＋ホイール（トラックパッドではピンチ）で時間軸の幅を変えられます', true);
+    html += footHtml('', true);
     $('main').innerHTML = html;
     $('main').classList.add('has-tl');
     fitLabelColumn();
@@ -988,8 +985,8 @@
 
   /** 予約表の下端（操作の案内・不具合報告） */
   function footHtml(text, zoomable) {
-    const reset = zoomable ? `<button type="button" class="link-btn" data-zoom-reset${state.zoom === 1 ? ' hidden' : ''}>時間軸の幅を元に戻す</button>` : '';
-    return `<p class="main-foot"><span>${esc(text)}</span>${reset}<button type="button" class="link-btn" data-bug>不具合を報告</button></p>`;
+    const reset = zoomable ? `<button type="button" class="link-btn" data-zoom-reset${state.zoom === 1 ? ' hidden' : ''}>幅をリセット</button>` : '';
+    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${reset}<button type="button" class="link-btn" data-bug>不具合を報告</button></p>`;
   }
 
   /**
@@ -1817,6 +1814,25 @@
   for (const dlg of dialogs) {
     dlg.addEventListener('click', (e) => {
       if ((e.target === dlg && dlg.id !== 'loginDialog') || (e.target.hasAttribute && e.target.hasAttribute('data-close'))) dlg.close();
+    });
+  }
+
+  // 入力欄で改行キー（iPhone のキーボードの「改行」も含む）を押しても送信しない。
+  // 予約・取消・不具合報告は、ボタンを押したときだけ送信する（入力途中で予約が確定してしまうのを防ぐ）。
+  // 予約画面では次の入力欄へ移り、最後の欄ではキーボードを閉じる。
+  for (const form of [$('bookForm'), $('detailForm'), $('bugForm')]) {
+    const fields = () => [...form.querySelectorAll('input:not([type=checkbox]):not([type=radio]), select, textarea')]
+      .filter((el) => !el.disabled && el.offsetParent !== null);
+    for (const el of form.querySelectorAll('input:not([type=checkbox]):not([type=radio])')) el.enterKeyHint = 'next';
+    for (const id of ['bPin', 'bAdmin', 'dPin', 'bugContact']) $(id).enterKeyHint = 'done';
+    form.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || ['checkbox', 'radio'].includes(e.target.type)) return;
+      if (e.isComposing || e.keyCode === 229) return; // 日本語入力の変換確定
+      e.preventDefault();
+      const list = fields().filter((el) => el.tagName === 'INPUT' && el.type !== 'date'); // 日付欄に移ると選択画面が開くので飛ばす
+      const next = list[list.indexOf(e.target) + 1];
+      if (next && form.id === 'bookForm') next.focus();
+      else e.target.blur();
     });
   }
 
