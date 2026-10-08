@@ -106,6 +106,9 @@
 
   .savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
+  .copy-row { display: flex; gap: 6px; align-items: center; }
+  .copy-row input { flex: 1; min-width: 0; color: var(--text); background: #f6f8fa; }
+  .copy-row .btn { height: 38px; flex: none; }
   .msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-line; }
   .msg.error { background: #fff0f0; color: var(--danger); font-weight: 600; }
   .msg.warn { background: var(--warn-bg); color: var(--warn-text); }
@@ -306,7 +309,8 @@
         <h2>限定公開・閲覧のパスワード</h2>
         <p class="lead">管理用パスワードとは別のパスワードです。これを知っている人も、予約表の設定変更や他人の予約の取消はできません。</p>
         <form id="accessForm" class="form-grid" novalidate>
-          <label class="field full">限定公開の部屋のパスワード<input id="sLimitedPw" maxlength="50" autocomplete="off" placeholder="空欄なら管理者以外は使えません"><span class="help">予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上）。使う人には、このパスワードと入口の URL（<code id="limitedUrl"></code>）を伝えてください。変更すると、記憶済みの端末でも表示されなくなります</span></label>
+          <label class="field full">限定公開の部屋のパスワード<input id="sLimitedPw" maxlength="50" autocomplete="off" placeholder="空欄なら管理者以外は使えません"><span class="help">予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上）。使う人には、このパスワードと下の入口の URL を伝えてください。変更すると、記憶済みの端末でも表示されなくなります</span></label>
+          <div class="field full">入口の URL<div class="copy-row"><input id="limitedUrl" class="in" readonly aria-label="限定公開の部屋の入口の URL"><button type="button" class="btn small" id="copyLimitedUrl">コピー</button></div></div>
           <label class="field full">閲覧パスワード<input id="sViewPw" maxlength="50" autocomplete="off" placeholder="空欄なら誰でも閲覧・予約できます"><span class="help">設定すると、予約表を開くときにこのパスワードが必要になります（利用者の端末に記憶されます）</span></label>
           <div class="full"><button type="submit" class="btn primary" id="accessBtn">保存</button></div>
         </form>
@@ -686,9 +690,20 @@
   function fillPasswords(s) {
     $('sViewPw').value = s.viewPassword || '';
     $('sLimitedPw').value = s.limitedPassword || '';
-    $('limitedUrl').textContent = new URL('./?limited', location.href).href;
+    $('limitedUrl').value = new URL('./?limited', location.href).href;
     $('accessError').textContent = '';
   }
+  $('limitedUrl').addEventListener('focus', (e) => e.target.select());
+  $('copyLimitedUrl').addEventListener('click', async () => {
+    const input = $('limitedUrl');
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch (e) {
+      input.select(); // クリップボードを使えない環境では選択だけして、手動でコピーしてもらう
+      document.execCommand && document.execCommand('copy');
+    }
+    toast('入口の URL をコピーしました');
+  });
   $('accessForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = $('accessError');
