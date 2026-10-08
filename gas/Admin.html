@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>管理画面</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --text: #1f2933;
+    --muted: #66727f;
+    --line: #e3e7ec;
+    --line-strong: #b8c1cb;
+    --accent: #2563eb;
+    --accent-weak: #e8f0ff;
+    --danger: #cf3f3f;
+    --warn-bg: #fff7e0;
+    --warn-text: #6b4e00;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { overflow-x: auto; }
+  body {
+    margin: 0; min-width: 320px; /* これより狭い画面では画面全体を横スクロール */
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+    font-size: 14px; -webkit-text-size-adjust: 100%;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--accent); }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--line);
+    padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  h1 { font-size: 17px; margin: 0; }
+  .app-name { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 80px; }
+
+  .btn {
+    height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px;
+    background: var(--surface); cursor: pointer; white-space: nowrap; text-decoration: none;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  @media (hover: hover) { .btn:hover { background: #f3f5f8; } .btn.primary:hover { background: #1d4fd0; } }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.small { height: 30px; padding: 0 10px; font-size: 13px; }
+  .btn.icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+  .btn.danger-text { color: var(--danger); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .card + .card { margin-top: 16px; }
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  h3 { font-size: 14px; margin: 0 0 8px; }
+  .lead { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line-strong); margin-bottom: 16px; overflow-x: auto; }
+  .tabs button {
+    border: 0; background: none; padding: 10px 14px; cursor: pointer; white-space: nowrap; color: var(--muted);
+    border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 600;
+  }
+  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabs .dot { color: var(--danger); margin-left: 4px; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .field input, .field select, input.in, select.in {
+    height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+    font-size: 16px; /* 16px未満だとiOS Safariでフォーカス時に画面が拡大される */
+    color: var(--text); background: var(--surface); width: 100%; min-width: 0;
+  }
+  input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .help { font-size: 12px; color: var(--muted); }
+  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  /* 時刻・数値の欄は内容に合った固定幅にし、単位（分・回など）はすぐ横に置く */
+  .time { display: flex; align-items: center; gap: 4px; color: var(--text); }
+  .time select { flex: none; width: 76px; }
+  .suffix { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; font-size: 14px; }
+  .suffix input, .suffix select { flex: none; width: 110px; }
+  .weekdays { display: flex; flex-wrap: wrap; gap: 6px; }
+  .weekdays label, .check {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer;
+  }
+  .weekdays label { border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; }
+  .weekdays input, .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+
+  .savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
+  .msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-line; }
+  .msg.error { background: #fff0f0; color: var(--danger); font-weight: 600; }
+  .msg.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .msg:empty { display: none; }
+
+  /* 部屋: 1部屋 = 1行（狭い画面では2段に折り返す） */
+  .rooms { display: flex; flex-direction: column; gap: 8px; }
+  /* 見出し行と各行は同じ列幅定義を使い、列位置を一致させる（すべて上端揃え） */
+  .room, .rooms-head {
+    display: grid; gap: 8px;
+    grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.3fr) 124px minmax(0, 1fr) 112px;
+  }
+  .room { align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  .room.new { border-color: #9cc0f5; background: #f7faff; }
+  .room .no { color: var(--muted); font-size: 12px; text-align: right; line-height: 38px; }
+  .room .ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 3px; }
+  .rooms-head { padding: 0 9px 4px; font-size: 12px; color: var(--muted); }
+  /* 1行に並べると欄が狭くなる幅では2段、スマホ幅では4段にする */
+  .room .lbl { display: none; }
+  @media (max-width: 900px) {
+    .rooms-head { display: none; }
+    .room {
+      grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas: "no name tags eq" "no restr note ops";
+    }
+    .room .no { grid-area: no; padding-top: 16px; } /* ラベル分下げて入力欄と同じ高さに */
+    .room .c-name { grid-area: name; }
+    .room .c-tags { grid-area: tags; }
+    .room .c-eq { grid-area: eq; }
+    .room .c-restr { grid-area: restr; }
+    .room .c-note { grid-area: note; }
+    .room .ops { grid-area: ops; padding-top: 19px; }
+    .room .lbl { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  }
+  @media (max-width: 600px) {
+    .room {
+      grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas: "no name name" "no tags tags" "no eq restr" "no note note" "no ops ops";
+    }
+    .room .ops { padding-top: 0; }
+  }
+
+  /* 休館・利用停止の一覧（狭い画面では表を横スクロール） */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
+  th { background: #f7f8fa; color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.reason { white-space: normal; min-width: 140px; }
+  tr.past td { color: #9aa3ad; }
+  .sat { color: #2563eb; }
+  .sun { color: var(--danger); }
+  .empty { padding: 20px; text-align: center; color: var(--muted); }
+  /* 時間帯の欄が出入りしても崩れないよう、各欄の幅を個別に決めて下端で揃える */
+  .add-form { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+  .add-form .f-date { flex: 0 0 160px; }
+  .add-form .f-room { flex: 1 1 160px; }
+  .add-form .f-allday { flex: none; height: 38px; }
+  .add-form .f-time { flex: 0 0 auto; }
+  .add-form .f-time select { width: 64px; flex: none; }
+  .add-form .f-reason { flex: 2 1 180px; }
+  .add-form .f-submit { flex: none; height: 38px; }
+
+  .login { max-width: 380px; margin: 40px auto; }
+  .login form { display: flex; flex-direction: column; gap: 14px; }
+  .login .btn.primary { align-self: flex-end; min-width: 120px; height: 40px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+    background: #1f2933; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .card { padding: 14px; }
+    .wrap { padding: 12px 12px 80px; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>管理画面</h1>
+    <span class="app-name" id="appName"></span>
+    <span class="spacer"></span>
+    <a class="btn small" id="backLink" hidden>予約表に戻る</a>
+    <button type="button" class="btn small" id="logoutBtn" hidden>ログアウト</button>
+  </header>
+
+  <div class="wrap">
+    <!-- ログイン -->
+    <section class="card login" id="loginView">
+      <form id="loginForm" novalidate>
+        <h2>管理者ログイン</h2>
+        <p class="lead">管理用パスワードを入力してください。ログイン状態はこのタブを閉じると解除されます。</p>
+        <label class="field">管理用パスワード<input id="loginPw" type="password" autocomplete="current-password"></label>
+        <p class="msg error" id="loginError"></p>
+        <button type="submit" class="btn primary" id="loginBtn">ログイン</button>
+      </form>
+    </section>
+
+    <section id="adminView" hidden>
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="rooms" aria-selected="true">練習室<span class="dot" id="dotRooms" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="settings" aria-selected="false">利用時間・制限<span class="dot" id="dotSettings" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="closures" aria-selected="false">休館・利用停止</button>
+        <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
+      </nav>
+
+      <!-- 練習室 -->
+      <div class="card" data-panel="rooms">
+        <h2>練習室の追加・削除・編集</h2>
+        <p class="lead">
+          並び順は予約表の表示順です（↑↓で入れ替え）。「特徴タグ」は部屋名の下にタグで表示されます（「・」区切りで複数可。例：大・GP）。<br>
+          同じ部屋名（例：練習室6）の部屋は、予約時に「まとめて選択」できます。「設備区分」は予約表の絞り込みに使います。<br>
+          予約制限:「管理者のみ」= 予約・変更・取消に管理用パスワードが必要 ／「使用停止」= 予約不可（故障・改修中など）。<br>
+          今日以降の予約が残っている部屋は削除できません。その場合は「使用停止」にしてください。
+        </p>
+        <div class="rooms-head"><span></span><span>部屋名</span><span>特徴タグ</span><span>設備区分（絞り込み用）</span><span>予約制限</span><span>備考</span><span></span></div>
+        <div class="rooms" id="roomList"></div>
+        <datalist id="equipList"></datalist>
+        <div class="savebar">
+          <button type="button" class="btn" id="addRoomBtn">＋ 部屋を追加</button>
+          <span class="spacer"></span>
+          <span class="dirty" id="roomsDirty" hidden>未保存の変更があります</span>
+          <button type="button" class="btn primary" id="saveRoomsBtn">保存</button>
+        </div>
+        <p class="msg error" id="roomsError"></p>
+      </div>
+
+      <!-- 利用時間・制限 -->
+      <div class="card" data-panel="settings" hidden>
+        <h2>利用時間・予約の制限</h2>
+        <p class="lead">保存すると、利用者の画面には次回の更新（最大1分後）から反映されます。既に入っている予約は自動では取り消されません。</p>
+        <form id="settingsForm" class="form-grid" novalidate>
+          <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
+          <label class="field full">お知らせ（予約表の上部に表示。空欄なら非表示）<input id="sNotice" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません"></label>
+          <div class="field">利用開始時刻<div class="time"><select id="sOpenH" class="in"></select>:<select id="sOpenM" class="in"></select></div></div>
+          <div class="field">利用終了時刻<div class="time"><select id="sCloseH" class="in"></select>:<select id="sCloseM" class="in"></select></div></div>
+          <label class="field">予約単位<span class="suffix"><select id="sUnit" class="in"></select>分</span><span class="help">予約の開始・終了時刻をこの単位で指定します</span></label>
+          <label class="field">1回の最大予約時間<span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span><span class="help">0 = 制限なし（管理者は制限を受けません）</span></label>
+          <label class="field">予約受付期間<span class="suffix">今日から<input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span><span class="help">0 = 制限なし（管理者は制限を受けません）</span></label>
+          <label class="field">まとめて予約の最大件数<span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span><span class="help">くり返し予約・複数部屋の同時予約の合計（部屋数×日数）</span></label>
+          <div class="field full">定休日（曜日）<div class="weekdays" id="sWeekdays"></div></div>
+          <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約（くり返し・複数部屋の同時予約）は管理者（管理用パスワードを知っている人）のみ</label></div>
+          <label class="field full">閲覧パスワード<input id="sViewPw" maxlength="50" autocomplete="off" placeholder="空欄なら誰でも閲覧・予約できます"><span class="help">設定すると、予約表を開くときにこのパスワードが必要になります（利用者の端末に記憶されます）</span></label>
+        </form>
+        <div class="savebar">
+          <span class="spacer"></span>
+          <span class="dirty" id="settingsDirty" hidden>未保存の変更があります</span>
+          <button type="button" class="btn primary" id="saveSettingsBtn">保存</button>
+        </div>
+        <p class="msg error" id="settingsError"></p>
+        <p class="msg warn" id="settingsWarn"></p>
+      </div>
+
+      <!-- 休館・利用停止 -->
+      <div class="card" data-panel="closures" hidden>
+        <h2>休館・利用停止</h2>
+        <p class="lead">調律・入試・清掃などで予約を受け付けない日時を登録します。追加・削除はすぐに保存されます。既に入っている予約は自動では取り消されません。</p>
+        <h3>追加</h3>
+        <form id="closureForm" class="add-form" novalidate>
+          <label class="field f-date">日付<input id="cDate" type="date"></label>
+          <label class="field f-room">対象<select id="cRoom"></select></label>
+          <label class="check f-allday"><input type="checkbox" id="cAllDay" checked>終日</label>
+          <div class="field f-time" id="cTimeField" hidden>時間帯<div class="time"><select id="cStartH" class="in"></select>:<select id="cStartM" class="in"></select>〜<select id="cEndH" class="in"></select>:<select id="cEndM" class="in"></select></div></div>
+          <label class="field f-reason">理由<input id="cReason" maxlength="50" placeholder="例：ピアノ調律"></label>
+          <button type="submit" class="btn primary f-submit" id="addClosureBtn">追加</button>
+        </form>
+        <p class="msg error" id="closureError"></p>
+        <p class="msg warn" id="closureWarn"></p>
+        <div style="display:flex;align-items:center;margin:18px 0 8px"><h3 style="margin:0">登録済み</h3><span class="spacer"></span><label class="check"><input type="checkbox" id="showPast">過去の分も表示</label></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>日付</th><th>対象</th><th>時間帯</th><th>理由</th><th></th></tr></thead>
+            <tbody id="closureList"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- パスワード -->
+      <div class="card" data-panel="password" hidden>
+        <h2>管理用パスワードの変更</h2>
+        <p class="lead">担当者の交代時などに変更してください。変更後は新しいパスワードで管理画面に入ります。</p>
+        <form id="pwForm" class="form-grid" novalidate>
+          <label class="field">新しいパスワード（6文字以上）<input id="pwNew" type="password" autocomplete="new-password"></label>
+          <label class="field">新しいパスワード（確認）<input id="pwNew2" type="password" autocomplete="new-password"></label>
+          <div class="full"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
+        </form>
+        <p class="msg error" id="pwError"></p>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SESSION_KEY = 'prr.adminPw';
+  const WEEKDAYS = '日月火水木金土';
+  const RESTRICTIONS = [['', '制限なし'], ['管理者のみ', '管理者のみ'], ['使用停止', '使用停止']];
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    pw: sessionGet(),
+    data: null,
+    rooms: [],       // 編集中の部屋一覧
+    closures: [],
+    dirty: { rooms: false, settings: false },
+  };
+
+  // ---------------- 汎用 ----------------
+  function sessionGet() { try { return sessionStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
+  function sessionSet(v) { try { if (v) sessionStorage.setItem(SESSION_KEY, v); else sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* 保存できない環境では毎回ログイン */ } }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function toMin(t) { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; }
+  function toHHMM(min) { return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`; }
+  function hm(t) { return String(t).replace(/^0(\d)/, '$1'); }
+  function dateLabel(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    const w = new Date(y, m - 1, d).getDay();
+    return { text: `${y}/${m}/${d}（${WEEKDAYS[w]}）`, cls: w === 6 ? 'sat' : w === 0 ? 'sun' : '' };
+  }
+  let toastTimer;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
+  }
+
+  function api(fn, payload) {
+    return new Promise((resolve, reject) => {
+      if (!(window.google && google.script && google.script.run)) {
+        reject(new Error('この画面は Google Apps Script のウェブアプリとして開いてください。'));
+        return;
+      }
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.code === 'ADMIN_AUTH') { logout(res.message); reject(new Error(res.message)); return; }
+          resolve(res);
+        })
+        .withFailureHandler(reject)[fn](Object.assign({ adminPassword: state.pw }, payload));
+    });
+  }
+  function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
+
+  function timeSelects(hSel, mSel, maxHour) {
+    hSel.innerHTML = '';
+    for (let h = 0; h <= maxHour; h++) hSel.add(new Option(String(h), String(h)));
+    mSel.innerHTML = '';
+    for (let m = 0; m < 60; m += 5) mSel.add(new Option(pad(m), String(m)));
+  }
+  function setTime(hSel, mSel, t) { const m = toMin(t); hSel.value = String(Math.floor(m / 60)); mSel.value = String(m % 60); }
+  function getTime(hSel, mSel) { return toHHMM(Number(hSel.value) * 60 + Number(mSel.value)); }
+
+  // ---------------- ログイン ----------------
+  async function login(pw) {
+    state.pw = pw;
+    $('loginBtn').disabled = true;
+    $('loginError').textContent = '';
+    try {
+      const res = await api('adminGetData', {});
+      if (!res.ok) throw new Error(res.message);
+      sessionSet(pw);
+      state.data = res;
+      showAdmin();
+    } catch (e) {
+      $('loginError').textContent = errMessage(e);
+      state.pw = '';
+    } finally {
+      $('loginBtn').disabled = false;
+    }
+  }
+
+  function logout(message) {
+    state.pw = '';
+    sessionSet('');
+    $('adminView').hidden = true;
+    $('logoutBtn').hidden = true;
+    $('loginView').hidden = false;
+    $('loginError').textContent = message || '';
+    $('loginPw').value = '';
+  }
+
+  function showAdmin() {
+    const d = state.data;
+    $('loginView').hidden = true;
+    $('adminView').hidden = false;
+    $('logoutBtn').hidden = false;
+    $('appName').textContent = d.settings.title;
+    if (d.appUrl) { $('backLink').href = d.appUrl; $('backLink').hidden = false; }
+    state.rooms = d.rooms.map((r) => ({ ...r }));
+    state.closures = d.closures.slice();
+    renderRooms();
+    fillSettings(d.settings);
+    renderClosureForm();
+    renderClosures();
+    setDirty('rooms', false);
+    setDirty('settings', false);
+  }
+
+  function setDirty(key, value) {
+    state.dirty[key] = value;
+    const cap = key === 'rooms' ? 'Rooms' : 'Settings';
+    $('dot' + cap).hidden = !value;
+    $(key + 'Dirty').hidden = !value;
+  }
+
+  // ---------------- 練習室 ----------------
+  function renderRooms() {
+    const equip = [...new Set(state.rooms.map((r) => r.equipment).concat(['グランドピアノ', 'アップライトピアノ', '電子ピアノ', '大部屋']).filter(Boolean))];
+    $('equipList').innerHTML = equip.map((e) => `<option value="${esc(e)}">`).join('');
+    $('roomList').innerHTML = state.rooms.map((r, i) => `
+      <div class="room${r.id ? '' : ' new'}" data-i="${i}">
+        <span class="no">${i + 1}</span>
+        <div class="c-name"><span class="lbl">部屋名</span><input class="in" data-f="name" value="${esc(r.name)}" maxlength="30" aria-label="部屋名" placeholder="新しい部屋の名前"></div>
+        <div class="c-tags"><span class="lbl">特徴タグ</span><input class="in" data-f="tags" value="${esc(r.tags)}" maxlength="30" aria-label="特徴タグ"${r.id ? '' : ' placeholder="例：大・GP"'}></div>
+        <div class="c-eq"><span class="lbl">設備区分</span><input class="in" data-f="equipment" value="${esc(r.equipment)}" maxlength="20" list="equipList" aria-label="設備区分"></div>
+        <div class="c-restr"><span class="lbl">予約制限</span><select class="in" data-f="restriction" aria-label="予約制限">${RESTRICTIONS.map(([v, l]) => `<option value="${esc(v)}"${r.restriction === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="c-note"><span class="lbl">備考</span><input class="in" data-f="note" value="${esc(r.note)}" maxlength="100" aria-label="備考"></div>
+        <div class="ops">
+          <button type="button" class="btn icon" data-act="up" aria-label="上へ" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" class="btn icon" data-act="down" aria-label="下へ" ${i === state.rooms.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" class="btn small danger-text" data-act="del">削除</button>
+        </div>
+      </div>`).join('') || '<p class="empty">部屋がありません。「＋ 部屋を追加」から登録してください。</p>';
+  }
+
+  $('roomList').addEventListener('input', (e) => {
+    const el = e.target.closest('[data-f]');
+    if (!el) return;
+    state.rooms[Number(el.closest('.room').dataset.i)][el.dataset.f] = el.value;
+    setDirty('rooms', true);
+  });
+  $('roomList').addEventListener('change', (e) => {
+    const el = e.target.closest('select[data-f]');
+    if (!el) return;
+    state.rooms[Number(el.closest('.room').dataset.i)][el.dataset.f] = el.value;
+    setDirty('rooms', true);
+  });
+  $('roomList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const i = Number(b.closest('.room').dataset.i);
+    const rooms = state.rooms;
+    if (b.dataset.act === 'up' && i > 0) [rooms[i - 1], rooms[i]] = [rooms[i], rooms[i - 1]];
+    else if (b.dataset.act === 'down' && i < rooms.length - 1) [rooms[i + 1], rooms[i]] = [rooms[i], rooms[i + 1]];
+    else if (b.dataset.act === 'del') {
+      if (rooms[i].id && !confirm(`「${rooms[i].name}」を削除します。\n（「保存」を押すまで反映されません）`)) return;
+      rooms.splice(i, 1);
+    } else return;
+    setDirty('rooms', true);
+    renderRooms();
+  });
+  $('addRoomBtn').addEventListener('click', () => {
+    state.rooms.push({ id: '', name: '', tags: '', equipment: '', restriction: '', note: '' });
+    setDirty('rooms', true);
+    renderRooms();
+    const inputs = $('roomList').querySelectorAll('[data-f="name"]');
+    const last = inputs[inputs.length - 1];
+    last.scrollIntoView({ block: 'center' });
+    last.focus();
+  });
+  $('saveRoomsBtn').addEventListener('click', async () => {
+    const err = $('roomsError');
+    err.textContent = '';
+    const empty = state.rooms.findIndex((r) => !r.name.trim());
+    if (empty >= 0) { err.textContent = `${empty + 1}行目: 部屋名を入力してください。`; return; }
+    const btn = $('saveRoomsBtn');
+    btn.disabled = true;
+    try {
+      const res = await api('adminSaveRooms', { rooms: state.rooms });
+      if (!res.ok) throw new Error(res.message);
+      state.data.rooms = res.rooms;
+      state.rooms = res.rooms.map((r) => ({ ...r }));
+      renderRooms();
+      renderClosureForm();
+      renderClosures();
+      setDirty('rooms', false);
+      toast('練習室を保存しました');
+    } catch (ex) {
+      err.textContent = errMessage(ex);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------------- 利用時間・制限 ----------------
+  function fillSettings(s) {
+    $('sTitle').value = s.title;
+    $('sNotice').value = s.notice || '';
+    timeSelects($('sOpenH'), $('sOpenM'), 23);
+    timeSelects($('sCloseH'), $('sCloseM'), 24);
+    setTime($('sOpenH'), $('sOpenM'), s.openTime);
+    setTime($('sCloseH'), $('sCloseM'), s.closeTime);
+    $('sUnit').innerHTML = state.data.unitOptions.map((u) => `<option value="${u}">${u}</option>`).join('');
+    $('sUnit').value = String(s.unitMinutes);
+    $('sMaxDur').value = s.maxDurationMinutes;
+    $('sMaxDays').value = s.maxDaysAhead;
+    $('sMaxBulk').value = s.maxBulkCount;
+    $('sWeekdays').innerHTML = [...WEEKDAYS].map((w, i) =>
+      `<label class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
+    $('sBulkAdmin').checked = !!s.bulkRequiresAdmin;
+    $('sViewPw').value = s.viewPassword || '';
+    $('settingsError').textContent = '';
+    $('settingsWarn').textContent = '';
+  }
+  $('settingsForm').addEventListener('input', () => setDirty('settings', true));
+  $('settingsForm').addEventListener('change', () => setDirty('settings', true));
+  $('settingsForm').addEventListener('submit', (e) => e.preventDefault());
+  $('saveSettingsBtn').addEventListener('click', async () => {
+    const err = $('settingsError');
+    err.textContent = '';
+    $('settingsWarn').textContent = '';
+    const settings = {
+      title: $('sTitle').value,
+      notice: $('sNotice').value,
+      openTime: getTime($('sOpenH'), $('sOpenM')),
+      closeTime: getTime($('sCloseH'), $('sCloseM')),
+      unitMinutes: Number($('sUnit').value),
+      maxDurationMinutes: Number($('sMaxDur').value || 0),
+      maxDaysAhead: Number($('sMaxDays').value || 0),
+      maxBulkCount: Number($('sMaxBulk').value || 0),
+      closedWeekdays: [...$('sWeekdays').querySelectorAll('input:checked')].map((c) => Number(c.value)),
+      bulkRequiresAdmin: $('sBulkAdmin').checked,
+      viewPassword: $('sViewPw').value,
+    };
+    if (toMin(settings.closeTime) <= toMin(settings.openTime)) { err.textContent = '利用終了時刻は利用開始時刻より後にしてください。'; return; }
+    const btn = $('saveSettingsBtn');
+    btn.disabled = true;
+    try {
+      const res = await api('adminSaveSettings', { settings });
+      if (!res.ok) throw new Error(res.message);
+      state.data.settings = res.settings;
+      $('appName').textContent = res.settings.title;
+      fillSettings(res.settings);
+      renderClosureForm();
+      setDirty('settings', false);
+      $('settingsWarn').textContent = (res.warnings || []).join('\n');
+      toast('設定を保存しました');
+    } catch (ex) {
+      err.textContent = errMessage(ex);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------------- 休館・利用停止 ----------------
+  function roomName(id) {
+    if (!id) return '全室';
+    const r = state.data.rooms.find((x) => x.id === id);
+    return r ? (r.tags ? `${r.name}（${r.tags}）` : r.name) : id;
+  }
+
+  function renderClosureForm() {
+    const s = state.data.settings;
+    $('cRoom').innerHTML = '<option value="">全室</option>' + state.data.rooms.map((r) => `<option value="${esc(r.id)}">${esc(roomName(r.id))}</option>`).join('');
+    if (!$('cDate').value) $('cDate').value = state.data.today;
+    timeSelects($('cStartH'), $('cStartM'), 24);
+    timeSelects($('cEndH'), $('cEndM'), 24);
+    setTime($('cStartH'), $('cStartM'), s.openTime);
+    setTime($('cEndH'), $('cEndM'), s.closeTime);
+  }
+
+  function renderClosures() {
+    const today = state.data.today;
+    const showPast = $('showPast').checked;
+    const list = state.closures
+      .map((c, i) => ({ ...c, i }))
+      .filter((c) => showPast || c.date >= today)
+      .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    $('closureList').innerHTML = list.length ? list.map((c) => {
+      const d = dateLabel(c.date);
+      return `<tr class="${c.date < today ? 'past' : ''}">
+        <td class="${d.cls}">${esc(d.text)}</td>
+        <td>${esc(roomName(c.roomId))}</td>
+        <td>${c.allDay ? '終日' : esc(hm(c.start)) + '〜' + esc(hm(c.end))}</td>
+        <td class="reason">${esc(c.reason)}</td>
+        <td><button type="button" class="btn small danger-text" data-del="${c.i}">削除</button></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="5" class="empty">${showPast ? '登録はありません。' : '今日以降の登録はありません。'}</td></tr>`;
+  }
+
+  async function saveClosures(next, message) {
+    $('closureError').textContent = '';
+    $('closureWarn').textContent = '';
+    const res = await api('adminSaveClosures', { closures: next });
+    if (!res.ok) throw new Error(res.message);
+    state.closures = res.closures;
+    state.data.closures = res.closures;
+    renderClosures();
+    $('closureWarn').textContent = (res.warnings || []).join('\n');
+    toast(message);
+  }
+
+  $('cAllDay').addEventListener('change', (e) => { $('cTimeField').hidden = e.target.checked; });
+  $('showPast').addEventListener('change', renderClosures);
+  $('closureForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const item = {
+      date: $('cDate').value,
+      roomId: $('cRoom').value,
+      allDay: $('cAllDay').checked,
+      start: getTime($('cStartH'), $('cStartM')),
+      end: getTime($('cEndH'), $('cEndM')),
+      reason: $('cReason').value.trim(),
+    };
+    if (!item.date) { $('closureError').textContent = '日付を指定してください。'; return; }
+    if (!item.allDay && toMin(item.end) <= toMin(item.start)) { $('closureError').textContent = '終了は開始より後にしてください。'; return; }
+    const btn = $('addClosureBtn');
+    btn.disabled = true;
+    try {
+      await saveClosures(state.closures.concat([item]), '追加しました');
+      $('cReason').value = '';
+    } catch (ex) {
+      $('closureError').textContent = errMessage(ex);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  $('closureList').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    const c = state.closures[Number(b.dataset.del)];
+    if (!confirm(`${dateLabel(c.date).text} ${roomName(c.roomId)}「${c.reason || '利用停止'}」を削除しますか？`)) return;
+    b.disabled = true;
+    try {
+      await saveClosures(state.closures.filter((_, i) => i !== Number(b.dataset.del)), '削除しました');
+    } catch (ex) {
+      $('closureError').textContent = errMessage(ex);
+      b.disabled = false;
+    }
+  });
+
+  // ---------------- パスワード ----------------
+  $('pwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('pwError');
+    err.textContent = '';
+    const pw = $('pwNew').value;
+    if (pw.length < 6) { err.textContent = '6文字以上にしてください。'; return; }
+    if (pw !== $('pwNew2').value) { err.textContent = '確認用のパスワードが一致しません。'; return; }
+    $('pwBtn').disabled = true;
+    try {
+      const res = await api('adminChangePassword', { newPassword: pw });
+      if (!res.ok) throw new Error(res.message);
+      state.pw = pw;
+      sessionSet(pw);
+      $('pwNew').value = $('pwNew2').value = '';
+      toast('管理用パスワードを変更しました');
+    } catch (ex) {
+      err.textContent = errMessage(ex);
+    } finally {
+      $('pwBtn').disabled = false;
+    }
+  });
+
+  // ---------------- タブ・共通 ----------------
+  for (const t of document.querySelectorAll('.tabs [data-tab]')) {
+    t.addEventListener('click', () => {
+      for (const x of document.querySelectorAll('.tabs [data-tab]')) x.setAttribute('aria-selected', String(x === t));
+      for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== t.dataset.tab;
+    });
+  }
+  $('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });
+  $('logoutBtn').addEventListener('click', () => {
+    if ((state.dirty.rooms || state.dirty.settings) && !confirm('保存していない変更があります。ログアウトしますか？')) return;
+    logout('');
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (state.dirty.rooms || state.dirty.settings) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  if (state.pw) login(state.pw);
+  else $('loginPw').focus();
+})();
+</script>
+</body>
+</html>
