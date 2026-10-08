@@ -237,7 +237,7 @@
         <p class="lead">
           並び順は予約表の表示順です（↑↓で入れ替え）。「特徴タグ」は部屋名の下にタグで表示されます（「・」区切りで複数可。例：大・GP）。<br>
           同じ部屋名（例：練習室6）の部屋は、予約時に「まとめて選択」できます。「設備区分」は予約表の絞り込みに使います。<br>
-          予約制限:「管理者のみ」= 予約・変更・取消に管理用パスワードが必要 ／「使用停止」= 予約不可（故障・改修中など）。<br>
+          予約制限:「管理者のみ」= 予約・変更・取消に管理用パスワードが必要 ／「限定公開」= 限定公開のパスワードを入れた人だけに表示・予約可（一般の利用者には部屋があることも表示しない。演習室など）／「使用停止」= 予約不可（故障・改修中など）。<br>
           今日以降の予約が残っている部屋は削除できません。その場合は「使用停止」にしてください。
         </p>
         <div class="rooms-head"><span></span><span>部屋名</span><span>特徴タグ</span><span>設備区分（絞り込み用）</span><span>予約制限</span><span>備考</span><span></span></div>
@@ -267,6 +267,7 @@
           <label class="field">まとめて予約の最大件数<span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span><span class="help">くり返し予約・複数部屋の同時予約の合計（部屋数×日数）</span></label>
           <div class="field full">定休日（曜日）<div class="weekdays" id="sWeekdays"></div></div>
           <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約（くり返し・複数部屋の同時予約）は管理者（管理用パスワードを知っている人）のみ</label></div>
+          <label class="field full">限定公開の部屋のパスワード<input id="sLimitedPw" maxlength="50" autocomplete="off" placeholder="空欄なら管理者以外は使えません"><span class="help">予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上）。使う人には、このパスワードと入口の URL（<code id="limitedUrl"></code>）を伝えてください。変更すると、記憶済みの端末でも表示されなくなります</span></label>
           <label class="field full">閲覧パスワード<input id="sViewPw" maxlength="50" autocomplete="off" placeholder="空欄なら誰でも閲覧・予約できます"><span class="help">設定すると、予約表を開くときにこのパスワードが必要になります（利用者の端末に記憶されます）</span></label>
         </form>
         <div class="savebar">
@@ -339,7 +340,7 @@
 
   const SESSION_KEY = 'prr.adminPw';
   const WEEKDAYS = '日月火水木金土';
-  const RESTRICTIONS = [['', '制限なし'], ['管理者のみ', '管理者のみ'], ['使用停止', '使用停止']];
+  const RESTRICTIONS = [['', '制限なし'], ['管理者のみ', '管理者のみ'], ['限定公開', '限定公開'], ['使用停止', '使用停止']];
   const $ = (id) => document.getElementById(id);
   const state = {
     pw: sessionGet(),
@@ -540,6 +541,8 @@
       `<label class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
     $('sBulkAdmin').checked = !!s.bulkRequiresAdmin;
     $('sViewPw').value = s.viewPassword || '';
+    $('sLimitedPw').value = s.limitedPassword || '';
+    $('limitedUrl').textContent = new URL('./?limited', location.href).href;
     $('settingsError').textContent = '';
     $('settingsWarn').textContent = '';
   }
@@ -562,6 +565,7 @@
       closedWeekdays: [...$('sWeekdays').querySelectorAll('input:checked')].map((c) => Number(c.value)),
       bulkRequiresAdmin: $('sBulkAdmin').checked,
       viewPassword: $('sViewPw').value,
+      limitedPassword: $('sLimitedPw').value,
     };
     if (toMin(settings.closeTime) <= toMin(settings.openTime)) { err.textContent = '利用終了時刻は利用開始時刻より後にしてください。'; return; }
     const btn = $('saveSettingsBtn');

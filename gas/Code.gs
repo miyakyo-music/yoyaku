@@ -49,6 +49,7 @@ const SYSTEM = {
   MAX_RANGE_DAYS: 42,
   // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
+  MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
   FAILURE_LOCK_SECONDS: 600,
 };
 
@@ -65,9 +66,14 @@ const SETTINGS = [
   { key: 'maxBulkCount', label: 'まとめて予約の最大件数', aliases: ['くり返し予約の最大回数'], def: '100', desc: 'くり返し・複数部屋の予約で1回に登録できる件数（部屋数×日数）' },
   { key: 'bulkRequiresAdmin', label: 'まとめて予約は管理者のみ', aliases: ['くり返し予約は管理者のみ'], def: 'はい', desc: 'くり返し予約・複数部屋の同時予約を管理者に限る（はい / いいえ）' },
   { key: 'viewPassword', label: '閲覧パスワード', def: '', desc: '設定すると予約表の閲覧・予約にこのパスワードが必要（空欄なら誰でも利用可）' },
+  { key: 'limitedPassword', label: '限定公開の部屋のパスワード', def: '', desc: '予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上。空欄なら管理者以外は使えない）' },
 ];
+/** 画面へ返さない設定（パスワード類） */
+const SECRET_SETTINGS = ['viewPassword', 'limitedPassword'];
 
-const ROOM_RESTRICTIONS = { ADMIN_ONLY: '管理者のみ', STOPPED: '使用停止' };
+// LIMITED（限定公開）… 演習室など。限定公開のパスワードを入れた人（と管理者）にだけ部屋も予約も見え、予約できる。
+// 知らない人には部屋があることも分からないよう、サーバーから一切返さない。
+const ROOM_RESTRICTIONS = { ADMIN_ONLY: '管理者のみ', STOPPED: '使用停止', LIMITED: '限定公開' };
 const WEEKDAYS = '日月火水木金土';
 
 // ---------------------------------------------------------------------------
@@ -134,7 +140,7 @@ function json_(obj) {
  */
 function getSchedule(p) {
   p = p || {};
-  const ctx = context_();
+  const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
 
@@ -143,16 +149,17 @@ function getSchedule(p) {
   if (!isValidDate_(from) || !isValidDate_(to) || from > to) return fail_('日付の指定が正しくありません。');
   if (daysBetween_(from, to) >= SYSTEM.MAX_RANGE_DAYS) return fail_('一度に表示できる期間は' + SYSTEM.MAX_RANGE_DAYS + '日までです。');
 
-  return {
+  const visible = visibleIn_(ctx);
+  return Object.assign({
     ok: true,
     from: from,
     to: to,
     rooms: ctx.rooms,
-    reservations: readReservations_(ctx.resSheet).filter(r => r.date >= from && r.date <= to).map(toPublic_),
-    closures: readClosures_(ctx.ss).filter(c => c.date >= from && c.date <= to),
+    reservations: readReservations_(ctx.resSheet).filter(r => r.date >= from && r.date <= to && visible(r)).map(toPublic_),
+    closures: readClosures_(ctx.ss).filter(c => c.date >= from && c.date <= to && visible(c)),
     settings: publicSettings_(ctx.settings),
     serverNow: nowStr_('yyyy-MM-dd HH:mm'),
-  };
+  }, limitedInfo_(ctx));
 }
 
 /**
@@ -161,12 +168,13 @@ function getSchedule(p) {
  */
 function getReservationsByIds(p) {
   p = p || {};
-  const ctx = context_();
+  const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   const ids = new Set((Array.isArray(p.ids) ? p.ids : []).slice(0, 300).map(String));
+  const visible = visibleIn_(ctx);
   const list = readReservations_(ctx.resSheet)
-    .filter(r => ids.has(r.id))
+    .filter(r => ids.has(r.id) && visible(r))
     .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))
     .map(toPublic_);
   return { ok: true, reservations: list, rooms: ctx.rooms, serverNow: nowStr_('yyyy-MM-dd HH:mm') };
@@ -178,7 +186,7 @@ function getReservationsByIds(p) {
  */
 function createReservation(p) {
   p = p || {};
-  const ctx = context_();
+  const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   const admin = resolveAdmin_(p.adminPassword);
@@ -214,7 +222,7 @@ function createReservation(p) {
  */
 function createBulkReservations(p) {
   p = p || {};
-  const ctx = context_();
+  const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   if (!Array.isArray(p.dates) || !p.dates.length) return fail_('予約する日付が指定されていません。');
@@ -275,7 +283,7 @@ function createBulkReservations(p) {
  */
 function updateReservation(p) {
   p = p || {};
-  const ctx = context_();
+  const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   const id = String(p.id || '').trim();
@@ -284,7 +292,8 @@ function updateReservation(p) {
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
     const target = rows.find(r => r.id === id);
-    if (!target) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
+    // 限定公開の部屋の予約は、見られない人には「存在しない」と返す
+    if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
     const auth = checkPin_(target, p.pin, p.adminPassword);
     if (auth.error) return fail_(auth.error);
     if (!auth.admin && isPast_(target.date, target.end)) return fail_('終了した予約は変更できません。');
@@ -318,7 +327,7 @@ function updateReservation(p) {
  */
 function cancelReservation(p) {
   p = p || {};
-  const ctx = context_();
+  const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   const id = String(p.id || '').trim();
@@ -327,7 +336,8 @@ function cancelReservation(p) {
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
     const target = rows.find(r => r.id === id);
-    if (!target) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
+    // 限定公開の部屋の予約は、見られない人には「存在しない」と返す
+    if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
     const auth = checkPin_(target, p.pin, p.adminPassword);
     if (auth.error) return fail_(auth.error);
     if (!auth.admin && roomOf_(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) {
@@ -440,7 +450,7 @@ function adminSaveSettings(p) {
     });
     SpreadsheetApp.flush();
     const settings = loadSettings_(ss);
-    logAdmin_(ss, '設定変更', SETTINGS.filter(d => d.key !== 'viewPassword').map(d => d.label + '=' + v.value[d.key]).join(' / '));
+    logAdmin_(ss, '設定変更', SETTINGS.filter(d => SECRET_SETTINGS.indexOf(d.key) < 0).map(d => d.label + '=' + v.value[d.key]).join(' / '));
     return { ok: true, settings: settings, warnings: settingsWarnings_(ss, settings) };
   });
 }
@@ -473,7 +483,7 @@ function adminSaveRooms(p) {
     if (room.equipment.length > 20) return fail_(label + ': 設備区分は20文字以内で入力してください。');
     if (room.note.length > 100) return fail_(label + ': 備考は100文字以内で入力してください。');
     if (room.tags.length > 30) return fail_(label + ': 特徴タグは30文字以内で入力してください。');
-    if (['', ROOM_RESTRICTIONS.ADMIN_ONLY, ROOM_RESTRICTIONS.STOPPED].indexOf(room.restriction) < 0) {
+    if (['', ROOM_RESTRICTIONS.ADMIN_ONLY, ROOM_RESTRICTIONS.STOPPED, ROOM_RESTRICTIONS.LIMITED].indexOf(room.restriction) < 0) {
       return fail_(label + ': 予約制限の値が正しくありません。');
     }
     if ([room.name, room.equipment, room.note, room.tags].some(t => /^[=+\-@]/.test(t))) {
@@ -651,10 +661,11 @@ function validateSettings_(s) {
   const maxBulk = int(s.maxBulkCount, 1, 300);
   const weekdays = (Array.isArray(s.closedWeekdays) ? s.closedWeekdays : []).map(Number).filter(n => n >= 0 && n <= 6);
   const viewPassword = String(s.viewPassword || '').trim();
+  const limitedPassword = String(s.limitedPassword || '').trim();
 
   if (!title || title.length > 40) return { error: 'タイトルを40文字以内で入力してください。' };
   if (notice.length > 200) return { error: 'お知らせは200文字以内で入力してください。' };
-  if ([title, notice, viewPassword].some(t => /^[=+\-@]/.test(t))) return { error: '先頭に「= + - @」は使用できません。' };
+  if ([title, notice, viewPassword, limitedPassword].some(t => /^[=+\-@]/.test(t))) return { error: '先頭に「= + - @」は使用できません。' };
   if (UNIT_OPTIONS.indexOf(unit) < 0) return { error: '予約単位は ' + UNIT_OPTIONS.join(', ') + ' 分のいずれかにしてください。' };
   if (!isTime_(open) || !isTime_(close) || toMin_(open) >= toMin_(close)) return { error: '利用終了時刻は利用開始時刻より後にしてください。' };
   if (toMin_(open) % unit || toMin_(close) % unit) return { error: '利用開始・終了時刻は予約単位（' + unit + '分）の区切りにしてください。' };
@@ -663,6 +674,7 @@ function validateSettings_(s) {
   if (maxDays === null) return { error: '予約受付期間は0〜730日の整数で入力してください。' };
   if (maxBulk === null) return { error: 'まとめて予約の最大件数は1〜300の整数で入力してください。' };
   if (viewPassword.length > 50) return { error: '閲覧パスワードは50文字以内で入力してください。' };
+  if (limitedPassword && (limitedPassword.length < 6 || limitedPassword.length > 50)) return { error: '限定公開の部屋のパスワードは6〜50文字で入力してください。' };
 
   return {
     value: {
@@ -677,6 +689,7 @@ function validateSettings_(s) {
       maxBulkCount: String(maxBulk),
       bulkRequiresAdmin: s.bulkRequiresAdmin ? 'はい' : 'いいえ',
       viewPassword: viewPassword,
+      limitedPassword: limitedPassword,
     },
   };
 }
@@ -737,7 +750,7 @@ function setup() {
     const data = defaultRooms_();
     rooms.getRange(2, 1, data.length, HEADERS.rooms.length).setValues(data);
   }
-  setValidation_(rooms.getRange('E2:E500'), ['', ROOM_RESTRICTIONS.ADMIN_ONLY, ROOM_RESTRICTIONS.STOPPED]);
+  setValidation_(rooms.getRange('E2:E500'), ['', ROOM_RESTRICTIONS.ADMIN_ONLY, ROOM_RESTRICTIONS.STOPPED, ROOM_RESTRICTIONS.LIMITED]);
 
   ensureSheet_(ss, SHEETS.closures, HEADERS.closures).getRange('A:E').setNumberFormat('@');
 
@@ -828,14 +841,50 @@ function setAdminPassword() {
 // 検証・照合
 // ---------------------------------------------------------------------------
 
-function context_() {
+/**
+ * 処理に必要なデータをまとめて読む。p を渡すと、限定公開の部屋を見られるかを判定し、
+ * 見られない場合は rooms から除く（以降の処理では「存在しない部屋」として扱われる）。
+ */
+function context_(p) {
   const ss = getSpreadsheet_();
+  const settings = loadSettings_(ss);
+  const allRooms = readRooms_(ss);
+  const limited = limitedAccess_(settings, p || {});
+  const rooms = limited.ok ? allRooms : allRooms.filter(r => r.restriction !== ROOM_RESTRICTIONS.LIMITED);
   return {
     ss: ss,
-    settings: loadSettings_(ss),
-    rooms: readRooms_(ss),
+    settings: settings,
+    rooms: rooms,
+    limited: limited,
     resSheet: getSheet_(ss, SHEETS.reservations),
   };
+}
+
+/** 限定公開の部屋を見られるか。{ok} / {ok:false, denied:true}（パスワードが違う） */
+function limitedAccess_(settings, p) {
+  const pw = settings.limitedPassword;
+  const key = String(p.limitedKey || '');
+  if (key) {
+    const cache = CacheService.getScriptCache();
+    const failures = Number(cache.get('limitedFailures') || 0);
+    if (pw && failures < SYSTEM.MAX_LIMITED_FAILURES && key === pw) return { ok: true };
+    cache.put('limitedFailures', String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS); // 総当たり対策
+  }
+  if (p.adminPassword && !verifyAdmin_(p.adminPassword)) return { ok: true };
+  return key ? { ok: false, denied: true } : { ok: false };
+}
+
+/** 見えている部屋の予約・休館だけに絞る */
+function visibleIn_(ctx) {
+  const ids = new Set(ctx.rooms.map(r => r.id));
+  return x => !x.roomId || ids.has(x.roomId);
+}
+
+/** 画面に返す、限定公開の状態（パスワードを入れていない人には何も返さない） */
+function limitedInfo_(ctx) {
+  if (ctx.limited.ok) return { limitedAccess: true };
+  if (ctx.limited.denied) return { limitedDenied: true };
+  return {};
 }
 
 function checkView_(ctx, viewKey) {
@@ -1100,13 +1149,14 @@ function loadSettings_(ss) {
     maxBulkCount: Math.max(1, Number(v.maxBulkCount) || 100),
     bulkRequiresAdmin: !/^(いいえ|no|false|0|off)$/i.test(String(v.bulkRequiresAdmin).trim()),
     viewPassword: v.viewPassword,
+    limitedPassword: v.limitedPassword,
   };
 }
 
 function publicSettings_(s) {
   const copy = Object.assign({}, s);
   copy.viewPasswordRequired = !!s.viewPassword;
-  delete copy.viewPassword;
+  SECRET_SETTINGS.forEach(k => delete copy[k]);
   return copy;
 }
 

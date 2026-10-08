@@ -94,6 +94,8 @@
   /* 一覧の日付は日付欄と同じ内容なので、PC では出さない（スマホでは表の直前の見出しとして出す） */
   @media (min-width: 601px) { .range-label.is-day { display: none; } }
   .free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; color: #1e7a43; font-weight: 700; }
+  .tl-label .nm-line { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .tl-label .nm-line .nm { flex: none; }
   .tl-label .free-until { font-size: 11px; color: #1e7a43; font-weight: 600; white-space: nowrap; }
   /* 日付欄: 曜日付きの表示の上に、透明にした標準の日付入力を重ねる（押すと標準のカレンダーが開く） */
   .date-field { position: relative; display: inline-flex; }
@@ -181,6 +183,7 @@
     font-size: 11px; font-weight: 700; color: #9b2c2c; background: #fde8e8; border: 1px solid #f3b5b5;
     border-radius: 6px; padding: 2px 6px; cursor: pointer; white-space: nowrap;
   }
+  .limited-mode, .tag.t-limited { color: #5b3a9b; background: #efe8fb; border-color: #d4c3f2; }
   /* 複数部屋の選択 */
   .room-picker { display: flex; flex-direction: column; gap: 8px; max-height: 196px; overflow: auto; padding: 2px; overscroll-behavior: contain; }
   .rp-group { display: flex; align-items: flex-start; gap: 8px; }
@@ -397,7 +400,7 @@
 <body>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者モード</button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者モード</button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定公開</button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
       <div class="notice-row" id="noticeRow" hidden>
         <p class="notice" id="notice"></p>
         <button type="button" class="link-btn" data-bug>不具合を報告</button>
@@ -542,6 +545,17 @@
     </form>
   </dialog>
 
+  <!-- 限定公開の部屋のパスワード（…/yoyaku/?limited で開いたときだけ出す） -->
+  <dialog id="limitedDialog">
+    <form id="limitedForm" novalidate>
+      <h2 tabindex="-1" autofocus>パスワード</h2>
+      <p class="hint">パスワードを入力してください。一度入力すると、この端末では次回から入力不要です。</p>
+      <label class="field">パスワード<input id="limPass" type="password" autocomplete="off" enterkeyhint="done"></label>
+      <p class="error" id="limError"></p>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button><button type="submit" class="btn primary" id="limSubmit">表示する</button></div>
+    </form>
+  </dialog>
+
   <!-- 不具合報告 -->
   <dialog id="bugDialog">
     <form id="bugForm" novalidate>
@@ -575,12 +589,14 @@
     zoom: 'prr.zoom',              // 時間軸の拡大率（ピンチ操作）
     room: 'prr.room',
     viewKey: 'prr.viewKey',
+    limitedKey: 'prr.limitedKey',  // 限定公開の部屋（演習室など）のパスワード
   };
   const APP_VERSION = 'v0.2.2-beta'; // 不具合報告に添える版。GAS のデプロイの説明（バージョン名）とそろえる
   const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
   const ADMIN_SESSION_KEY = 'prr.adminPw'; // 管理画面と共通（このタブで管理画面にログインしている間は管理者モード）
   const ADMIN_ONLY = '管理者のみ';
   const STOPPED = '使用停止';
+  const LIMITED = '限定公開';
   const WEEKDAYS = '日月火水木金土';
   const AUTO_REFRESH_MS = 60 * 1000;
   const LONG_PRESS_MS = 400;
@@ -599,6 +615,7 @@
     geo: null,            // タイムラインの時間軸
     seq: 0,
     viewKey: load_(LS.viewKey, ''),
+    limitedKey: load_(LS.limitedKey, ''),
     booking: null,        // 予約ダイアログの状態
     zoom: Math.min(10, Math.max(0.05, Number(load_(LS.zoom, 1)) || 1)), // 時間軸の拡大率
     hourBase: 0, hourMin: MIN_HOUR_W, hourW: 0,
@@ -699,7 +716,9 @@
   class AuthError extends Error {}
   async function api(fn, payload) {
     const body = Object.assign({}, payload, { viewKey: state.viewKey });
-    const adminOps = ['createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation'];
+    if (state.limitedKey && !body.limitedKey) body.limitedKey = state.limitedKey;
+    // 管理者モードでは読み込みにも管理用パスワードを添える（限定公開の部屋も表示するため）
+    const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation'];
     if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
     const res = await callApi(fn, body); // web/api.js
     if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); throw new AuthError(res.message); }
@@ -791,6 +810,8 @@
     const shownKey = `${state.view}|${key}`;
     const keyChanged = state.shownKey !== shownKey;
     state.shownKey = shownKey;
+    if (res.limitedDenied && state.limitedKey) endLimited('限定公開の部屋のパスワードが変更されたため、表示を終了しました。');
+    $('limitedMode').hidden = !(state.limitedKey && res.limitedAccess);
     state.data = res;
     state.settings = res.settings;
     state.rooms = res.rooms;
@@ -946,10 +967,12 @@
     const tags = tagList(room.tags).map((t) => `<span class="tag ${tagClass(t)}">${esc(t)}</span>`);
     if (room.restriction === ADMIN_ONLY) tags.push('<span class="tag t-admin">管理者のみ</span>');
     if (room.restriction === STOPPED) tags.push('<span class="tag t-admin">使用停止</span>');
+    if (room.restriction === LIMITED) tags.push('<span class="tag t-limited">限定</span>');
     const title = [roomText(room), room.equipment, room.note].filter(Boolean).join(' / ');
-    if (extraHtml) tags.push(extraHtml); // 「○時まで空き」などはタグと同じ行に並べ、行の高さを増やさない
-    return `<span class="nm" title="${esc(title)}">${esc(room.name)}</span>` +
-      (tags.length ? `<span class="sub">${tags.join('')}</span>` : '');
+    const name = `<span class="nm" title="${esc(title)}">${esc(room.name)}</span>`;
+    // 「○時まで空き」を出すときは、タグを部屋名の横に寄せて2行目に置き、列の幅を節約する
+    if (extraHtml) return `<span class="nm-line">${name}${tags.join('')}</span>${extraHtml}`;
+    return name + (tags.length ? `<span class="sub">${tags.join('')}</span>` : '');
   }
 
   function renderTimeline() {
@@ -1890,6 +1913,42 @@
   });
   $('loginDialog').addEventListener('cancel', (e) => e.preventDefault());
 
+  // ---------------- 限定公開の部屋（演習室など） ----------------
+  // 一般の利用者には存在を知らせないため、入口は …/yoyaku/?limited の URL だけ。パスワードを確かめてから端末に記憶する。
+  function endLimited(message) {
+    state.limitedKey = '';
+    save_(LS.limitedKey, '');
+    $('limitedMode').hidden = true;
+    invalidate();
+    if (message) toast(message, 'error');
+  }
+  $('limitedForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const key = $('limPass').value.trim();
+    if (!key) { $('limError').textContent = 'パスワードを入力してください。'; return; }
+    $('limSubmit').disabled = true;
+    $('limError').textContent = '';
+    try {
+      const res = await api('getSchedule', Object.assign(currentRange(), { limitedKey: key }));
+      if (!res || !res.limitedAccess) throw new Error((res && !res.ok && res.message) || 'パスワードが違います。');
+      state.limitedKey = key;
+      save_(LS.limitedKey, key);
+      $('limitedDialog').close();
+      invalidate();
+      load({ force: true });
+      toast('この端末で、限定公開の部屋を表示します。');
+    } catch (ex) {
+      if (!(ex instanceof AuthError)) $('limError').textContent = errMessage(ex);
+    } finally {
+      $('limSubmit').disabled = false;
+    }
+  });
+  $('limitedMode').addEventListener('click', () => {
+    if (!confirm('限定公開の部屋の表示を終了しますか？（再び表示するには、パスワードの入力が必要です）')) return;
+    endLimited();
+    load({ force: true });
+  });
+
   // ---------------- イベント ----------------
   $('prevBtn').addEventListener('click', () => shift(-1));
   $('nextBtn').addEventListener('click', () => shift(1));
@@ -2040,6 +2099,12 @@
   if (!['day', 'room', 'month'].includes(state.view)) state.view = 'day';
   updateChrome();
   load();
+  // 限定公開の部屋の入口（…/yoyaku/?limited）
+  if (/[?&]limited\b/.test(location.search)) {
+    history.replaceState(null, '', location.pathname + location.hash); // URL から外し、ブックマークや共有で広まらないようにする
+    $('limPass').value = '';
+    $('limitedDialog').showModal();
+  }
 })();
 </script>
 </body>
