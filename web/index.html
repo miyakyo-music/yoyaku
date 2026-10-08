@@ -245,6 +245,11 @@
     font-size: 11px; font-weight: 700; padding: 1px 4px; white-space: nowrap; overflow: visible;
   }
   /* 予約画面を開いている間の仮予約の帯（点線で、まだ確定していないことを示す） */
+  .ghost.pick {
+    pointer-events: auto; cursor: pointer; border-style: dashed; background: rgba(37, 99, 235, .14);
+    display: flex; align-items: center; justify-content: center; padding: 0 2px; overflow: visible;
+  }
+  .ghost.pick b { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
   .ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
   .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
   .main-foot {
@@ -1251,6 +1256,7 @@
   let drag = null;
 
   function beginDrag(track, clientX) {
+    clearPick();
     const row = state.rows[Number(track.dataset.i)];
     const m = minuteAt(track, clientX);
     const free = freeSpanAt(row, m);
@@ -1288,15 +1294,33 @@
   function cancelDrag() { if (drag) { drag.ghost.remove(); drag = null; } }
 
   /** クリック・タップ: 30分単位の位置から1時間（空きが足りなければ空きの範囲）で予約画面を開く */
-  function tapTrack(track, clientX) {
+  function slotAt(track, clientX) {
     const row = state.rows[Number(track.dataset.i)];
-    if (row.stopped) { toast('この部屋は現在使用停止中です。', 'error'); return; }
+    if (row.stopped) { toast('この部屋は現在使用停止中です。', 'error'); return null; }
     const m = minuteAt(track, clientX);
     const free = freeSpanAt(row, m);
-    if (!free) return;
+    if (!free) return null;
     const start = Math.max(free[0], floorTo(m, 30));
     const end = Math.min(free[1], start + 60);
-    openBooking({ mode: 'create', roomId: row.roomId, date: row.date, start, end });
+    return { mode: 'create', roomId: row.roomId, date: row.date, start, end };
+  }
+  function tapTrack(track, clientX) {
+    const slot = slotAt(track, clientX);
+    if (slot) openBooking(slot);
+  }
+
+  /**
+   * スマホ: タップした所には「仮予約」の帯と「＋予約」を出すだけにし、もう一度その帯をタップしたら予約画面を開く
+   * （触れただけで予約画面が開かないようにする）。スクロールしたら帯は消す。
+   */
+  function pickSlot(track, clientX) {
+    state.pick = slotAt(track, clientX);
+    renderDraft();
+  }
+  function clearPick() {
+    if (!state.pick) return;
+    state.pick = null;
+    renderDraft();
   }
 
   // マウス: 押してそのまま横に動かすと時間指定、動かさなければクリック扱い
@@ -1374,11 +1398,19 @@
 
   // タッチ: タップで予約画面、長押ししてからなぞると時間指定（通常のスワイプはスクロール）
   let touch = null;
+  // スクロール中・直後のタップは、スクロールを止めるためのタップとみなして予約の操作にしない
+  const SCROLL_SETTLE_MS = 300;
+  let lastScrollAt = 0;
+  $('main').addEventListener('scroll', () => { lastScrollAt = Date.now(); clearPick(); }, { passive: true });
   $('main').addEventListener('touchstart', (e) => {
     const track = e.target.closest('.tl-track');
     if (!track || e.touches.length !== 1 || e.target.closest('.blk')) { touch = null; return; }
     const t = e.touches[0];
-    touch = { track, x: t.clientX, y: t.clientY, moved: false, dragging: false };
+    touch = {
+      track, x: t.clientX, y: t.clientY, moved: false, dragging: false,
+      scrolling: Date.now() - lastScrollAt < SCROLL_SETTLE_MS,
+      onPick: !!e.target.closest('.ghost.pick'),
+    };
     touch.timer = setTimeout(() => {
       if (!touch || touch.moved) return;
       if (beginDrag(track, touch.x)) {
@@ -1398,8 +1430,12 @@
     const t = touch;
     touch = null;
     clearTimeout(t.timer);
-    if (t.dragging) { e.preventDefault(); finishDrag(); }
-    else if (!t.moved) { e.preventDefault(); tapTrack(t.track, t.x); }
+    if (t.dragging) { e.preventDefault(); finishDrag(); return; }
+    if (t.moved) return;
+    e.preventDefault();
+    if (t.scrolling || Date.now() - lastScrollAt < SCROLL_SETTLE_MS) return;
+    if (t.onPick && state.pick) { const slot = state.pick; clearPick(); openBooking(slot); return; }
+    pickSlot(t.track, t.x);
   }, { passive: false });
   document.addEventListener('touchcancel', () => { if (touch) clearTimeout(touch.timer); touch = null; cancelDrag(); });
 
@@ -1542,9 +1578,27 @@
     renderDraft();
   }
 
+  /** スマホで1回タップした所の「仮予約」の帯（もう一度タップすると予約画面を開く） */
+  function renderPick() {
+    const p = state.pick;
+    if (!p || $('bookDialog').open || !state.geo || !state.rows) return;
+    const i = state.rows.findIndex((row) => row.roomId === p.roomId && row.date === p.date);
+    const track = i >= 0 && $('main').querySelector(`.tl-track[data-i="${i}"]`);
+    if (!track) return;
+    const { t0, total } = state.geo;
+    const el = document.createElement('div');
+    el.className = 'ghost pick';
+    el.style.left = `${((p.start - t0) / total * 100).toFixed(4)}%`;
+    el.style.width = `${((p.end - p.start) / total * 100).toFixed(4)}%`;
+    el.innerHTML = '<b>＋予約</b>';
+    el.title = `${hm(toHHMM(p.start))}〜${hm(toHHMM(p.end))} を予約`;
+    track.appendChild(el);
+  }
+
   /** 新規予約の入力中は、背景の予約表に「仮予約」の帯（選んでいる部屋・日付・時間）を出す */
   function renderDraft() {
-    for (const el of $('main').querySelectorAll('.ghost.draft')) el.remove();
+    for (const el of $('main').querySelectorAll('.ghost.draft, .ghost.pick')) el.remove();
+    renderPick();
     const b = state.booking;
     if (!b || b.mode !== 'create' || !$('bookDialog').open || !state.geo || !state.rows) return;
     const start = getTime($('bStartH'), $('bStartM'));
