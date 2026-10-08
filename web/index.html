@@ -260,9 +260,10 @@
 
   /* ---------- カレンダー（月表示） ---------- */
   /* 1日あたり48px未満にはせず、それより狭い画面では横スクロール */
-  .month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); border-left: 1px solid var(--line); width: max-content; min-width: 100%; }
+  /* 1日48px未満にはしない。予約者名が長くても列は広げず、セルの中で省略する */
+  .month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); border-left: 1px solid var(--line); width: 100%; min-width: calc(48px * 7 + 1px); }
   .month .dow { position: sticky; top: 0; z-index: 1; background: var(--surface); text-align: center; font-size: 12px; font-weight: 700; padding: 6px 0; border-bottom: 1px solid var(--line-strong); border-right: 1px solid var(--line); }
-  .mc { min-height: 104px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 4px; cursor: pointer; overflow: hidden; }
+  .mc { min-width: 0; min-height: 104px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 4px; cursor: pointer; overflow: hidden; }
   @media (hover: hover) { .mc:hover { background: #f6f9ff; } }
   .mc.other { background: #fafbfc; color: #a3acb6; }
   .mc.closed-day { background: var(--closed); }
@@ -360,13 +361,13 @@
   @media (max-width: 600px) {
     .topbar {
       display: grid; gap: 6px 8px; align-items: center;
-      grid-template-columns: minmax(136px, 1fr) 1fr;
+      /* 4段にまとめる: タイトル・ボタン ／ お知らせ ／ 表示の切替・絞り込み ／ 日付の移動・日付 */
+      grid-template-columns: auto minmax(0, 1fr);
       grid-template-areas:
         "brand  tools"
         "notice notice"
-        "tabs   tabs"
-        "nav    date"
-        "label  select";
+        "tabs   select"
+        "nav    date";
     }
     .topbar .row { display: contents; }
     .brand { grid-area: brand; }
@@ -390,7 +391,10 @@
     .nav .btn { flex: 1; padding: 0 4px; }
     .date-field { grid-area: date; width: 100%; min-width: 0; }
     .date-display { width: 100%; }
-    .range-label { grid-area: label; font-size: 14px; }
+    .range-label { display: none; } /* 日付欄と同じ内容なので出さない */
+    .date-display .yr { display: none; } /* 年は省いて幅を詰める */
+    .tabs .btn { padding: 0 9px; }
+    .notice { padding: 4px 8px; font-size: 12px; }
     .selects { grid-area: select; min-width: 0; }
     .selects select { width: 100%; min-width: 0; }
   }
@@ -880,7 +884,8 @@
     const eq = $('equipFilter');
     const kinds = [...new Set(state.rooms.map((r) => r.equipment).filter(Boolean))];
     const curEq = load_(LS.filter, '');
-    eq.innerHTML = '<option value="">すべての設備</option>' + kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+    const allLabel = window.matchMedia && matchMedia('(max-width: 600px)').matches ? '全設備' : 'すべての設備'; // スマホでは欄が狭いので短く
+    eq.innerHTML = `<option value="">${allLabel}</option>` + kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
     eq.value = kinds.includes(curEq) ? curEq : '';
 
     const rs = $('roomSelect');
@@ -900,7 +905,7 @@
     $('datePicker').value = state.date;
     const dd = parseDate(state.date);
     const w = dd.getDay();
-    $('dateDisplay').innerHTML = `<span>${dd.getFullYear()}/${pad(dd.getMonth() + 1)}/${pad(dd.getDate())}` +
+    $('dateDisplay').innerHTML = `<span><span class="yr">${dd.getFullYear()}/</span>${pad(dd.getMonth() + 1)}/${pad(dd.getDate())}` +
       `<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">（${WEEKDAYS[w]}）</span></span>` +
       '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
     $('equipFilter').hidden = state.view !== 'day';
