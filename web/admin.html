@@ -267,8 +267,6 @@
           <label class="field">まとめて予約の最大件数<span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span><span class="help">くり返し予約・複数部屋の同時予約の合計（部屋数×日数）</span></label>
           <div class="field full">定休日（曜日）<div class="weekdays" id="sWeekdays"></div></div>
           <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約（くり返し・複数部屋の同時予約）は管理者（管理用パスワードを知っている人）のみ</label></div>
-          <label class="field full">限定公開の部屋のパスワード<input id="sLimitedPw" maxlength="50" autocomplete="off" placeholder="空欄なら管理者以外は使えません"><span class="help">予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上）。使う人には、このパスワードと入口の URL（<code id="limitedUrl"></code>）を伝えてください。変更すると、記憶済みの端末でも表示されなくなります</span></label>
-          <label class="field full">閲覧パスワード<input id="sViewPw" maxlength="50" autocomplete="off" placeholder="空欄なら誰でも閲覧・予約できます"><span class="help">設定すると、予約表を開くときにこのパスワードが必要になります（利用者の端末に記憶されます）</span></label>
         </form>
         <div class="savebar">
           <span class="spacer"></span>
@@ -304,6 +302,17 @@
       </div>
 
       <!-- パスワード -->
+      <div class="card" data-panel="password" hidden>
+        <h2>限定公開・閲覧のパスワード</h2>
+        <p class="lead">管理用パスワードとは別のパスワードです。これを知っている人も、予約表の設定変更や他人の予約の取消はできません。</p>
+        <form id="accessForm" class="form-grid" novalidate>
+          <label class="field full">限定公開の部屋のパスワード<input id="sLimitedPw" maxlength="50" autocomplete="off" placeholder="空欄なら管理者以外は使えません"><span class="help">予約制限が「限定公開」の部屋（演習室など）を表示・予約するためのパスワード（6文字以上）。使う人には、このパスワードと入口の URL（<code id="limitedUrl"></code>）を伝えてください。変更すると、記憶済みの端末でも表示されなくなります</span></label>
+          <label class="field full">閲覧パスワード<input id="sViewPw" maxlength="50" autocomplete="off" placeholder="空欄なら誰でも閲覧・予約できます"><span class="help">設定すると、予約表を開くときにこのパスワードが必要になります（利用者の端末に記憶されます）</span></label>
+          <div class="full"><button type="submit" class="btn primary" id="accessBtn">保存</button></div>
+        </form>
+        <p class="msg error" id="accessError"></p>
+      </div>
+
       <div class="card" data-panel="password" hidden>
         <h2>管理用パスワードの変更</h2>
         <p class="lead">担当者の交代時などに変更してください。変更後は新しいパスワードで管理画面に入ります。</p>
@@ -540,9 +549,7 @@
     $('sWeekdays').innerHTML = [...WEEKDAYS].map((w, i) =>
       `<label class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
     $('sBulkAdmin').checked = !!s.bulkRequiresAdmin;
-    $('sViewPw').value = s.viewPassword || '';
-    $('sLimitedPw').value = s.limitedPassword || '';
-    $('limitedUrl').textContent = new URL('./?limited', location.href).href;
+    fillPasswords(s);
     $('settingsError').textContent = '';
     $('settingsWarn').textContent = '';
   }
@@ -564,8 +571,9 @@
       maxBulkCount: Number($('sMaxBulk').value || 0),
       closedWeekdays: [...$('sWeekdays').querySelectorAll('input:checked')].map((c) => Number(c.value)),
       bulkRequiresAdmin: $('sBulkAdmin').checked,
-      viewPassword: $('sViewPw').value,
-      limitedPassword: $('sLimitedPw').value,
+      // パスワード類は「パスワード」タブで保存する。ここでは保存済みの値をそのまま送る
+      viewPassword: state.data.settings.viewPassword || '',
+      limitedPassword: state.data.settings.limitedPassword || '',
     };
     if (toMin(settings.closeTime) <= toMin(settings.openTime)) { err.textContent = '利用終了時刻は利用開始時刻より後にしてください。'; return; }
     const btn = $('saveSettingsBtn');
@@ -675,6 +683,34 @@
   });
 
   // ---------------- パスワード ----------------
+  function fillPasswords(s) {
+    $('sViewPw').value = s.viewPassword || '';
+    $('sLimitedPw').value = s.limitedPassword || '';
+    $('limitedUrl').textContent = new URL('./?limited', location.href).href;
+    $('accessError').textContent = '';
+  }
+  $('accessForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('accessError');
+    err.textContent = '';
+    // 保存済みの設定のうち、パスワードだけを差し替えて保存する（「利用時間・制限」の未保存の変更は含めない）
+    const settings = Object.assign({}, state.data.settings, {
+      viewPassword: $('sViewPw').value,
+      limitedPassword: $('sLimitedPw').value,
+    });
+    $('accessBtn').disabled = true;
+    try {
+      const res = await api('adminSaveSettings', { settings });
+      if (!res.ok) throw new Error(res.message);
+      state.data.settings = res.settings;
+      fillPasswords(res.settings);
+      toast('パスワードを保存しました');
+    } catch (ex) {
+      err.textContent = errMessage(ex);
+    } finally {
+      $('accessBtn').disabled = false;
+    }
+  });
   $('pwForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = $('pwError');
