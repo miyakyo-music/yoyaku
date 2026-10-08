@@ -815,6 +815,12 @@
     const keyChanged = state.shownKey !== shownKey;
     state.shownKey = shownKey;
     if (res.limitedDenied && state.limitedKey) endLimited('限定公開の部屋のパスワードが変更されたため、表示を終了しました。');
+    if (state.limitedEntry && res.ok) {
+      // 入口の URL から来たとき: 見られれば設備の絞り込みを演習室などに合わせ、見られなければパスワードを尋ねる
+      state.limitedEntry = false;
+      if (res.limitedAccess) focusLimitedRooms(res.rooms);
+      else { $('limPass').value = ''; $('limError').textContent = ''; $('limitedDialog').showModal(); }
+    }
     $('limitedMode').hidden = !(state.limitedKey && res.limitedAccess);
     state.data = res;
     state.settings = res.settings;
@@ -1939,6 +1945,7 @@
       state.limitedKey = key;
       save_(LS.limitedKey, key);
       $('limitedDialog').close();
+      focusLimitedRooms(res.rooms);
       invalidate();
       load({ force: true });
       toast('この端末で、限定公開の部屋を表示します。');
@@ -1948,6 +1955,14 @@
       $('limSubmit').disabled = false;
     }
   });
+  /** 設備の絞り込みを、限定公開の部屋の設備区分（例：演習室）にする。一覧表示に切り替える */
+  function focusLimitedRooms(rooms) {
+    const counts = {};
+    for (const r of rooms) if (r.restriction === LIMITED && r.equipment) counts[r.equipment] = (counts[r.equipment] || 0) + 1;
+    const equip = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+    if (equip) save_(LS.filter, equip);
+    if (state.view !== 'day') { state.view = 'day'; save_(LS.view, 'day'); updateChrome(); }
+  }
   $('limitedMode').addEventListener('click', () => {
     if (!confirm('限定公開の部屋の表示を終了しますか？（再び表示するには、パスワードの入力が必要です）')) return;
     endLimited();
@@ -2102,14 +2117,15 @@
 
   // ---------------- 起動 ----------------
   if (!['day', 'room', 'month'].includes(state.view)) state.view = 'day';
+  // 限定公開の部屋の入口（…/yoyaku/?limited）。URL からは外し、ブックマークや共有で広まらないようにする。
+  // 記憶済みのパスワードで見られればそのまま演習室などを表示し、見られなければ最初の表示のあとでパスワードを尋ねる
+  if (/[?&]limited\b/.test(location.search)) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    state.limitedEntry = true;
+    state.view = 'day';
+  }
   updateChrome();
   load();
-  // 限定公開の部屋の入口（…/yoyaku/?limited）
-  if (/[?&]limited\b/.test(location.search)) {
-    history.replaceState(null, '', location.pathname + location.hash); // URL から外し、ブックマークや共有で広まらないようにする
-    $('limPass').value = '';
-    $('limitedDialog').showModal();
-  }
 })();
 </script>
 </body>
