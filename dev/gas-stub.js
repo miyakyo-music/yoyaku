@@ -61,6 +61,7 @@
   }
 
   const spreadsheet = {
+    getUrl: () => 'https://docs.google.com/spreadsheets/d/dev-stub/edit',
     getSheetByName: (name) => (book.sheets[name] ? new Sheet(name) : null),
     insertSheet: (name) => { book.sheets[name] = []; book.order.push(name); return new Sheet(name); },
     getSheets: () => book.order.map((n) => new Sheet(n)),

@@ -60,15 +60,16 @@
     display: flex; flex-direction: column; gap: 8px;
   }
   .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .brand { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+  .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
   h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tools { display: flex; gap: 6px; align-items: center; }
+  .tools { display: flex; gap: 6px; align-items: center; margin-left: auto; }
   .admin-link { font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
   @media (hover: hover) { .admin-link:hover { color: var(--accent); border-color: var(--accent); } }
   .status { font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
   .notice { margin: 0; padding: 6px 10px; border-radius: 8px; background: #fff7e0; color: #6b4e00; font-size: 13px; }
   /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
-  .notice-row { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
+  /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
+  .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
   .notice-row .notice { flex: 0 1 auto; min-width: 0; }
   .notice-row [data-bug] { margin-left: auto; white-space: nowrap; }
   .btn {
@@ -89,6 +90,11 @@
     font-size: 16px; /* 16px未満だとiOS Safariでフォーカス時に画面が拡大される */
   }
   .range-label { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .selects { display: inline-flex; gap: 6px; align-items: center; }
+  /* 一覧の日付は日付欄と同じ内容なので、PC では出さない（スマホでは表の直前の見出しとして出す） */
+  @media (min-width: 601px) { .range-label.is-day { display: none; } }
+  .free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; color: #1e7a43; font-weight: 700; }
+  .tl-label .free-until { font-size: 11px; color: #1e7a43; font-weight: 600; white-space: nowrap; }
   /* 日付欄: 曜日付きの表示の上に、透明にした標準の日付入力を重ねる（押すと標準のカレンダーが開く） */
   .date-field { position: relative; display: inline-flex; }
   .date-display {
@@ -371,6 +377,10 @@
     .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
     .legend, .status #statusText { display: none; }
     .notice-row { grid-area: notice; }
+    .tools { margin-left: 0; }
+    .selects { display: flex; }
+    .selects select { flex: 1; }
+    .free-btn { flex: none; padding: 0 10px; }
     .tabs { grid-area: tabs; display: flex; }
     .tabs .btn { flex: 1; }
     .nav { grid-area: nav; display: flex; }
@@ -379,7 +389,7 @@
     .date-display { width: 100%; }
     .range-label { grid-area: label; font-size: 14px; }
     .selects { grid-area: select; min-width: 0; }
-    .selects select { width: 100%; }
+    .selects select { width: 100%; min-width: 0; }
   }
 
 </style>
@@ -388,15 +398,15 @@
   <header class="topbar">
     <div class="row">
       <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者モード</button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
+      <div class="notice-row" id="noticeRow" hidden>
+        <p class="notice" id="notice"></p>
+        <button type="button" class="link-btn" data-bug>不具合を報告</button>
+      </div>
       <div class="tools">
         <button type="button" class="btn" id="myBtn">自分の予約</button>
         <button type="button" class="btn primary" id="newBtn"><span class="lg">＋ 新規予約</span><span class="sm">＋予約</span></button>
         <button type="button" class="btn" id="refreshBtn" aria-label="更新"><span class="lg">更新</span><span class="sm">↻</span></button>
       </div>
-    </div>
-    <div class="notice-row" id="noticeRow" hidden>
-      <p class="notice" id="notice"></p>
-      <button type="button" class="link-btn" data-bug>不具合を報告</button>
     </div>
     <div class="row">
       <div class="seg tabs" role="tablist">
@@ -413,12 +423,11 @@
         <span class="date-display" id="dateDisplay" aria-hidden="true"></span>
         <input type="date" id="datePicker" aria-label="日付を選択">
       </label>
-    </div>
-    <div class="row">
       <span class="range-label" id="rangeLabel"></span>
       <span class="selects">
         <select id="equipFilter" aria-label="設備で絞り込み"><option value="">すべての設備</option></select>
         <select id="roomSelect" aria-label="部屋を選択" hidden></select>
+        <button type="button" class="btn free-btn" id="freeBtn" aria-pressed="false" title="今の時刻から30分以上空いている部屋だけを表示">空室</button>
       </span>
       <span class="legend">
         <span><i class="sw res"></i>予約済み</span>
@@ -874,12 +883,15 @@
       `<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">（${WEEKDAYS[w]}）</span></span>` +
       '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
     $('equipFilter').hidden = state.view !== 'day';
+    $('freeBtn').hidden = state.view !== 'day';
+    if (state.freeNow && (state.view !== 'day' || state.date !== todayStr())) state.freeNow = false;
+    $('freeBtn').setAttribute('aria-pressed', String(!!state.freeNow));
     $('roomSelect').hidden = state.view === 'day';
     const label = $('rangeLabel');
     const d = parseDate(state.date);
     if (state.view === 'day') {
       label.textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
-      label.className = 'range-label ' + dayClass(state.date);
+      label.className = 'range-label is-day ' + dayClass(state.date);
     } else if (state.view === 'room') {
       const { from, to } = currentRange();
       label.textContent = `${mdLabel(from)}〜${mdLabel(to)}`;
@@ -930,11 +942,12 @@
     else renderTimeline();
   }
 
-  function roomLabelHtml(room) {
+  function roomLabelHtml(room, extraHtml) {
     const tags = tagList(room.tags).map((t) => `<span class="tag ${tagClass(t)}">${esc(t)}</span>`);
     if (room.restriction === ADMIN_ONLY) tags.push('<span class="tag t-admin">管理者のみ</span>');
     if (room.restriction === STOPPED) tags.push('<span class="tag t-admin">使用停止</span>');
     const title = [roomText(room), room.equipment, room.note].filter(Boolean).join(' / ');
+    if (extraHtml) tags.push(extraHtml); // 「○時まで空き」などはタグと同じ行に並べ、行の高さを増やさない
     return `<span class="nm" title="${esc(title)}">${esc(room.name)}</span>` +
       (tags.length ? `<span class="sub">${tags.join('')}</span>` : '');
   }
@@ -958,6 +971,14 @@
       const filter = $('equipFilter').value;
       rows = state.rooms.filter((r) => !filter || r.equipment === filter)
         .map((room) => ({ date: state.data.from, room, label: roomLabelHtml(room), cls: '' }));
+      if (state.freeNow) {
+        // 「空室」: 今から30分以上（閉館が近ければ閉館まで）空いている部屋だけにし、いつまで空いているかを添える
+        rows = rows.map((row) => Object.assign(row, { free: freeFromNow(row.room) })).filter((row) => row.free);
+        for (const row of rows) {
+          const until = row.free.until >= close ? '閉館まで空き' : `${hm(toHHMM(row.free.until))}まで空き`;
+          row.label = roomLabelHtml(row.room, `<span class="free-until">${until}</span>`);
+        }
+      }
       corner = '部屋 ＼ 時刻';
     } else {
       const room = roomById(state.roomId);
@@ -1016,7 +1037,11 @@
       return { date: row.date, roomId: row.room.id, stopped, busy };
     });
     html += '</div>';
-    if (!rows.length) html += `<p class="empty">${state.rooms.length ? '該当する部屋がありません。' : '部屋が登録されていません（部屋マスタを確認してください）。'}</p>`;
+    if (!rows.length) {
+      const msg = !state.rooms.length ? '部屋が登録されていません（部屋マスタを確認してください）。'
+        : state.freeNow ? (now >= close ? '本日の利用時間は終了しました。' : '今すぐ使える部屋はありません。') : '該当する部屋がありません。';
+      html += `<p class="empty">${msg}</p>`;
+    }
     html += footHtml('');
     $('main').innerHTML = html;
     $('main').classList.add('has-tl');
@@ -1153,6 +1178,28 @@
   }
 
   /** 指定時刻を含む空き区間 [開始, 終了]。予約済み・過去・利用不可なら null */
+  /**
+   * 今の時刻からその部屋が空いている区間 {from, until}。30分以上（閉館が近ければ閉館まで）空いていなければ null。
+   * 使用停止の部屋と、管理者モードでないときの「管理者のみ」の部屋は除く。
+   */
+  function freeFromNow(room) {
+    const s = state.settings;
+    const open = toMin(s.openTime), close = toMin(s.closeTime);
+    if (room.restriction === STOPPED || (room.restriction === ADMIN_ONLY && !isAdminMode())) return null;
+    const today = todayStr();
+    const from = Math.max(open, ceilTo(nowMin(), s.unitMinutes));
+    if (from >= close) return null;
+    const busy = visibleReservations().filter((r) => r.date === today && r.roomId === room.id)
+      .map((r) => [toMin(r.start), toMin(r.end)])
+      .concat(closuresFor(today, room.id).map((c) => [c.start, c.end]));
+    let until = close;
+    for (const [a, b] of busy) {
+      if (a <= from && b > from) return null;
+      if (a > from) until = Math.min(until, a);
+    }
+    return until - from >= Math.min(30, close - from) ? { from, until } : null;
+  }
+
   function freeSpanAt(row, m) {
     const { open, close, unit } = state.geo;
     const today = todayStr();
@@ -1862,6 +1909,13 @@
   });
   for (const b of document.querySelectorAll('.tabs .btn')) b.addEventListener('click', () => setView(b.dataset.view));
   $('equipFilter').addEventListener('change', (e) => { save_(LS.filter, e.target.value); if (state.data) render(); });
+  $('freeBtn').addEventListener('click', () => {
+    state.freeNow = !state.freeNow;
+    $('freeBtn').setAttribute('aria-pressed', String(state.freeNow));
+    // 今日以外を表示しているときは今日に移る
+    if (state.freeNow && state.date !== todayStr()) { setDate(todayStr()); return; }
+    if (state.data) { render(); scrollToNow(); }
+  });
   $('roomSelect').addEventListener('change', (e) => { state.roomId = e.target.value; save_(LS.room, state.roomId); updateChrome(); if (state.data) render(); });
 
   $('bookForm').addEventListener('submit', submitBooking);

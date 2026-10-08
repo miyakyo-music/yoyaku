@@ -205,6 +205,7 @@
     <h1>管理画面</h1>
     <span class="app-name" id="appName"></span>
     <span class="spacer"></span>
+    <a class="btn small" id="sheetLink" target="_blank" rel="noopener" hidden title="予約台帳・操作ログ・部屋マスタなどが入ったスプレッドシートを開く（共有されている Google アカウントのみ）">データベース</a>
     <a class="btn small" id="backLink" href="./">予約表に戻る</a>
     <button type="button" class="btn small" id="logoutBtn" hidden>ログアウト</button>
   </header>
@@ -412,6 +413,7 @@
     sessionSet('');
     $('adminView').hidden = true;
     $('logoutBtn').hidden = true;
+    $('sheetLink').hidden = true;
     $('loginView').hidden = false;
     $('loginError').textContent = message || '';
     $('loginPw').value = '';
@@ -423,6 +425,7 @@
     $('adminView').hidden = false;
     $('logoutBtn').hidden = false;
     $('appName').textContent = d.settings.title;
+    if (d.spreadsheetUrl) { $('sheetLink').href = d.spreadsheetUrl; $('sheetLink').hidden = false; }
     document.title = d.settings.title + '（管理画面）';
     state.rooms = d.rooms.map((r) => ({ ...r }));
     state.closures = d.closures.slice();

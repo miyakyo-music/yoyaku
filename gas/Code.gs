@@ -408,6 +408,7 @@ function adminGetData(p) {
     closures: readClosures_(ss),
     unitOptions: UNIT_OPTIONS,
     today: nowStr_('yyyy-MM-dd'),
+    spreadsheetUrl: ss.getUrl(), // 管理画面の「スプレッドシートを開く」用（開けるのは共有されている人だけ）
   };
 }
 
