@@ -160,7 +160,7 @@
   @media (max-width: 600px) {
     .room {
       grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
-      grid-template-areas: "no name name" "no tags tags" "no eq restr" "no note note" "no ops ops";
+      grid-template-areas: "no sum sum" "no name name" "no tags tags" "no eq restr" "no note note" "no ops ops";
     }
     .room .ops { padding-top: 0; }
   }
@@ -210,8 +210,57 @@
     opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 100;
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  /* 説明文は折りたためるようにする（PC では最初から開く） */
+  .howto { margin: -6px 0 12px; }
+  .howto summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 0; }
+  .howto .lead { margin: 6px 0 0; }
+  .room-sum { display: none; }
   @media (max-width: 600px) {
-    .form-grid { grid-template-columns: 1fr; }
+    /* 短い欄（時刻・数値）は2つずつ並べ、長い欄だけ1行を使う */
+    .form-grid { gap: 12px 10px; }
+    .form-grid .m-full { grid-column: 1 / -1; }
+    .weekdays { gap: 4px; flex-wrap: nowrap; }
+    .weekdays label { flex: 1; justify-content: center; gap: 3px; padding-left: 0; padding-right: 0; }
+    .topbar { gap: 8px; padding-top: 8px; padding-bottom: 8px; flex-wrap: nowrap; }
+    .topbar h1 { font-size: 16px; white-space: nowrap; }
+    .topbar .app-name, .topbar .lg, .tabs .lg { display: none; }
+    /* タブは短い名前にして、5つとも横スクロールなしで見えるようにする */
+    .tabs { gap: 0; justify-content: space-between; }
+    .tabs button { padding: 10px 8px; font-size: 14px; }
+    .topbar .btn.small { padding: 0 8px; }
+    /* 部屋は1行に畳み、押した部屋だけ開いて編集する */
+    .rooms { gap: 6px; }
+    .room { padding: 6px 8px; row-gap: 0; }
+    .room.open { row-gap: 8px; border-color: var(--accent); }
+    .room:not(.open) > :not(.no):not(.room-sum) { display: none; }
+    .room-sum {
+      grid-area: sum; display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%;
+      border: 0; background: none; padding: 6px 0; text-align: left; cursor: pointer; font-size: 15px;
+    }
+    .room-sum .s-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .room-sum .chip { flex: none; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #eef2f7; color: var(--muted); }
+    .room-sum .chip.warn { background: #fff4e5; color: #9a5b00; }
+    .room-sum .s-eq { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .room-sum .chev { flex: none; color: var(--muted); transition: transform .15s; }
+    .room.open .room-sum .chev { transform: rotate(180deg); }
+    .room .no { min-height: 0; }
+    /* 休館・利用停止の一覧は、表を横にスクロールさせず、1件ずつのカードにする */
+    .table-wrap { border: 0; overflow: visible; }
+    .table-wrap table { min-width: 0; display: block; }
+    .table-wrap thead { display: none; }
+    .table-wrap tbody { display: flex; flex-direction: column; gap: 6px; }
+    .table-wrap tr {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px;
+      grid-template-areas: "date time del" "room reason del";
+      padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+    }
+    .table-wrap td { padding: 0; border: 0; white-space: normal; min-width: 0; font-size: 14px; }
+    .table-wrap td:nth-child(1) { grid-area: date; font-weight: 600; }
+    .table-wrap td:nth-child(2) { grid-area: room; color: var(--muted); font-size: 13px; }
+    .table-wrap td:nth-child(3) { grid-area: time; }
+    .table-wrap td:nth-child(4) { grid-area: reason; color: var(--muted); font-size: 13px; }
+    .table-wrap td:nth-child(5) { grid-area: del; }
+    .table-wrap td.empty { grid-column: 1 / -1; }
     .card { padding: 14px; }
     .wrap { padding: 12px 12px 80px; }
   }
@@ -219,7 +268,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="btn small" id="backLink" href="./">‹ 予約表に戻る</a>
+    <a class="btn small" id="backLink" href="./">‹ 予約表<span class="lg">に戻る</span></a>
     <h1>管理画面</h1>
     <span class="app-name" id="appName"></span>
     <span class="spacer"></span>
@@ -242,21 +291,21 @@
     <section id="adminView" hidden>
       <nav class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="rooms" aria-selected="true">練習室<span class="dot" id="dotRooms" hidden>●</span></button>
-        <button type="button" role="tab" data-tab="settings" aria-selected="false">利用時間・制限<span class="dot" id="dotSettings" hidden>●</span></button>
-        <button type="button" role="tab" data-tab="closures" aria-selected="false">休館・利用停止</button>
+        <button type="button" role="tab" data-tab="settings" aria-selected="false">利用時間<span class="lg">・制限</span><span class="dot" id="dotSettings" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
-        <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合報告</button>
+        <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span></button>
       </nav>
 
       <!-- 練習室 -->
       <div class="card" data-panel="rooms">
         <h2>練習室の追加・削除・編集</h2>
-        <p class="lead">
+        <details class="howto" id="roomsHowto"><summary>入力のしかた</summary><p class="lead">
           並び順は予約表の表示順です（左端の番号をつまんでドラッグするか、↑↓で入れ替え）。「特徴タグ」は部屋名の下にタグで表示されます（「・」区切りで複数可。例：大・GP）。<br>
           同じ部屋名（例：練習室6）の部屋は、予約時に「まとめて選択」できます。「設備区分」は予約表の絞り込みに使います。<br>
           予約制限:「管理者のみ」= 予約・変更・取消に管理用パスワードが必要 ／「限定公開」= 限定公開のパスワードを入れた人だけに表示・予約可（一般の利用者には部屋があることも表示しない。演習室など）／「使用停止」= 予約不可（故障・改修中など）。<br>
           今日以降の予約が残っている部屋は削除できません。その場合は「使用停止」にしてください。
-        </p>
+        </p></details>
         <div class="rooms-head"><span></span><span>部屋名</span><span>特徴タグ</span><span>設備区分（絞り込み用）</span><span>予約制限</span><span>備考</span><span></span></div>
         <div class="rooms" id="roomList"></div>
         <datalist id="equipList"></datalist>
@@ -280,8 +329,8 @@
           <div class="field">利用終了時刻<div class="time"><select id="sCloseH" class="in"></select>:<select id="sCloseM" class="in"></select></div></div>
           <label class="field">予約単位<span class="suffix"><select id="sUnit" class="in"></select>分</span><span class="help">予約の開始・終了時刻をこの単位で指定します</span></label>
           <label class="field">1回の最大予約時間<span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span><span class="help">0 = 制限なし（管理者は制限を受けません）</span></label>
-          <label class="field">予約受付期間<span class="suffix">今日から<input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span><span class="help">0 = 制限なし（管理者は制限を受けません）</span></label>
-          <label class="field">まとめて予約の最大件数<span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span><span class="help">くり返し予約・複数部屋の同時予約の合計（部屋数×日数）</span></label>
+          <label class="field m-full">予約受付期間<span class="suffix">今日から<input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span><span class="help">0 = 制限なし（管理者は制限を受けません）</span></label>
+          <label class="field m-full">まとめて予約の最大件数<span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span><span class="help">くり返し予約・複数部屋の同時予約の合計（部屋数×日数）</span></label>
           <div class="field full">定休日（曜日）<div class="weekdays" id="sWeekdays"></div></div>
           <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約（くり返し・複数部屋の同時予約）は管理者（管理用パスワードを知っている人）のみ</label></div>
         </form>
@@ -484,11 +533,22 @@
   }
 
   // ---------------- 練習室 ----------------
+  // 説明文は PC では最初から開いておく（スマホでは畳んで、部屋の一覧を先に見せる）
+  if (window.matchMedia && matchMedia('(min-width: 601px)').matches) $('roomsHowto').open = true;
+
+  // スマホでは各部屋を1行に畳んで一覧しやすくし、押した部屋だけ開いて編集する（PC では常に全項目を表示）
+  const openRooms = new WeakSet();
+  function roomSumHtml(r) {
+    const tags = String(r.tags || '').split(/[・,、\s]+/).filter(Boolean).map((t) => `<span class="chip">${esc(t)}</span>`).join('');
+    const restr = r.restriction ? `<span class="chip warn">${esc(r.restriction)}</span>` : '';
+    return `<span class="s-name">${esc(r.name) || '（名前未入力）'}</span>${tags}${restr}<span class="s-eq">${esc(r.equipment)}</span><span class="chev" aria-hidden="true">▾</span>`;
+  }
   function renderRooms() {
     const equip = [...new Set(state.rooms.map((r) => r.equipment).concat(['グランドピアノ', 'アップライトピアノ', '電子ピアノ', '大部屋']).filter(Boolean))];
     $('equipList').innerHTML = equip.map((e) => `<option value="${esc(e)}">`).join('');
     $('roomList').innerHTML = state.rooms.map((r, i) => `
-      <div class="room${r.id ? '' : ' new'}" data-i="${i}">
+      <div class="room${r.id ? '' : ' new'}${openRooms.has(r) ? ' open' : ''}" data-i="${i}">
+        <button type="button" class="room-sum" data-act="toggle" aria-expanded="${openRooms.has(r) ? 'true' : 'false'}">${roomSumHtml(r)}</button>
         <span class="no" data-drag title="ドラッグで並べ替え" aria-label="${i + 1}番目（ドラッグで並べ替え）"><span class="grip" aria-hidden="true">⠿</span>${i + 1}</span>
         <div class="c-name"><span class="lbl">部屋名</span><input class="in" data-f="name" value="${esc(r.name)}" maxlength="30" aria-label="部屋名" placeholder="新しい部屋の名前"></div>
         <div class="c-tags"><span class="lbl">特徴タグ</span><input class="in" data-f="tags" value="${esc(r.tags)}" maxlength="30" aria-label="特徴タグ"${r.id ? '' : ' placeholder="例：大・GP"'}></div>
@@ -506,13 +566,19 @@
   $('roomList').addEventListener('input', (e) => {
     const el = e.target.closest('[data-f]');
     if (!el) return;
-    state.rooms[Number(el.closest('.room').dataset.i)][el.dataset.f] = el.value;
+    const row = el.closest('.room');
+    const r = state.rooms[Number(row.dataset.i)];
+    r[el.dataset.f] = el.value;
+    row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
     setDirty('rooms', true);
   });
   $('roomList').addEventListener('change', (e) => {
     const el = e.target.closest('select[data-f]');
     if (!el) return;
-    state.rooms[Number(el.closest('.room').dataset.i)][el.dataset.f] = el.value;
+    const row = el.closest('.room');
+    const r = state.rooms[Number(row.dataset.i)];
+    r[el.dataset.f] = el.value;
+    row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
     setDirty('rooms', true);
   });
   $('roomList').addEventListener('click', (e) => {
@@ -520,6 +586,14 @@
     if (!b) return;
     const i = Number(b.closest('.room').dataset.i);
     const rooms = state.rooms;
+    if (b.dataset.act === 'toggle') {
+      const row = b.closest('.room');
+      const open = !row.classList.contains('open');
+      row.classList.toggle('open', open);
+      b.setAttribute('aria-expanded', String(open));
+      if (open) openRooms.add(rooms[i]); else openRooms.delete(rooms[i]);
+      return;
+    }
     if (b.dataset.act === 'up' && i > 0) [rooms[i - 1], rooms[i]] = [rooms[i], rooms[i - 1]];
     else if (b.dataset.act === 'down' && i < rooms.length - 1) [rooms[i + 1], rooms[i]] = [rooms[i], rooms[i + 1]];
     else if (b.dataset.act === 'del') {
@@ -583,6 +657,7 @@
 
   $('addRoomBtn').addEventListener('click', () => {
     state.rooms.push({ id: '', name: '', tags: '', equipment: '', restriction: '', note: '' });
+    openRooms.add(state.rooms[state.rooms.length - 1]);
     setDirty('rooms', true);
     renderRooms();
     const inputs = $('roomList').querySelectorAll('[data-f="name"]');
