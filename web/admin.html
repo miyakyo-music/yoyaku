@@ -126,7 +126,17 @@
   }
   .room { align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
   .room.new { border-color: #9cc0f5; background: #f7faff; }
-  .room .no { color: var(--muted); font-size: 12px; text-align: right; line-height: 38px; }
+  /* 左端の番号の列をつまむと、ドラッグで並べ替えられる（指でも操作できるよう、列全体をつかめる） */
+  .room .no {
+    color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 0;
+    align-self: stretch; min-height: 38px; justify-content: center; border-radius: 6px;
+    cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  .room .no .grip { font-size: 14px; line-height: 1; letter-spacing: -1px; color: #9aa3ad; }
+  @media (hover: hover) { .room .no:hover { background: var(--bg); color: var(--text); } }
+  .room.dragging { box-shadow: 0 8px 24px rgba(15, 23, 42, .18); border-color: var(--accent); position: relative; z-index: 2; }
+  .room.dragging .no { cursor: grabbing; background: var(--accent-weak, #e8f0ff); color: var(--accent); }
+  body.sorting, body.sorting * { cursor: grabbing !important; }
   .room .ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 3px; }
   .rooms-head { padding: 0 9px 4px; font-size: 12px; color: var(--muted); }
   /* 1行に並べると欄が狭くなる幅では2段、スマホ幅では4段にする */
@@ -137,7 +147,7 @@
       grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
       grid-template-areas: "no name tags eq" "no restr note ops";
     }
-    .room .no { grid-area: no; padding-top: 16px; } /* ラベル分下げて入力欄と同じ高さに */
+    .room .no { grid-area: no; }
     .room .c-name { grid-area: name; }
     .room .c-tags { grid-area: tags; }
     .room .c-eq { grid-area: eq; }
@@ -241,7 +251,7 @@
       <div class="card" data-panel="rooms">
         <h2>練習室の追加・削除・編集</h2>
         <p class="lead">
-          並び順は予約表の表示順です（↑↓で入れ替え）。「特徴タグ」は部屋名の下にタグで表示されます（「・」区切りで複数可。例：大・GP）。<br>
+          並び順は予約表の表示順です（左端の番号をつまんでドラッグするか、↑↓で入れ替え）。「特徴タグ」は部屋名の下にタグで表示されます（「・」区切りで複数可。例：大・GP）。<br>
           同じ部屋名（例：練習室6）の部屋は、予約時に「まとめて選択」できます。「設備区分」は予約表の絞り込みに使います。<br>
           予約制限:「管理者のみ」= 予約・変更・取消に管理用パスワードが必要 ／「限定公開」= 限定公開のパスワードを入れた人だけに表示・予約可（一般の利用者には部屋があることも表示しない。演習室など）／「使用停止」= 予約不可（故障・改修中など）。<br>
           今日以降の予約が残っている部屋は削除できません。その場合は「使用停止」にしてください。
@@ -478,7 +488,7 @@
     $('equipList').innerHTML = equip.map((e) => `<option value="${esc(e)}">`).join('');
     $('roomList').innerHTML = state.rooms.map((r, i) => `
       <div class="room${r.id ? '' : ' new'}" data-i="${i}">
-        <span class="no">${i + 1}</span>
+        <span class="no" data-drag title="ドラッグで並べ替え" aria-label="${i + 1}番目（ドラッグで並べ替え）"><span class="grip" aria-hidden="true">⠿</span>${i + 1}</span>
         <div class="c-name"><span class="lbl">部屋名</span><input class="in" data-f="name" value="${esc(r.name)}" maxlength="30" aria-label="部屋名" placeholder="新しい部屋の名前"></div>
         <div class="c-tags"><span class="lbl">特徴タグ</span><input class="in" data-f="tags" value="${esc(r.tags)}" maxlength="30" aria-label="特徴タグ"${r.id ? '' : ' placeholder="例：大・GP"'}></div>
         <div class="c-eq"><span class="lbl">設備区分</span><input class="in" data-f="equipment" value="${esc(r.equipment)}" maxlength="20" list="equipList" aria-label="設備区分"></div>
@@ -518,6 +528,58 @@
     setDirty('rooms', true);
     renderRooms();
   });
+  // ドラッグで並べ替え（マウス・指の両方。左端の番号の列をつまんで上下に動かす）
+  let sort = null;
+  $('roomList').addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('[data-drag]');
+    if (!handle || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    const row = handle.closest('.room');
+    try { handle.setPointerCapture(e.pointerId); } catch (ex) { /* 取得できなくても並べ替えはできる */ }
+    row.classList.add('dragging');
+    document.body.classList.add('sorting');
+    sort = { row, handle, y: e.clientY, moved: false };
+    // 画面の上下の端で指（マウス）を止めていても、自動でスクロールし続ける
+    sort.timer = setInterval(() => {
+      if (!sort) return;
+      const edge = 70;
+      const dy = sort.y < edge ? -14 : sort.y > window.innerHeight - edge ? 14 : 0;
+      if (dy) { window.scrollBy(0, dy); moveSortRow(); }
+    }, 30);
+  });
+  $('roomList').addEventListener('pointermove', (e) => {
+    if (!sort) return;
+    sort.y = e.clientY;
+    moveSortRow();
+  });
+  function moveSortRow() {
+    const { row, y } = sort;
+    // 速く動かして何行も飛び越えたときも追いつくよう、位置が決まるまで1行ずつ入れ替える
+    for (;;) {
+      const prev = row.previousElementSibling;
+      const next = row.nextElementSibling;
+      if (prev && y < prev.getBoundingClientRect().top + prev.offsetHeight / 2) row.after(prev);
+      else if (next && y > next.getBoundingClientRect().top + next.offsetHeight / 2) row.before(next);
+      else break;
+      sort.moved = true;
+    }
+  }
+  function endSort() {
+    if (!sort) return;
+    const { row, moved, timer } = sort;
+    clearInterval(timer);
+    sort = null;
+    row.classList.remove('dragging');
+    document.body.classList.remove('sorting');
+    if (!moved) return;
+    const order = [...$('roomList').querySelectorAll('.room')].map((el) => Number(el.dataset.i));
+    state.rooms = order.map((i) => state.rooms[i]);
+    setDirty('rooms', true);
+    renderRooms();
+  }
+  $('roomList').addEventListener('pointerup', endSort);
+  $('roomList').addEventListener('pointercancel', endSort);
+
   $('addRoomBtn').addEventListener('click', () => {
     state.rooms.push({ id: '', name: '', tags: '', equipment: '', restriction: '', note: '' });
     setDirty('rooms', true);
