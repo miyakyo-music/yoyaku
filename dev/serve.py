@@ -23,7 +23,7 @@ INJECT = (
     '<script src="/gas/Code.gs"></script>\n'
     '<script src="/dev/seed.js"></script>\n'
 )
-TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".gs": "text/javascript; charset=utf-8"}
+TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".gs": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}
 
 
 class Handler(http.server.BaseHTTPRequestHandler):

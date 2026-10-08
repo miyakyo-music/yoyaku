@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>練習室予約</title>
 <style>
   :root {
@@ -232,6 +235,8 @@
     background: rgba(37, 99, 235, .18); border: 2px solid var(--accent); color: var(--accent);
     font-size: 11px; font-weight: 700; padding: 1px 4px; white-space: nowrap; overflow: visible;
   }
+  /* 予約画面を開いている間の仮予約の帯（点線で、まだ確定していないことを示す） */
+  .ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
   .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
   .main-foot {
     position: sticky; left: 0; margin: 0; padding: 10px 12px 16px; font-size: 12px; color: var(--muted);
@@ -562,7 +567,7 @@
     room: 'prr.room',
     viewKey: 'prr.viewKey',
   };
-  const APP_VERSION = '2026-10-08';
+  const APP_VERSION = 'v0.2.2-beta'; // 不具合報告に添える版。GAS のデプロイの説明（バージョン名）とそろえる
   const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
   const ADMIN_SESSION_KEY = 'prr.adminPw'; // 管理画面と共通（このタブで管理画面にログインしている間は管理者モード）
   const ADMIN_ONLY = '管理者のみ';
@@ -1016,11 +1021,15 @@
     $('main').innerHTML = html;
     $('main').classList.add('has-tl');
     fitLabelColumn();
+    renderDraft();
   }
 
   /** 予約表の下端（操作の案内・不具合報告） */
   function footHtml(text) {
-    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${state.settings && state.settings.notice ? '' : '<button type="button" class="link-btn" data-bug>不具合を報告</button>'}</p>`;
+    // お知らせがあるときは「不具合を報告」はお知らせの横にあるので、ここには出さない（中身がなければ行ごと出さない）
+    const bug = state.settings && state.settings.notice ? '' : '<button type="button" class="link-btn" data-bug>不具合を報告</button>';
+    if (!text && !bug) return '';
+    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${bug}</p>`;
   }
 
   /**
@@ -1407,6 +1416,7 @@
     resetConflicts();
     updateBookingUi();
     $('bookDialog').showModal();
+    renderDraft();
     // 新規予約は氏名／団体名の欄から入力できるようにする。
     // 変更時は入力欄に触れない（iPhoneでは部屋の選択肢やキーボードが勝手に開いてしまうため、見出しを選択状態にしている）
     if (!edit) $('bPerson').focus();
@@ -1448,6 +1458,33 @@
       el.textContent = '最終日は開始日以降の日付を指定してください。';
       el.style.color = 'var(--danger)';
     }
+    renderDraft();
+  }
+
+  /** 新規予約の入力中は、背景の予約表に「仮予約」の帯（選んでいる部屋・日付・時間）を出す */
+  function renderDraft() {
+    for (const el of $('main').querySelectorAll('.ghost.draft')) el.remove();
+    const b = state.booking;
+    if (!b || b.mode !== 'create' || !$('bookDialog').open || !state.geo || !state.rows) return;
+    const start = getTime($('bStartH'), $('bStartM'));
+    const end = getTime($('bEndH'), $('bEndM'));
+    if (!(end > start)) return;
+    const { t0, total } = state.geo;
+    const rooms = new Set(selectedRooms());
+    const dates = new Set(bookingDates());
+    const s = Math.max(start, t0), e = Math.min(end, t0 + total);
+    if (e <= s) return;
+    state.rows.forEach((row, i) => {
+      if (!rooms.has(row.roomId) || !dates.has(row.date)) return;
+      const track = $('main').querySelector(`.tl-track[data-i="${i}"]`);
+      if (!track) return;
+      const el = document.createElement('div');
+      el.className = 'ghost draft';
+      el.style.left = `${((s - t0) / total * 100).toFixed(4)}%`;
+      el.style.width = `${((e - s) / total * 100).toFixed(4)}%`;
+      el.textContent = `${hm(toHHMM(start))}〜${hm(toHHMM(end))}`;
+      track.appendChild(el);
+    });
   }
 
   /** 予約する日付（くり返しなしなら1日だけ） */
@@ -1828,6 +1865,7 @@
   $('roomSelect').addEventListener('change', (e) => { state.roomId = e.target.value; save_(LS.room, state.roomId); updateChrome(); if (state.data) render(); });
 
   $('bookForm').addEventListener('submit', submitBooking);
+  $('bookDialog').addEventListener('close', renderDraft); // 閉じたら仮予約の帯を消す
   $('bRoom').addEventListener('change', () => { state.extraRooms.delete($('bRoom').value); renderRoomPicker(); });
   for (const id of ['bRoom', 'bDate', 'bStartH', 'bStartM', 'bEndH', 'bEndM', 'bInterval', 'bUntil']) {
     $(id).addEventListener('change', () => { resetConflicts(); updateBookingUi(); });
@@ -1847,7 +1885,7 @@
     for (const d of dialogs) {
       Object.defineProperty(d, 'open', { configurable: true, get() { return this.hasAttribute('open'); } });
       d.showModal = function () { this.setAttribute('open', ''); syncBackdrop(); };
-      d.close = function () { this.removeAttribute('open'); syncBackdrop(); };
+      d.close = function () { if (!this.hasAttribute('open')) return; this.removeAttribute('open'); syncBackdrop(); this.dispatchEvent(new Event('close')); };
     }
     $('dialogBackdrop').addEventListener('click', () => dialogs.filter((d) => d.id !== 'loginDialog').forEach((d) => d.close()));
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dialogs.filter((d) => d.id !== 'loginDialog').forEach((d) => d.close()); });
