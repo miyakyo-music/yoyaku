@@ -4,10 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<!-- LINE・SNS などで URL を送ったときに表示される説明（ページの本文ではなくこれが使われる） -->
+<meta name="description" content="宮教大音楽棟の練習室を予約できます。空き状況の確認・予約・変更・取消をスマホから。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="宮教大音楽棟 練習室予約">
+<meta property="og:title" content="宮教大音楽棟の練習室を予約">
+<meta property="og:description" content="空き状況の確認・予約・変更・取消をスマホから。">
+<meta property="og:url" content="https://miyakyo-music.github.io/yoyaku/">
+<meta property="og:image" content="https://miyakyo-music.github.io/yoyaku/apple-touch-icon.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>練習室予約</title>
+<title>宮教大音楽棟 練習室予約</title>
 <style>
   :root {
     --bg: #f4f6f8;
@@ -507,7 +517,7 @@
       <label class="field" id="bAdminField" hidden><span id="bAdminLabel">管理用パスワード</span>
         <input id="bAdmin" type="password" autocomplete="off">
       </label>
-      <p class="hint" id="bHint">入力内容はこの端末に記憶され、次回から自動で入ります。</p>
+      <p class="hint" id="bHint">入力内容はこの端末に記憶され、次回から自動で入ります。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
       <p class="error" id="bError"></p>
       <ul class="conflicts" id="bConflicts"></ul>
       <div class="actions">
@@ -581,7 +591,7 @@
   <dialog id="bugDialog">
     <form id="bugForm" novalidate>
       <h2 tabindex="-1" autofocus>不具合を報告</h2>
-      <p class="hint">気づいた不具合や使いにくい点を管理者に送れます。画像は添付できません。どの画面で何をしたらどうなったかを書いてください。</p>
+      <p class="hint">気づいた不具合や使いにくい点を管理者に送れます。画像は添付できません。どの画面で何をしたらどうなったかを書いてください。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
       <label class="field">内容<textarea id="bugMsg" maxlength="2000" placeholder="例：予約確定を押しても画面が変わらない"></textarea></label>
       <label class="field">連絡先（任意・返信が必要な場合）<input id="bugContact" maxlength="100" autocomplete="off" placeholder="例：メールアドレス"></label>
       <details class="env-info"><summary>一緒に送る端末・画面の情報</summary><pre id="bugEnv"></pre></details>
@@ -2037,7 +2047,7 @@
   $('limitedMode').addEventListener('click', () => {
     if (!confirm('限定公開の部屋の表示を終了しますか？（再び表示するには、パスワードの入力が必要です）')) return;
     endLimited();
-    load({ force: true });
+    location.reload(); // 表示中の演習室などが画面に残らないよう、読み込み直す
   });
 
   // ---------------- イベント ----------------
@@ -2055,7 +2065,7 @@
   $('adminMode').addEventListener('click', () => {
     if (!confirm('管理者モードを終了しますか？（管理画面からもログアウトします）')) return;
     exitAdminMode();
-    if (state.data) render();
+    location.reload(); // 管理者モードでだけ見えていた部屋（限定公開など）が画面に残らないよう、読み込み直す
   });
   for (const b of document.querySelectorAll('.tabs .btn')) b.addEventListener('click', () => setView(b.dataset.view));
   $('equipFilter').addEventListener('change', (e) => { state.equipOnce = null; save_(LS.filter, e.target.value); if (state.data) render(); });
