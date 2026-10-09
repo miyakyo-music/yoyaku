@@ -61,6 +61,11 @@
   .btn.icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
   .btn.danger-text { color: var(--danger); }
 
+  /* フッタ: 版・不具合を報告・プライバシーポリシー（中央に小さく1行） */
+  .site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 0; font-size: 12px; color: var(--muted); }
+  .site-foot > * + *::before { content: "・"; margin: 0 6px; color: var(--muted); text-decoration: none; display: inline-block; }
+  .site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
+  .admin-foot { margin-top: 24px; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
   .card + .card { margin-top: 16px; }
   h2 { font-size: 16px; margin: 0 0 4px; }
@@ -419,6 +424,7 @@
         <div class="bug-list" id="bugList"></div>
       </div>
     </section>
+    <footer class="site-foot admin-foot"><span data-app-version></span><a href="privacy.html">プライバシーポリシー</a></footer>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -262,15 +262,18 @@
   .ghost.pick b { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
   .ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
   .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
-  .main-foot {
-    position: sticky; left: 0; margin: 0; padding: 10px 12px 16px; font-size: 12px; color: var(--muted);
-    display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
-  }
+  .main-foot { position: sticky; left: 0; margin: 0; padding: 14px 12px calc(18px + env(safe-area-inset-bottom)); font-size: 12px; color: var(--muted); }
+  .main-foot p { margin: 0; }
+  .foot-text { text-align: center; margin-bottom: 6px !important; }
+  /* フッタ: 版・不具合を報告・プライバシーポリシー（中央に小さく1行） */
+  .site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 0; font-size: 12px; color: var(--muted); }
+  .site-foot > * + *::before { content: "・"; margin: 0 6px; color: var(--muted); text-decoration: none; display: inline-block; }
+  .site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
+
   .zoom-reset {
     font: inherit; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-weak);
     border: 1px solid var(--accent); border-radius: 12px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
   }
-  .main-foot [data-bug] { margin-left: auto; } /* 不具合報告は右下 */
   .link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
   /* ---------- カレンダー（月表示） ---------- */
@@ -622,7 +625,7 @@
     viewKey: 'prr.viewKey',
     limitedKey: 'prr.limitedKey',  // 限定公開の部屋（演習室など）のパスワード
   };
-  const APP_VERSION = 'v0.2.2-beta'; // 不具合報告に添える版。GAS のデプロイの説明（バージョン名）とそろえる
+  const APP_VERSION = window.APP_VERSION; // web/api.js
   const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
   const ADMIN_SESSION_KEY = 'prr.adminPw'; // 管理画面と共通（このタブで管理画面にログインしている間は管理者モード）
   const ADMIN_ONLY = '管理者のみ';
@@ -1117,10 +1120,10 @@
 
   /** 予約表の下端（操作の案内・不具合報告） */
   function footHtml(text) {
-    // お知らせがあるときは「不具合を報告」はお知らせの横にあるので、ここには出さない（中身がなければ行ごと出さない）
-    const bug = state.settings && state.settings.notice ? '' : '<button type="button" class="link-btn" data-bug>不具合を報告</button>';
-    if (!text && !bug) return '';
-    return `<p class="main-foot">${text ? `<span>${esc(text)}</span>` : ''}${bug}</p>`;
+    // 「不具合を報告」は、試験運用中（お知らせがあるとき）はお知らせの横にも出す。フッタには常に出す
+    return `<footer class="main-foot">${text ? `<p class="foot-text">${esc(text)}</p>` : ''}` +
+      `<p class="site-foot"><span>${esc(APP_VERSION)}</span><button type="button" data-bug>不具合を報告</button>` +
+      '<a href="privacy.html">プライバシーポリシー</a></p></footer>';
   }
 
   /**

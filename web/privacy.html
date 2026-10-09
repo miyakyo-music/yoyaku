@@ -38,6 +38,11 @@
   th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--line); }
   th { white-space: nowrap; color: var(--muted); font-weight: 600; width: 9em; }
   .note { background: #fff7e0; color: #6b4e00; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  /* フッタ: 版・不具合を報告・プライバシーポリシー（中央に小さく1行） */
+  .site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 0; font-size: 12px; color: #66727f; }
+  .site-foot > * + *::before { content: "・"; margin: 0 6px; color: #66727f; text-decoration: none; display: inline-block; }
+  .site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
+  .site-foot { margin-top: 20px; }
   .date { color: var(--muted); font-size: 13px; margin-top: 24px; text-align: right; }
   @media (max-width: 600px) {
     .card { padding: 16px; }
@@ -107,6 +112,8 @@
 
       <p class="date">2026年10月9日 制定</p>
     </div>
+    <footer class="site-foot"><span data-app-version></span><a href="./">予約表</a></footer>
   </main>
+<script src="api.js"></script>
 </body>
 </html>
