@@ -282,53 +282,87 @@
     .wrap { padding: 12px 12px 80px; }
   }
 
-  /* ================= iOS 風デザイン（design-unify で調整中・予約表と同じ値） ================= */
+  /* ================= Liquid Glass 風デザイン（design-unify で調整中・予約表と同じ値） ================= */
   :root {
     --accent: #007aff; --accent-weak: rgba(0, 122, 255, .1); --danger: #ff3b30;
-    --bg: #f2f2f7; --text: #1c1c1e; --muted: #6e6e73;
-    --fill: #ececf0; --fill-hover: #e2e2e8; --fill-field: #f2f2f7; --sep: rgba(60, 60, 67, .18);
-    --r-btn: 9px; --r-field: 10px; --r-card: 14px;
+    --bg: #f2f2f7; --text: #1c1c1e; --muted: #6e6e73; --sep: rgba(60, 60, 67, .16);
+    --glass: rgba(255, 255, 255, .62); --glass-strong: rgba(255, 255, 255, .8);
+    --glass-blur: blur(16px) saturate(180%);
+    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .75), rgba(255, 255, 255, .15) 55%, rgba(255, 255, 255, .35));
+    --glass-rim: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .45), inset 0 0 0 .5px rgba(255, 255, 255, .55);
+    --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .08);
+    --glass-lift: 0 2px 6px rgba(0, 0, 0, .06), 0 6px 18px rgba(0, 0, 0, .07);
+    --fill-field: rgba(118, 118, 128, .1);
   }
-  .topbar { border-bottom: .5px solid var(--sep); background: rgba(255, 255, 255, .85); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
-  .btn { border: 0; border-radius: var(--r-btn); background: var(--fill); font-weight: 500; }
-  @media (hover: hover) { .btn:hover { background: var(--fill-hover); } .btn.primary:hover { background: #0068d9; } }
-  .btn.primary { background: var(--accent); }
-  .btn:focus-visible { outline: 0; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
-  .card { border: 0; border-radius: var(--r-card); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .04); }
-  /* タブ: iOS のセグメント */
-  .tabs { box-shadow: none; background: var(--fill); border-radius: var(--r-btn); padding: 2px; gap: 0; }
-  .tabs button { flex: 1; padding: 7px 12px; border-radius: 7px; color: var(--text); font-weight: 500; }
+  /* 背景にごく淡い色のにじみを置き、ガラスの帯・カードの奥行きが見えるようにする */
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, rgba(0, 122, 255, .08), transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, rgba(255, 149, 0, .07), transparent 60%), var(--bg);
+    background-attachment: fixed;
+  }
+  .topbar {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .8), rgba(255, 255, 255, .6));
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
+  }
+  .btn {
+    border: 0; border-radius: 999px; font-weight: 500;
+    background-color: var(--glass); background-image: var(--glass-sheen);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+    transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), background-color .18s;
+  }
+  .btn:active { transform: scale(1.06); }
+  @media (hover: hover) { .btn:hover { background-color: var(--glass-strong); } .btn.primary:hover { background-color: rgba(0, 110, 235, .95); } }
+  .btn.primary {
+    color: #fff; background-color: rgba(0, 122, 255, .9);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .32), rgba(255, 255, 255, 0) 55%, rgba(255, 255, 255, .1));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 0 0 .5px rgba(0, 60, 160, .25), 0 4px 14px rgba(0, 122, 255, .3);
+  }
+  .btn:focus-visible { outline: 0; box-shadow: var(--glass-rim), 0 0 0 2px var(--accent); }
+  /* カード: 白い厚めのガラス */
+  .card {
+    border: 0; border-radius: 24px; background: rgba(255, 255, 255, .78);
+    -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 0 0 .5px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .05);
+  }
+  /* タブ: ガラスの溝の中の白いつまみ */
+  .tabs {
+    box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), inset 0 -1px 0 rgba(255, 255, 255, .6);
+    background: rgba(118, 118, 128, .1); border-radius: 999px; padding: 3px; gap: 0;
+  }
+  .tabs button { flex: 1; padding: 7px 12px; border-radius: 999px; color: var(--text); font-weight: 500; transition: background-color .25s, box-shadow .25s; }
   .tabs button[aria-selected="true"] {
-    color: var(--text); font-weight: 600; background: #fff;
-    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .04), 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04);
+    color: var(--text); font-weight: 600; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+    box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .05), 0 3px 10px rgba(0, 0, 0, .12);
   }
-  /* 入力欄: 枠線なしの灰色の面。押したときだけ青い枠 */
-  .field input, .field select, input.in, select.in, .bug-head select { border: 0; border-radius: var(--r-field); background-color: var(--fill-field); }
+  .field input, .field select, input.in, select.in, .bug-head select { border: 0; border-radius: 14px; background-color: var(--fill-field); }
   .time select, .suffix select { background-color: var(--fill-field); }
   input:focus, select:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); background-color: #fff; }
   .copy-row input { background: var(--fill-field); }
-  .weekdays label { border: 0; background: var(--fill-field); border-radius: var(--r-btn); }
+  .weekdays label { border: 0; background: var(--fill-field); border-radius: 999px; }
   .savebar { border-top: .5px solid var(--sep); }
-  .msg { border-radius: var(--r-field); }
+  .msg { border-radius: 14px; }
   .msg.error { background: rgba(255, 59, 48, .08); }
-  /* 部屋の行・不具合報告・休館の一覧 */
-  .room { border: 0; background: var(--fill-field); border-radius: 12px; }
-  .room.new { background: #eaf3ff; }
-  .room.open { background: #fff; box-shadow: 0 0 0 1.5px var(--accent); }
-  .room input, .room select { background-color: #fff; }
-  .room .btn { background: #fff; }
-  .room.open input, .room.open select, .room.open .btn { background-color: var(--fill-field); }
+  .room { border: 0; background: rgba(118, 118, 128, .07); border-radius: 18px; }
+  .room.new { background: rgba(0, 122, 255, .08); }
+  .room input, .room select { background-color: rgba(255, 255, 255, .95); }
+  .room.open { background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 1.5px var(--accent), 0 8px 20px rgba(0, 0, 0, .06); }
+  .room.open input, .room.open select { background-color: var(--fill-field); }
   .room.dragging { background: #fff; }
-  .room-sum .chip { background: #fff; }
-  .table-wrap { border: 0; box-shadow: 0 0 0 .5px var(--sep); border-radius: 12px; }
-  th { background: var(--fill-field); }
+  .room-sum .chip { background: rgba(255, 255, 255, .9); }
+  .table-wrap { border: 0; box-shadow: 0 0 0 .5px var(--sep); border-radius: 18px; }
+  th { background: rgba(118, 118, 128, .08); }
   th, td { border-bottom: .5px solid var(--sep); }
-  .bug { border: 0; background: var(--fill-field); border-radius: 12px; }
-  .toast { background: rgba(28, 28, 30, .92); border-radius: 12px; }
+  .bug { border: 0; background: rgba(118, 118, 128, .07); border-radius: 18px; }
+  .toast { background: rgba(40, 40, 44, .78); border-radius: 999px; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
   @media (max-width: 600px) {
     .tabs button { padding: 7px 4px; font-size: 13px; }
     .table-wrap { box-shadow: none; }
-    .table-wrap tr { border: 0; background: var(--fill-field); border-radius: 12px; }
+    .table-wrap tr { border: 0; background: rgba(118, 118, 128, .07); border-radius: 18px; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
   }
 </style>
 </head>
