@@ -534,6 +534,112 @@
     .datenav .date-display svg { right: 8px; }
   }
 
+  /* ================= iOS 風デザイン（design-unify で調整中） =================
+     部品の見た目だけを上書きする層。確定したら上の各定義に統合する */
+  :root {
+    --accent: #007aff; --accent-weak: rgba(0, 122, 255, .1); --sat: #007aff;
+    --danger: #ff3b30; --sun: #e5352b;
+    --bg: #f2f2f7; --text: #1c1c1e; --muted: #6e6e73;
+    --fill: #ececf0;                      /* ボタン・選択欄の灰色の面（下の文字が透けないよう不透明） */
+    --fill-hover: #e2e2e8;
+    --fill-field: #f2f2f7;                /* ダイアログの入力欄の面 */
+    --sep: rgba(60, 60, 67, .18);         /* iOS の細い区切り線 */
+    --r-btn: 9px; --r-field: 10px; --r-card: 14px;
+    --shadow-float: 0 0 0 .5px rgba(0, 0, 0, .06), 0 10px 30px rgba(0, 0, 0, .14), 0 2px 8px rgba(0, 0, 0, .06);
+  }
+  .topbar { border-bottom: .5px solid var(--sep); }
+  /* ボタン: 枠線なしの灰色の面。青で塗るのは主役（＋予約・確定）だけ */
+  .btn { border: 0; border-radius: var(--r-btn); background: var(--fill); font-weight: 500; }
+  @media (hover: hover) { .btn:hover { background: var(--fill-hover); } .btn.primary:hover { background: #0068d9; } .btn.danger:hover { background: #e6352b; } }
+  .btn.primary { background: var(--accent); }
+  .btn.danger { background: var(--danger); }
+  .btn:active { filter: brightness(.94); }
+  #todayBtn, .btn.arrow { color: var(--accent); }
+  #todayBtn { font-weight: 600; }
+  /* 表示の切り替え: iOS のセグメント（灰色の溝の中で白いつまみが選択中を示す） */
+  .seg { background: var(--fill); border-radius: var(--r-btn); padding: 2px; gap: 0; height: 34px; }
+  .seg .btn, .seg .btn:first-child, .seg .btn:last-child { height: 30px; margin: 0; border-radius: 7px; background: transparent; font-weight: 500; }
+  .seg .btn[aria-pressed="true"] {
+    background: #fff; color: var(--text); font-weight: 600;
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .04), 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04);
+  }
+  @media (hover: hover) { .seg .btn:not([aria-pressed="true"]):hover { background: rgba(255, 255, 255, .45); } }
+  .free-btn[aria-pressed="true"] { background: rgba(52, 199, 89, .18); color: #1a7f3c; font-weight: 600; }
+  /* 選択欄・日付欄も同じ灰色の面 */
+  input[type="date"], select, .date-display { border: 0; background-color: var(--fill); border-radius: var(--r-btn); }
+  .selects select { background-color: var(--fill); }
+  .date-field:focus-within .date-display { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
+  .admin-link { border: 0; background: var(--fill); border-radius: 7px; }
+  @media (hover: hover) { .admin-link:hover { background: var(--accent-weak); } }
+  .admin-mode { border: 0; border-radius: 7px; background: rgba(255, 59, 48, .12); color: #c4261d; }
+  .limited-mode { background: rgba(175, 82, 222, .14); color: #7d3aa8; }
+  /* お知らせ・試験運用中の帯: 枠線をやめて淡い面だけに */
+  .notice { border: 0; border-radius: var(--r-field); background: rgba(0, 122, 255, .1); color: #0a3d91; }
+  .notice.important { background: rgba(255, 59, 48, .11); color: #a3150c; }
+  .beta-band { background: #fff6dc; border-bottom: .5px solid rgba(160, 120, 0, .25); }
+  .beta-report { border: 0; background: rgba(255, 255, 255, .85); border-radius: 7px; box-shadow: 0 0 0 .5px rgba(160, 120, 0, .25); }
+  .zoom-reset { border: 0; border-radius: 12px; }
+  /* ドラッグ中の枠・仮予約の帯も iOS の青に */
+  .ghost { background: rgba(0, 122, 255, .16); }
+  .ghost.pick, .ghost.draft { background: rgba(0, 122, 255, .12); }
+  .tl-scale span.now { background: rgba(0, 122, 255, .08); }
+  .tl-row.today .tl-label { background: #eef5ff; }
+  .mc.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+
+  /* ---------- ダイアログ（iOS のシート風） ---------- */
+  dialog { border-radius: 16px; box-shadow: var(--shadow-float); }
+  dialog::backdrop, .dialog-backdrop { background: rgba(0, 0, 0, .32); }
+  dialog h2 { font-size: 18px; font-weight: 700; }
+  .field { color: var(--muted); }
+  .field input, .field select, .field textarea, .b-date .date-display {
+    border: 0; border-radius: var(--r-field); background-color: var(--fill-field);
+  }
+  .time select { background-color: var(--fill-field); }
+  .field input:focus, .field select:focus, .field textarea:focus, select:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); background-color: #fff; }
+  .btn:focus-visible { outline: 0; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+  .box { border: 0; background: var(--fill-field); border-radius: 12px; }
+  .box .field input, .box .field select { background-color: #fff; }
+  .summary { background: var(--fill-field); border-radius: 12px; }
+  .rp-name, .rp-chip span { border: 0; background: #fff; box-shadow: 0 0 0 .5px var(--sep); }
+  .rp-chip input:checked + span { background: var(--accent); box-shadow: none; }
+  .conflicts { background: rgba(255, 59, 48, .08); border-radius: var(--r-field); }
+  .mylist button { border: 0; background: var(--fill-field); border-radius: 12px; padding: 10px 12px; }
+  @media (hover: hover) { .mylist button:hover { background: #e9e9ef; } }
+  /* 下端のボタン: 区切りは細い線、ボタンは大きめの角丸 */
+  .actions {
+    border-top: .5px solid var(--sep); background: rgba(255, 255, 255, .82);
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  }
+  .actions .btn { height: 44px; border-radius: 12px; font-size: 15px; }
+  .actions .btn.primary, .actions .btn.danger { font-weight: 600; }
+  /* スマホでは主役のボタンを横いっぱいに広げ、親指で押しやすくする */
+  @media (max-width: 600px) {
+    .actions .btn { flex: 1; min-width: 0; }
+    .actions .spacer { display: none; }
+  }
+  .toast { background: rgba(28, 28, 30, .92); border-radius: 12px; }
+  .toast.error { background: var(--danger); }
+  .hovercard { border-radius: 14px; }
+  .hovercard .summary { border-radius: 9px; }
+
+  /* 比較用: 予約画面のボタンを iOS のシートのように上端に置く案（body.sheet-top のときだけ）
+     見出しを上端の中央に置き、その上に「戻る」「予約確定」を重ねる（どちらも上端に貼り付く） */
+  .sheet-top #bookForm h2 {
+    order: -2; position: sticky; top: 0; z-index: 2; margin: -18px -18px 0; height: 52px; line-height: 52px;
+    text-align: center; font-size: 17px; font-weight: 600;
+    background: rgba(255, 255, 255, .82); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: .5px solid var(--sep);
+  }
+  .sheet-top #bookForm .actions {
+    order: -1; position: sticky; top: 0; z-index: 3; margin: -64px -18px 0; height: 52px; padding: 0 8px;
+    border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+    justify-content: space-between; align-items: center; pointer-events: none;
+  }
+  .sheet-top #bookForm .actions .btn {
+    pointer-events: auto; flex: none; min-width: 0; height: 36px; padding: 0 10px; background: none; color: var(--accent); font-size: 17px; font-weight: 400;
+  }
+  .sheet-top #bookForm .actions .btn.primary { font-weight: 600; }
+
 </style>
 </head>
 <body>
