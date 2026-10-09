@@ -1017,7 +1017,7 @@
       </div>
       <label class="field">備考<input id="bMemo" maxlength="100" autocomplete="off" spellcheck="false" placeholder="例：伴奏合わせ、レッスン"></label>
       <label class="field" id="bPinField"><span><span id="bPinLabel">編集用パスワード（4桁の数字）</span><span class="req" id="bPinReq" aria-hidden="true" hidden>*</span></span>
-        <input id="bPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="8" placeholder="4桁の数字">
+        <input id="bPin" class="pin-input" type="text" inputmode="numeric" autocomplete="one-time-code" data-1p-ignore data-lpignore="true" data-bwignore autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="8" placeholder="4桁の数字">
         <span class="hint" id="bPinHint">設定しない場合、誰でもこの予約を変更・取消できます。</span>
       </label>
       <div class="box" id="bRepeatBox">
@@ -1060,7 +1060,7 @@
       </dl>
       <div id="dOps">
         <label class="field"><span>編集用パスワード（予約時に設定した4桁）<span class="req" aria-hidden="true">*</span></span>
-          <input id="dPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="4桁の数字">
+          <input id="dPin" class="pin-input" type="text" inputmode="numeric" autocomplete="one-time-code" data-1p-ignore data-lpignore="true" data-bwignore autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="4桁の数字">
         </label>
       </div>
       <label class="check" id="dSeriesArea" hidden><input type="checkbox" id="dSeries">同じまとめ予約のうち、この日以降の分（全部屋）をまとめて取り消す</label>
