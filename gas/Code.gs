@@ -994,8 +994,14 @@ function checkPin_(target, pin, adminPassword) {
     return error ? { error: error } : { admin: true };
   }
   const code = String(pin || '').trim();
-  const stored = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
-  if (code && stored && code === stored) return { admin: true };
+  // 編集用パスワードの欄に管理用パスワードを入れた場合（4桁の数字以外）は、管理用パスワードとして照合する。
+  // 外れたら管理用パスワードの誤入力として数える（ここで数えないと、編集用パスワードのない予約を使って
+  // 管理用パスワードを回数無制限に試せてしまう）
+  if (code && !/^\d{4}$/.test(code)) {
+    const error = verifyAdmin_(code);
+    if (!error) return { admin: true };
+    return { error: /誤入力が続いた/.test(error) ? error : '編集用パスワードが一致しません。' };
+  }
   if (!target.pin) return { admin: false };
   if (!code) return { error: 'この予約には編集用パスワードが設定されています。編集用パスワードを入力してください。' };
 
