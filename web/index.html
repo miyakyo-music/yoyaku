@@ -753,15 +753,12 @@
     .selects { align-items: stretch; }
   }
 
-  /* iPhone の Safari（タブバーを下にしている場合）: 予約表を画面のいちばん下（タブバーの裏）まで伸ばす */
-  @supports (-webkit-touch-callout: none) {
-    /* 100lvh だと画面の下端まで届かなかった（下に 60px ほど背景が見えた）。画面に固定した要素は画面の下端が基準に
-       なるので、ページ全体（body）を画面いっぱいに固定し、予約表をタブバーの裏まで伸ばす */
-    body { position: fixed; top: 0; right: 0; bottom: 0; left: 0; height: auto; }
-    /* 表の最後・ダイアログ・通知・「＋」は、タブバー（ホームバーの分＋約 60px）にかからない位置に */
-    .main-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom) + 60px); }
-    dialog { inset: 0 0 calc(env(safe-area-inset-bottom) + 50px) 0; max-height: calc(100% - env(safe-area-inset-bottom) - 70px); }
-    .toast { bottom: calc(env(safe-area-inset-bottom) + 70px); }
+  /* iPhone の Safari（タブバーを下にしている場合）: 予約表をできるだけ下まで伸ばす。
+     Safari がページに使わせるのはタブバーの上端までで、表だけがスクロールする今の作りでは、それより下（タブバーの裏）には
+     描けない。100lvh にすると、タブバーが小さくなったときの分だけ下まで伸びる。伸びた分は表の最後に余白として足す */
+  @supports (-webkit-touch-callout: none) and (height: 100lvh) {
+    body { height: 100lvh; }
+    .main-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); }
   }
 
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
@@ -784,9 +781,6 @@
     }
     .fab:active { transform: scale(1.08); }
     #newBtn { display: none; }
-  }
-  @supports (-webkit-touch-callout: none) and (height: 100lvh) {
-    @media (max-width: 600px) { .fab { bottom: calc(env(safe-area-inset-bottom) + 58px); } }
   }
 
   /* 屈折に対応した環境（Chrome など）では、曲がった像が見えるようにガラスを少し薄くする */
