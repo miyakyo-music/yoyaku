@@ -762,6 +762,52 @@
     .toast { bottom: calc(20px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); }
   }
 
+  /* ---------- 空室ランプ（案）: body の lamp-a / lamp-b / lamp-c で見た目を切り替えて比較 ---------- */
+  .lamp { display: none; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  .lamp-text { display: none; }
+  .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
+  .lamp.lamp-soon { background: #ffcc00; box-shadow: 0 0 0 2px rgba(255, 204, 0, .25); }
+  .lamp.lamp-busy { background: #ff9500; box-shadow: 0 0 0 2px rgba(255, 149, 0, .22); }
+  .lamp.lamp-off { background: #c7c7cc; }
+  /* A: 部屋名の前に光る点 */
+  .lamp-a .lamp { display: inline-block; }
+  /* B: 部屋名の下に「空き」「使用中」の文字つきの小さな札 */
+  .lamp-b .lamp-text {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 10px; font-weight: 600; line-height: 15px;
+    padding: 0 6px 0 5px; border-radius: 8px; width: fit-content;
+  }
+  .lamp-b .lamp-text::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .lamp-b .lamp-text.lamp-free { color: #1a7f3c; background: rgba(52, 199, 89, .14); }
+  .lamp-b .lamp-text.lamp-soon { color: #8a6d00; background: rgba(255, 204, 0, .2); }
+  .lamp-b .lamp-text.lamp-busy { color: #a35a00; background: rgba(255, 149, 0, .15); }
+  .lamp-b .lamp-text.lamp-off { color: #6e6e73; background: rgba(118, 118, 128, .12); }
+  .lamp-b .tl-label .sub { display: none; }
+  /* C: 部屋名の欄の左端に色の縦線 */
+  .lamp-c .tl-label { position: sticky; }
+  .lamp-c .tl-label:has(.lamp-free) { box-shadow: inset 4px 0 0 #34c759, 0 1px 0 var(--line); }
+  .lamp-c .tl-label:has(.lamp-soon) { box-shadow: inset 4px 0 0 #ffcc00, 0 1px 0 var(--line); }
+  .lamp-c .tl-label:has(.lamp-busy) { box-shadow: inset 4px 0 0 #ff9500, 0 1px 0 var(--line); }
+  .lamp-c .tl-label:has(.lamp-off) { box-shadow: inset 4px 0 0 #c7c7cc, 0 1px 0 var(--line); }
+  .lamp-c .tl-label { padding-left: 10px; }
+
+  /* ---------- スマホの右下に浮かぶ新規予約ボタン（案） ---------- */
+  .fab { display: none; }
+  @media (max-width: 600px) {
+    body.fab-on .fab {
+      display: flex; align-items: center; justify-content: center; position: fixed; z-index: 30;
+      right: 18px; bottom: calc(22px + env(safe-area-inset-bottom)); width: 58px; height: 58px; border: 0; border-radius: 50%;
+      color: #fff; background-color: rgba(0, 122, 255, .96);
+      background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%);
+      box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .5), 0 0 0 .5px rgba(0, 60, 160, .25), 0 6px 18px rgba(0, 80, 200, .32), 0 2px 4px rgba(0, 0, 0, .12);
+      cursor: pointer; transition: transform .18s cubic-bezier(.3, 1.5, .5, 1);
+    }
+    body.fab-on .fab:active { transform: scale(1.08); }
+    body.fab-on #newBtn { display: none; }
+  }
+  @supports (-webkit-touch-callout: none) and (height: 100lvh) {
+    @media (max-width: 600px) { body.fab-on .fab { bottom: calc(22px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); } }
+  }
+
   /* 屈折に対応した環境（Chrome など）では、曲がった像が見えるようにガラスを少し薄くする */
   .refract .topbar { background: linear-gradient(180deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .38)); }
   .refract dialog { background: rgba(255, 255, 255, .6); }
@@ -833,6 +879,8 @@
   </header>
 
   <main class="main" id="main"></main>
+  <!-- スマホ: 右下に浮かぶ新規予約ボタン（案） -->
+  <button type="button" class="fab" id="fabBtn" aria-label="新規予約"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 
   <!-- 予約・変更ダイアログ -->
   <dialog id="bookDialog">
@@ -1501,13 +1549,34 @@
     else renderTimeline();
   }
 
+  /** 空室ランプ: 今この部屋が 空き / まもなく予約あり / 使用中 / 利用時間外・使用停止 のどれか（今日の一覧のときだけ） */
+  const LAMP_TEXT = { free: '空き', soon: 'まもなく予約', busy: '使用中', off: '利用不可' };
+  function lampOf(room) {
+    if (state.view !== 'day' || !state.data || state.data.from !== todayStr()) return null;
+    const s = state.settings;
+    const now = nowMin();
+    if (room.restriction === STOPPED || now < toMin(s.openTime) || now >= toMin(s.closeTime)) return 'off';
+    const today = todayStr();
+    const spans = visibleReservations().filter((r) => r.date === today && r.roomId === room.id)
+      .map((r) => [toMin(r.start), toMin(r.end), 'busy'])
+      .concat(closuresFor(today, room.id).map((c) => [c.start, c.end, 'off']));
+    const cur = spans.find(([a, b]) => a <= now && now < b);
+    if (cur) return cur[2];
+    return spans.some(([a]) => a > now && a - now <= 30) ? 'soon' : 'free';
+  }
+  function lampHtml(room) {
+    const st = lampOf(room);
+    return st ? `<i class="lamp lamp-${st}" role="img" aria-label="${LAMP_TEXT[st]}" title="${LAMP_TEXT[st]}"></i>` : '';
+  }
   function roomLabelHtml(room, extraHtml) {
     const tags = tagList(room.tags).map((t) => `<span class="tag ${tagClass(t)}">${esc(t)}</span>`);
     if (room.restriction === ADMIN_ONLY) tags.push('<span class="tag t-admin">管理者のみ</span>');
     if (room.restriction === STOPPED) tags.push('<span class="tag t-admin">使用停止</span>');
     if (room.restriction === LIMITED) tags.push('<span class="tag t-limited">限定</span>');
     const title = [roomText(room), room.equipment, room.note].filter(Boolean).join(' / ');
-    const name = `<span class="nm" title="${esc(title)}">${esc(room.name)}</span>`;
+    const st = lampOf(room);
+    const name = `<span class="nm" title="${esc(title)}">${lampHtml(room)}${esc(room.name)}</span>` +
+      (st ? `<span class="lamp-text lamp-${st}">${LAMP_TEXT[st]}</span>` : '');
     // 「○時まで空き」を出すときは、タグを部屋名の横に寄せて2行目に置き、列の幅を節約する
     if (extraHtml) return `<span class="nm-line">${name}${tags.join('')}</span>${extraHtml}`;
     return name + (tags.length ? `<span class="sub">${tags.join('')}</span>` : '');
@@ -2633,6 +2702,7 @@
   $('todayBtn').addEventListener('click', () => setDate(todayStr()));
   $('datePicker').addEventListener('change', (e) => setDate(e.target.value));
   $('refreshBtn').addEventListener('click', () => { invalidate(); load({ force: true }); });
+  $('fabBtn').addEventListener('click', () => $('newBtn').click());
   $('newBtn').addEventListener('click', () => {
     if (!state.settings) return;
     const date = state.view === 'day' && state.date >= todayStr() ? state.date : todayStr();
