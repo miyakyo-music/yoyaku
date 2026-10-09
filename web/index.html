@@ -825,11 +825,11 @@
     --res: rgba(255, 159, 10, .26); --res-border: #ff9f0a; --res-text: #ffd59a;
     --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
     --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
-    --glass: rgba(118, 118, 128, .16); --glass-strong: rgba(118, 118, 128, .26); /* 背景に近い控えめな面（浮かせすぎない） */
+    --glass: #303034; --glass-strong: #3a3a3f; /* ライトの「白い面」にあたる、背景より一段明るい平らな面 */
     /* ダークの光沢はライトと同じ向きで、気づかない程度（白 4% → 0）にとどめる。縁の上端にもごく薄い光 */
-    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, 0) 50%);
-    --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .07), inset 0 0 0 .5px rgba(255, 255, 255, .07);
-    --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent; /* ダークでは影で浮かせない */
+    --glass-sheen: none; /* ライトでも白の上の白で実質見えないので、ダークも光沢なし */
+    --glass-rim: 0 0 0 0 transparent;
+    --glass-edge: 0 0 0 0 transparent; --glass-lift: 0 1px 2px rgba(0, 0, 0, .25); /* 縁は付けず、ごく薄い影だけ */
     --fill-field: rgba(118, 118, 128, .24);
   }
   html.dark body { background: var(--bg); }
@@ -854,10 +854,9 @@
   html.dark .beta-band { background: #33301f; color: #e8c766; border-bottom-color: rgba(255, 214, 10, .2); }
   html.dark .beta-report { background: rgba(255, 255, 255, .08); color: #e8c766; }
   html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen); }
-  html.dark .btn.primary, html.dark .fab, html.dark .btn.danger {
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, 0) 50%);
-    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12);
-  }
+  html.dark .btn.primary, html.dark .fab, html.dark .btn.danger { background-image: none; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
+  html.dark .seg { background-color: #2a2a2e; box-shadow: none; }
+  html.dark .seg::before { background-color: #4a4a50; }
   html.dark .btn.primary, html.dark .fab { background-color: #0a84ff; }
   html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
   html.dark dialog, html.dark .hovercard { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6); }
