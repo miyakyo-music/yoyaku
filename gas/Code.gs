@@ -51,7 +51,15 @@ const SYSTEM = {
   MAX_PIN_FAILURES: 5,
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
   FAILURE_LOCK_SECONDS: 600,
+  // 予約の登録・変更・取消を、全体で1分あたりこの件数までにする（Google の無料枠を使い切らないための上限）。
+  // 1件の処理に約1秒かかり、同時には1件ずつしか書き込めないので、実際に受け付けられるのは多くても毎分60件ほど。
+  // 練習室の予約で毎分30件を超えることは通常ないため、ふだんの利用には影響しない
+  MAX_WRITES_PER_MINUTE: 30,
+  MAX_ADMIN_DEVICES: 30, // 管理画面にログインしたことのある端末を覚えておく数（古いものから消える）
 };
+
+/** この呼び出しの端末の印（管理画面にログインしたことのある端末なら adminDevice が付いてくる）。doPost で毎回入れ直す */
+let REQ_DEVICE_ = '';
 
 /** 「設定」シートの項目。label がシート上の項目名、def が既定値。 */
 const SETTINGS = [
@@ -112,6 +120,7 @@ function doPost(e) {
   let result;
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    REQ_DEVICE_ = String((req.params && req.params.adminDevice) || '').slice(0, 64);
     const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
     result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
   } catch (err) {
@@ -188,6 +197,8 @@ function getReservationsByIds(p) {
  */
 function createReservation(p) {
   p = p || {};
+  const limited = writeLimit_();
+  if (limited) return limited;
   const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
@@ -224,6 +235,8 @@ function createReservation(p) {
  */
 function createBulkReservations(p) {
   p = p || {};
+  const limited = writeLimit_();
+  if (limited) return limited;
   const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
@@ -287,6 +300,8 @@ function createBulkReservations(p) {
  */
 function updateReservation(p) {
   p = p || {};
+  const limited = writeLimit_();
+  if (limited) return limited;
   const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
@@ -364,6 +379,8 @@ function updateSeries_(ctx, rows, target, p, isAdmin) {
  */
 function cancelReservation(p) {
   p = p || {};
+  const limited = writeLimit_();
+  if (limited) return limited;
   const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
@@ -457,6 +474,7 @@ function adminGetData(p) {
     today: nowStr_('yyyy-MM-dd'),
     spreadsheetUrl: ss.getUrl(), // 管理画面の「スプレッドシートを開く」用（開けるのは共有されている人だけ）
     openBugs: openBugCount_(ss),
+    adminDevice: rememberDevice_(REQ_DEVICE_), // この端末を「ログインしたことのある端末」として覚える
   };
 }
 
@@ -970,15 +988,50 @@ function resolveAdmin_(password) {
 function verifyAdmin_(password) {
   const adminPassword = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
   if (!adminPassword) return '管理用パスワードが設定されていません。管理者に連絡してください。';
+  // 誤入力の回数は全体で数える。ただし、管理画面にログインしたことのある端末は、その端末だけの回数で数える
+  // （誰かがわざと間違え続けて全体がロックされても、いつもの端末からは管理者が入れるように）
+  const trusted = isTrustedDevice_(REQ_DEVICE_);
+  const failKey = trusted ? 'adminfail_' + REQ_DEVICE_ : 'adminfail';
   const cache = CacheService.getScriptCache();
-  const failures = Number(cache.get('adminfail') || 0);
+  const failures = Number(cache.get(failKey) || 0);
   if (failures >= SYSTEM.MAX_PIN_FAILURES * 2) {
     return '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
   }
   if (String(password) !== adminPassword) {
-    cache.put('adminfail', String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS);
+    cache.put(failKey, String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS);
     return '管理用パスワードが一致しません。';
   }
+  return null;
+}
+
+/** 管理画面にログインしたことのある端末か */
+function isTrustedDevice_(token) {
+  if (!token) return false;
+  const list = JSON.parse(PropertiesService.getScriptProperties().getProperty('ADMIN_DEVICES') || '{}');
+  return Object.prototype.hasOwnProperty.call(list, token);
+}
+
+/** 管理画面にログインできた端末を覚え、その端末の印を返す（すでに覚えている端末なら同じ印） */
+function rememberDevice_(token) {
+  const props = PropertiesService.getScriptProperties();
+  const list = JSON.parse(props.getProperty('ADMIN_DEVICES') || '{}');
+  const id = token && Object.prototype.hasOwnProperty.call(list, token) ? token : Utilities.getUuid();
+  list[id] = nowStr_('yyyy-MM-dd');
+  const keys = Object.keys(list).sort((x, y) => list[y].localeCompare(list[x]));
+  keys.slice(SYSTEM.MAX_ADMIN_DEVICES).forEach(k => delete list[k]); // 古い端末から忘れる
+  props.setProperty('ADMIN_DEVICES', JSON.stringify(list));
+  return id;
+}
+
+/** 予約の登録・変更・取消の、全体での1分あたりの件数の上限（Google の無料枠を守るため）。超えたらエラーを返す */
+function writeLimit_() {
+  const cache = CacheService.getScriptCache();
+  const key = 'writes_' + Math.floor(Date.now() / 60000);
+  const n = Number(cache.get(key) || 0);
+  if (n >= SYSTEM.MAX_WRITES_PER_MINUTE) {
+    return fail_('予約の操作が集中しています。1分ほど待ってから、もう一度お試しください。', 'BUSY');
+  }
+  cache.put(key, String(n + 1), 120);
   return null;
 }
 

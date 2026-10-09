@@ -37,8 +37,15 @@
    * @param {object} params
    * @returns {Promise<object>} サーバーの応答（{ok, ...}）。通信できなかったときは reject
    */
+  // 管理画面にログインしたことのある端末の印（管理用パスワードを送るときだけ添える。
+  // 誤入力のロック中でも、この端末からは管理者がパスワードを試せる）
+  const DEVICE_KEY = 'prr.adminDevice';
   window.callApi = async function (action, params) {
     const url = window.GAS_API_URL;
+    params = Object.assign({}, params);
+    if (params.adminPassword) {
+      try { const d = localStorage.getItem(DEVICE_KEY); if (d) params.adminDevice = d; } catch (e) { /* 保存できない環境では付けない */ }
+    }
     if (!url) throw new Error('接続先が設定されていません（web/config.js の GAS_API_URL）。');
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctrl && setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -68,6 +75,7 @@
       throw new Error('サーバーの応答を読み取れませんでした。時間をおいて再度お試しください。');
     }
     if (data && data.apiVersion !== API_VERSION) warnVersion();
+    if (data && data.adminDevice) { try { localStorage.setItem(DEVICE_KEY, data.adminDevice); } catch (e) { /* 無視 */ } }
     return data;
   };
 
