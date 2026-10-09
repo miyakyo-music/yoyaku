@@ -819,6 +819,10 @@
     @starting-style { body:not(.dialog-fallback) dialog[open] { transform: none; } }
   }
 
+  /* 入力が必須の欄: 見出しの右に赤い「*」（Google フォームの必須の質問と同じ印） */
+  .req { color: #d93025; margin-left: 3px; font-weight: 600; }
+  html.dark .req { color: #ff6961; }
+
   /* ================= ダークモード =================
      端末がダークモードのとき（または URL に ?dark を付けたとき）、html に .dark を付けて色を差し替える */
   html.dark {
@@ -984,11 +988,11 @@
       </div>
       <p class="duration" id="bDuration"></p>
       <div class="grid2 person">
-        <label class="field">氏名／団体名<input id="bPerson" maxlength="50" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎／宮教オケ"></label>
+        <label class="field"><span>氏名／団体名<span class="req" aria-hidden="true">*</span></span><input id="bPerson" aria-required="true" maxlength="50" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎／宮教オケ"></label>
         <label class="field">学籍番号／所属（任意）<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032／〇〇大学／教員"></label>
       </div>
       <label class="field">備考（任意）<input id="bMemo" maxlength="100" autocomplete="off" spellcheck="false" placeholder="例：伴奏合わせ、レッスン"></label>
-      <label class="field" id="bPinField"><span id="bPinLabel">編集用パスワード（任意・4桁の数字）</span>
+      <label class="field" id="bPinField"><span><span id="bPinLabel">編集用パスワード（任意・4桁の数字）</span><span class="req" id="bPinReq" aria-hidden="true" hidden>*</span></span>
         <input id="bPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="8" placeholder="4桁の数字">
         <span class="hint" id="bPinHint">設定しない場合、誰でもこの予約を変更・取消できます。</span>
       </label>
@@ -1006,7 +1010,7 @@
         </div>
       </div>
       <p class="repeat-summary" id="bBulkSummary" hidden></p>
-      <label class="field" id="bAdminField" hidden><span id="bAdminLabel">管理用パスワード</span>
+      <label class="field" id="bAdminField" hidden><span><span id="bAdminLabel">管理用パスワード</span><span class="req" aria-hidden="true">*</span></span>
         <input id="bAdmin" type="password" autocomplete="off">
       </label>
       <p class="hint" id="bHint">入力内容はローカルに保存されます。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
@@ -1031,7 +1035,7 @@
         <dt id="dMemoDt">備考</dt><dd id="dMemo"></dd>
       </dl>
       <div id="dOps">
-        <label class="field">編集用パスワード（予約時に設定した4桁）
+        <label class="field"><span>編集用パスワード（予約時に設定した4桁）<span class="req" aria-hidden="true">*</span></span>
           <input id="dPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="4桁の数字">
         </label>
       </div>
@@ -1087,7 +1091,7 @@
     <form id="bugForm" novalidate>
       <h2 tabindex="-1" autofocus>不具合を報告</h2>
       <p class="hint">気づいた不具合や使いにくい点を管理者に送れます。画像は添付できません。どの画面で何をしたらどうなったかを書いてください。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
-      <label class="field">内容<textarea id="bugMsg" maxlength="2000" placeholder="例：予約確定を押しても画面が変わらない"></textarea></label>
+      <label class="field"><span>内容<span class="req" aria-hidden="true">*</span></span><textarea id="bugMsg" aria-required="true" maxlength="2000" placeholder="例：予約確定を押しても画面が変わらない"></textarea></label>
       <label class="field">連絡先（任意・返信が必要な場合）<input id="bugContact" maxlength="100" autocomplete="off" placeholder="例：メールアドレス"></label>
       <details class="env-info"><summary>一緒に送る端末・画面の情報</summary><pre id="bugEnv"></pre></details>
       <p class="error" id="bugError"></p>
@@ -2285,6 +2289,7 @@
     // 変更時: 編集用パスワードのない予約・管理者モードでは編集用パスワード欄を出さない
     $('bPinField').hidden = edit && (!r.hasPin || isAdminMode());
     $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（任意・4桁の数字）';
+    $('bPinReq').hidden = !edit;
     $('bPinHint').hidden = edit;
     $('bHint').hidden = edit;
     // まとめ予約（くり返し・複数部屋）の1件を変更するときは、この日以降の分もまとめて変更できる
