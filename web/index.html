@@ -81,7 +81,20 @@
   /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
   .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
   .notice-row .notice { flex: 0 1 auto; min-width: 0; }
-  .notice-row [data-bug] { margin-left: auto; white-space: nowrap; }
+  /* 試験運用中の帯 */
+  .beta-band {
+    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 4px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left));
+    background: #fff7e0; border-bottom: 1px solid #f1dfa6; color: #6b4e00; font-size: 12px;
+  }
+  .beta-label { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .beta-label svg, .beta-report svg { flex: none; }
+  .beta-label .narrow-text { display: none; }
+  .beta-report {
+    flex: none; display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; color: #6b4e00;
+    background: #fff; border: 1px solid #e8cf86; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+  }
+  @media (hover: hover) { .beta-report:hover { background: #fffbef; } }
   .btn {
     height: 34px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px;
     background: var(--surface); cursor: pointer; white-space: nowrap;
@@ -411,6 +424,8 @@
     .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
     .legend, .status #statusText { display: none; }
     .notice-row { order: 3; flex: 1 0 100%; }
+    .beta-label .wide-text { display: none; }
+    .beta-label .narrow-text { display: inline; }
     .tools { margin-left: 0; }
     .selects { display: flex; }
     .selects select { flex: 1; }
@@ -432,12 +447,16 @@
 </style>
 </head>
 <body>
+  <!-- 試験運用中の帯（版の名前に beta が含まれる間だけ出す。正式版では自動で消え、「不具合を報告」はフッタだけになる） -->
+  <div class="beta-band" id="betaBand" hidden>
+    <span class="beta-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 15h9"/></svg><span class="wide-text">試験運用中です。気づいた点があればお知らせください</span><span class="narrow-text">試験運用中</span></span>
+    <button type="button" class="beta-report" data-bug><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4V5zM12 7v4M12 14h.01"/></svg>不具合を報告</button>
+  </div>
   <header class="topbar">
     <div class="row">
       <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
       <div class="notice-row" id="noticeRow" hidden>
         <p class="notice" id="notice"></p>
-        <button type="button" class="link-btn" data-bug>不具合を報告</button>
       </div>
       <div class="tools">
         <button type="button" class="btn" id="myBtn">自分の予約</button>
@@ -638,6 +657,7 @@
   const MAX_HOUR_W = 480; // 時間軸を広げたときの1時間の最大幅（px）
 
   const $ = (id) => document.getElementById(id);
+  $('betaBand').hidden = !/beta/i.test(APP_VERSION);
   const state = {
     view: load_(LS.view, 'day'),
     date: todayStr(),
@@ -912,7 +932,6 @@
     const s = state.settings;
     $('title').textContent = s.title;
     document.title = s.title;
-    // お知らせがあるときは「不具合を報告」をその横に、ないときは予約表の右下に置く
     $('noticeRow').hidden = !s.notice;
     $('notice').textContent = s.notice || '';
     $('adminMode').hidden = !isAdminMode();
@@ -1120,7 +1139,7 @@
 
   /** 予約表の下端（操作の案内・不具合報告） */
   function footHtml(text) {
-    // 「不具合を報告」は、試験運用中（お知らせがあるとき）はお知らせの横にも出す。フッタには常に出す
+    // 「不具合を報告」はフッタに常に出す（試験運用中は上端の帯にも出す）
     return `<footer class="main-foot">${text ? `<p class="foot-text">${esc(text)}</p>` : ''}` +
       `<p class="site-foot"><span>${esc(APP_VERSION)}</span><button type="button" data-bug>不具合を報告</button>` +
       '<a href="privacy.html">プライバシーポリシー</a></p></footer>';
