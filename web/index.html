@@ -174,7 +174,7 @@
   .main.has-tl { touch-action: pan-x pan-y; }
   body.loading .main > * { opacity: .65; transition: opacity .2s; }
   .tl { width: max-content; min-width: 100%; }
-  /* 重なり順: 予約ブロック(1) < 現在時刻線(3) < ドラッグ中の枠(5) < 部屋名の列(6) < 時刻見出し(7) */
+  /* 重なり順: 予約ブロックの色 < 現在時刻線(2) < 予約ブロックの文字(3) < ドラッグ中の枠(5) < 部屋名の列(6) < 時刻見出し(7) */
   .tl-head { display: flex; position: sticky; top: 0; z-index: 7; background: var(--surface); border-bottom: 1px solid var(--line-strong); }
   .tl-corner, .tl-label {
     position: sticky; left: 0; z-index: 6; flex: none; width: var(--label-w);
@@ -205,6 +205,8 @@
   }
   .sm { display: none; }
   .tl-label .sub { display: flex; gap: 4px; margin-top: 2px; }
+  /* 部屋（日付）の行を1行おきにごく薄く色付けし、横に長い行を目で追いやすくする */
+  .tl-row:nth-child(odd) .tl-label, .tl-row:nth-child(odd) .tl-track { background-color: #f7f9fb; }
   .tl-row.today .tl-label { background: #f0f6ff; }
   .tl-row.week-start { border-top: 2px solid var(--line-strong); }
   .tl-label[data-room] { cursor: pointer; }
@@ -252,20 +254,21 @@
     box-shadow: inset -1px 0 0 var(--line-strong); /* 時間軸の右端（終了時刻ちょうど）の線 */
     cursor: crosshair; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   }
-  .tl-track.stopped { background-color: var(--closed); cursor: not-allowed; }
+  .tl-track.stopped, .tl-row:nth-child(odd) .tl-track.stopped { background-color: var(--closed); cursor: not-allowed; }
   /* 時間軸を縮めたときは30分の線を省き、線が詰まって見づらくならないようにする */
   .tl.narrow .tl-track { background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px); background-size: var(--hour-w) 100%; }
   .past { position: absolute; top: 0; bottom: 0; left: 0; background: var(--past); pointer-events: none; z-index: 0; }
-  .now-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #e5484d; pointer-events: none; z-index: 3; }
+  /* 現在時刻の線は半透明にし、予約の帯の色より前・帯の文字より後ろに置く（文字を横切らない） */
+  .now-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #e5484d; opacity: .45; pointer-events: none; z-index: 2; }
   .blk {
-    position: absolute; top: 3px; bottom: 3px; z-index: 1; border-radius: 4px;
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
     overflow: hidden; overflow: clip; /* clip は中の文字の sticky を妨げない（未対応ブラウザは hidden） */
     padding: 1px 4px; font-size: 11px; line-height: 1.3; cursor: pointer; min-width: 3px;
   }
   /* ブロックの左側がスクロールで部屋名の列に隠れても、予約者名は見えている部分の左端に留まる */
   .blk b, .blk span {
     display: block; width: fit-content; max-width: 100%; white-space: nowrap; overflow: hidden;
-    position: sticky; left: calc(var(--label-w) + 4px);
+    position: sticky; left: calc(var(--label-w) + 4px); z-index: 3;
   }
   .blk b { font-weight: 700; }
   .blk span { font-weight: 400; opacity: .85; }
