@@ -437,19 +437,27 @@
     .tools { margin-left: 0; }
     .selects { display: flex; }
     .selects select { flex: 1; }
-    .free-btn { flex: none; padding: 0 10px; }
     .tabs { grid-area: tabs; display: flex; }
     .tabs .btn { flex: 1; }
     .datenav { grid-area: datenav; display: flex; min-width: 0; }
     .datenav .date-field { flex: 1; min-width: 0; }
     .date-display { width: 100%; }
     .range-label { display: none; } /* 日付欄と同じ内容なので出さない */
-    .date-display .yr { display: none; } /* 年は省いて幅を詰める */
+    /* 日付は年まで出して中央に置き、カレンダーのアイコンは右端に */
+    .date-display { position: relative; justify-content: center; padding: 0 30px; }
+    .date-display svg { position: absolute; right: 10px; margin: 0; }
+    /* 右端の「空室」と「今日」は同じ幅にそろえる */
+    .free-btn, #todayBtn { width: 54px; flex: none; padding: 0; }
     .tabs .btn { padding: 0 9px; }
     .notice { padding: 4px 8px; font-size: 12px; }
     .selects { grid-area: select; min-width: 0; }
     .selects select { width: 100%; min-width: 0; }
     .selects select { padding: 0 24px 0 8px; background-position: right 8px center; } /* 欄が狭いので矢印の余白を詰める */
+  }
+  /* 幅 380px 以下の小さなスマホでは、タブと選択欄の余白を詰めて「全設備」が切れないようにする */
+  @media (max-width: 380px) {
+    .tabs .btn { padding: 0 6px; }
+    .selects select { padding: 0 20px 0 6px; background-position: right 6px center; }
   }
 
 </style>
