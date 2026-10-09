@@ -36,10 +36,10 @@
     --accent: #2563eb;
     --accent-weak: #e8f0ff;
     /* 予約の帯の色（iOS のシステムカラーに近いオレンジと青を、白地に薄く敷いた色） */
-    --res: #ffefd9;
+    --res: rgba(255, 149, 0, .16); /* 半透明にして、下の罫線や縞模様が透けて見えるようにする */
     --res-border: #ff9500;
     --res-text: #7a4300;
-    --mine: #dcebff;
+    --mine: rgba(0, 122, 255, .15);
     --mine-text: #003f9e;
     --mine-border: #007aff;
     --closed: #e4e7eb;
@@ -97,6 +97,8 @@
   /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
   .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
   .notice-row .notice { flex: 1; min-width: 0; }
+  /* 中くらいの幅では、タイトルとボタンの間に押し込むと縦に潰れるので、お知らせを次の行に回す */
+  @media (min-width: 601px) and (max-width: 1199px) { .notice-row { order: 3; flex: 1 0 100%; } }
   /* 試験運用中の帯 */
   .beta-band {
     flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -287,7 +289,8 @@
   /* 予約を送信中（サーバーの結果待ち）の表示 */
   .blk.res.pending { opacity: .7; outline: 1px dashed var(--mine-border); outline-offset: -1px; }
   /* iOS のカレンダー風: 枠線なしの薄い塗り＋左端の丸い縦線 */
-  .blk.res { background: var(--res); color: var(--res-text); }
+  /* 左右に透明な 1px の余白を取り、時刻の縦の罫線に帯がかぶらないようにする */
+  .blk.res { background: var(--res); color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; background-clip: padding-box; }
   .blk.res.mine { background: var(--mine); color: var(--mine-text); }
   .blk.res::before {
     content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--res-border);
