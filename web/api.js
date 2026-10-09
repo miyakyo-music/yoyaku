@@ -9,7 +9,7 @@
   // gas/Code.gs の API_VERSION と一致させる
   const API_VERSION = 1;
   // 画面の版。フッタと不具合報告に表示する。GAS のデプロイの説明（バージョン名）とそろえる
-  window.APP_VERSION = 'v0.3.2-beta';
+  window.APP_VERSION = 'v0.3.3-beta';
   for (const el of document.querySelectorAll('[data-app-version]')) el.textContent = window.APP_VERSION;
   const TIMEOUT_MS = 60 * 1000;
   let warned = false;
