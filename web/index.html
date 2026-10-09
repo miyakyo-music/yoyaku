@@ -830,6 +830,18 @@
   /* 小窓の中のボタンは、小窓自体がすりガラスなので、さらにぼかさない（開く動きを軽くする） */
   dialog .btn { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
+  /* 「新規予約」から開いたときの部屋の一覧（押すといつもの選択欄に戻る） */
+  .room-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+  .room-quick .rq {
+    display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 48px; padding: 6px 10px;
+    border: 0; border-radius: 11px; text-align: left; font: inherit; color: var(--text); background: var(--fill-field); cursor: pointer;
+  }
+  .room-quick .rq b { font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .room-quick .rq small { font-size: 11px; color: var(--muted); line-height: 1.3; }
+  .room-quick .rq:active small { color: inherit; }
+  @media (hover: hover) { .room-quick .rq:hover { background: var(--accent-weak); } }
+  .room-quick .rq:active { background: var(--accent); color: #fff; }
+
   /* 入力が必須の欄: 見出しの右に赤い「*」（Google フォームの必須の質問と同じ印） */
   .req { color: #d93025; margin-left: 3px; font-weight: 600; }
   html.dark .req { color: #ff6961; }
@@ -984,7 +996,8 @@
         <label class="check"><input type="checkbox" id="bSeries"><span>同じまとめ予約のうち、この日以降の分もまとめて変更する</span></label>
         <p class="hint" id="bSeriesHint" hidden>時間・氏名／団体名・学籍番号／所属・備考をまとめて変更します。日付と部屋はそれぞれのままです。</p>
       </div>
-      <label class="field">部屋<select id="bRoom"></select></label>
+      <label class="field" id="bRoomField">部屋<select id="bRoom"></select></label>
+      <div class="field" id="bRoomQuickField" hidden><span>部屋を選んでください<span class="req" aria-hidden="true">*</span></span><div class="room-quick" id="bRoomQuick"></div></div>
       <div class="box" id="bMultiBox">
         <label class="check"><input type="checkbox" id="bMulti"><span>他の部屋も同時に予約する</span></label>
         <div id="bMultiArea" hidden>
@@ -2281,6 +2294,16 @@
     // 部屋の初期値: 指定があればその部屋、部屋別・カレンダー表示中は選んでいる部屋、一覧からは先頭の部屋
     roomSel.value = edit ? r.roomId : (o.roomId || (state.view !== 'day' && state.roomId) || firstRoom);
     if (!roomSel.value) roomSel.value = firstRoom;
+    // 一覧の「新規予約」から開いたときは、まず部屋を選ぶことが多いので、部屋の一覧を広げて見せる。
+    // 部屋を押すと、いつもの選択欄に戻る（ドラッグや空き枠から開いたとき・部屋別表示・変更時は広げない）
+    const quick = !edit && !o.roomId && state.view === 'day' && roomSel.options.length > 1;
+    $('bRoomQuick').innerHTML = quick ? [...roomSel.options].map((op) => {
+      const rm = state.rooms.find((x) => x.id === op.value) || { name: op.textContent };
+      const sub = [rm.tags, rm.restriction === ADMIN_ONLY ? '管理者のみ' : ''].filter(Boolean).join('・');
+      return `<button type="button" class="rq" data-id="${esc(op.value)}" aria-label="${esc(op.textContent)}"><b>${esc(rm.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+    }).join('') : '';
+    $('bRoomQuickField').hidden = !quick;
+    $('bRoomField').hidden = quick;
 
     const date = edit ? r.date : (o.date || state.date);
     $('bDate').value = date;
@@ -2328,7 +2351,7 @@
     // 新規予約は氏名／団体名の欄から入力できるようにする。
     // 変更時は入力欄に触れない（iPhoneでは部屋の選択肢やキーボードが勝手に開いてしまうため、見出しを選択状態にしている）
     // 名前が保存済み（自動入力された）ときは、キーボードを出さずに内容を見せる
-    if (!edit && !$('bPerson').value) $('bPerson').focus();
+    if (!edit && !quick && !$('bPerson').value) $('bPerson').focus();
   }
 
   function updateBookingUi() {
@@ -2400,6 +2423,7 @@
     renderPick();
     const b = state.booking;
     if (!b || b.mode !== 'create' || !$('bookDialog').open || !state.geo || !state.rows) return;
+    if (!$('bRoomQuickField').hidden) return; // 部屋をまだ選んでいないときは仮予約の帯を出さない
     const start = getTime($('bStartH'), $('bStartM'));
     const end = getTime($('bEndH'), $('bEndM'));
     if (!(end > start)) return;
@@ -2506,6 +2530,7 @@
     const edit = state.booking.mode === 'edit';
     const err = $('bError');
     const fail = (msg, focusId) => { err.textContent = msg; if (focusId) $(focusId).focus(); };
+    if (!$('bRoomQuickField').hidden) return fail('部屋を選んでください。');
     const payload = {
       roomId: $('bRoom').value,
       date: $('bDate').value,
@@ -2913,6 +2938,17 @@
   $('bookForm').addEventListener('submit', submitBooking);
   $('bookDialog').addEventListener('close', renderDraft); // 閉じたら仮予約の帯を消す
   $('bRoom').addEventListener('change', () => { state.extraRooms.delete($('bRoom').value); renderRoomPicker(); });
+  $('bRoomQuick').addEventListener('click', (e) => {
+    const b = e.target.closest('.rq');
+    if (!b) return;
+    $('bRoom').value = b.dataset.id;
+    $('bRoom').dispatchEvent(new Event('change'));
+    $('bRoomQuickField').hidden = true;
+    $('bRoomField').hidden = false;
+    renderDraft();
+    $('bError').textContent = '';
+    if (!$('bPerson').value) $('bPerson').focus();
+  });
   $('bSeries').addEventListener('change', updateBookingUi);
 
   // ---------------- お知らせをその場で変更（管理者モードのとき、お知らせを押す） ----------------
