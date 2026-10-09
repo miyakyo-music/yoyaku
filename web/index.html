@@ -237,11 +237,11 @@
      部屋名の列で区切り線の部分も覆う */
   .tl-label { box-shadow: 0 1px 0 var(--line); }
   .tl-row.week-start .tl-label { box-shadow: 0 1px 0 var(--line), 0 -2px 0 var(--line-strong); }
-  .tl-label[data-room] { cursor: pointer; }
-  .tl-label[data-room]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .tl-label[data-room], .tl-label[data-date] { cursor: pointer; }
+  .tl-label[data-room]:focus-visible, .tl-label[data-date]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   @media (hover: hover) {
-    .tl-label[data-room]:hover { background: #f6f9ff; }
-    .tl-label[data-room]:hover .nm { color: var(--accent); text-decoration: underline; }
+    .tl-label[data-room]:hover, .tl-label[data-date]:hover { background: #f6f9ff; }
+    .tl-label[data-room]:hover .nm, .tl-label[data-date]:hover .nm { color: var(--accent); text-decoration: underline; }
   }
   .tag { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; line-height: 15px; font-weight: 600; background: #eceff3; color: #4a5562; white-space: nowrap; }
   .tag.t-admin { background: #fde8e8; color: #9b2c2c; }
@@ -1219,10 +1219,11 @@
       const busy = reservations.map((r) => [toMin(r.start), toMin(r.end)]).concat(closures.map((c) => [c.start, c.end]));
       const stopped = row.room.restriction === STOPPED;
 
-      // 一覧では部屋名を押すと、その部屋の部屋別表示（この日から1か月分）へ移動する
+      // 一覧では部屋名を押すと、その部屋の部屋別表示（この日から1か月分）へ移動する。
+      // 部屋別では日付を押すと、その日の一覧へ移動する
       const labelAttrs = state.view === 'day'
         ? ` data-room="${esc(row.room.id)}" role="button" tabindex="0" title="${esc(roomText(row.room))} の予約を1か月分表示"`
-        : '';
+        : ` data-date="${row.date}" role="button" tabindex="0" title="${esc(mdLabel(row.date))} の一覧を表示"`;
       html += `<div class="tl-row${row.cls}"><div class="tl-label"${labelAttrs}>${row.label}</div>` +
         `<div class="tl-track${stopped ? ' stopped' : ''}" data-i="${i}">`;
       if (open > t0) html += `<div class="blk off" style="${span(t0, open)}"></div>`;
@@ -1673,6 +1674,8 @@
     if (blk) { openDetail(blk.dataset.id); return; }
     const cell = e.target.closest('.mc');
     if (cell) { state.date = cell.dataset.date; setView('day'); return; }
+    const dayLabel = e.target.closest('.tl-label[data-date]');
+    if (dayLabel) { state.date = dayLabel.dataset.date; setView('day'); return; }
     const label = e.target.closest('.tl-label[data-room]');
     if (label) {
       state.roomId = label.dataset.room;
@@ -1682,7 +1685,7 @@
   });
   $('main').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const el = e.target.closest('.blk.res, .mc, .tl-label[data-room]');
+    const el = e.target.closest('.blk.res, .mc, .tl-label[data-room], .tl-label[data-date]');
     if (el) { e.preventDefault(); el.click(); }
   });
 
@@ -2258,11 +2261,7 @@
   $('prevBtn').addEventListener('click', () => shift(-1));
   $('nextBtn').addEventListener('click', () => shift(1));
   $('todayBtn').addEventListener('click', () => setDate(todayStr()));
-  $('datePicker').addEventListener('change', (e) => {
-    // カレンダー表示で日付を選んだときは、その日の一覧に切り替える（カレンダーの日付を押したときと同じ）
-    if (state.view === 'month' && e.target.value) { state.date = e.target.value; setView('day'); return; }
-    setDate(e.target.value);
-  });
+  $('datePicker').addEventListener('change', (e) => setDate(e.target.value));
   $('refreshBtn').addEventListener('click', () => { invalidate(); load({ force: true }); });
   $('newBtn').addEventListener('click', () => {
     if (!state.settings) return;
