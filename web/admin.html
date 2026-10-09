@@ -460,7 +460,7 @@
   function dateLabel(s) {
     const [y, m, d] = s.split('-').map(Number);
     const w = new Date(y, m - 1, d).getDay();
-    return { text: `${y}/${m}/${d}（${WEEKDAYS[w]}）`, cls: w === 6 ? 'sat' : w === 0 ? 'sun' : '' };
+    return { text: `${y}/${m}/${d}(${WEEKDAYS[w]})`, cls: w === 6 ? 'sat' : w === 0 ? 'sun' : '' };
   }
   let toastTimer;
   function toast(msg) {

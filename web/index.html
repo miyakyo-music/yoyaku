@@ -737,8 +737,8 @@
   function nowMin() { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
   function weekday(s) { return parseDate(s).getDay(); }
   function dayClass(s) { const w = weekday(s); return w === 6 ? 'sat' : w === 0 ? 'sun' : ''; }
-  function mdLabel(s) { const d = parseDate(s); return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）`; }
-  function fullDateLabel(s) { const d = parseDate(s); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`; }
+  function mdLabel(s) { const d = parseDate(s); return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`; }
+  function fullDateLabel(s) { const d = parseDate(s); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`; }
   function durationLabel(min) {
     const h = Math.floor(min / 60), m = min % 60;
     return h && m ? `${h}時間${m}分` : h ? `${h}時間` : `${m}分`;
@@ -1015,7 +1015,7 @@
     const label = $('rangeLabel');
     const d = parseDate(state.date);
     if (state.view === 'day') {
-      label.textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
+      label.textContent = `${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`;
       label.className = 'range-label is-day ' + dayClass(state.date);
     } else if (state.view === 'room') {
       const { from, to } = currentRange();
