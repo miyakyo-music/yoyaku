@@ -160,7 +160,7 @@ function getSchedule(p) {
     closures: readClosures_(ctx.ss).filter(c => c.date >= from && c.date <= to && visible(c)),
     settings: publicSettings_(ctx.settings),
     serverNow: nowStr_('yyyy-MM-dd HH:mm'),
-  }, limitedInfo_(ctx));
+  }, limitedInfo_(ctx), ctx.isAdmin ? { openBugs: openBugCount_(ctx.ss) } : {});
 }
 
 /**
@@ -420,7 +420,15 @@ function adminGetData(p) {
     unitOptions: UNIT_OPTIONS,
     today: nowStr_('yyyy-MM-dd'),
     spreadsheetUrl: ss.getUrl(), // 管理画面の「スプレッドシートを開く」用（開けるのは共有されている人だけ）
+    openBugs: openBugCount_(ss),
   };
+}
+
+/** 未対応の不具合報告の件数（管理画面・管理者モードのバッジ用） */
+function openBugCount_(ss) {
+  const sheet = ss.getSheetByName(SHEETS.bugs);
+  if (!sheet) return 0;
+  return readTable_(sheet, 3).filter(r => r[0].trim() && (r[2] || BUG_STATUSES[0]) === BUG_STATUSES[0]).length;
 }
 
 /**
@@ -852,19 +860,21 @@ function context_(p) {
   const ss = getSpreadsheet_();
   const settings = loadSettings_(ss);
   const allRooms = readRooms_(ss);
-  const limited = limitedAccess_(settings, p || {});
+  const isAdmin = !!(p && p.adminPassword) && !verifyAdmin_(p.adminPassword);
+  const limited = limitedAccess_(settings, p || {}, isAdmin);
   const rooms = limited.ok ? allRooms : allRooms.filter(r => r.restriction !== ROOM_RESTRICTIONS.LIMITED);
   return {
     ss: ss,
     settings: settings,
     rooms: rooms,
     limited: limited,
+    isAdmin: isAdmin,
     resSheet: getSheet_(ss, SHEETS.reservations),
   };
 }
 
 /** 限定公開の部屋を見られるか。{ok} / {ok:false, denied:true}（パスワードが違う） */
-function limitedAccess_(settings, p) {
+function limitedAccess_(settings, p, isAdmin) {
   const pw = settings.limitedPassword;
   const key = String(p.limitedKey || '');
   if (key) {
@@ -873,7 +883,7 @@ function limitedAccess_(settings, p) {
     if (pw && failures < SYSTEM.MAX_LIMITED_FAILURES && key === pw) return { ok: true };
     cache.put('limitedFailures', String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS); // 総当たり対策
   }
-  if (p.adminPassword && !verifyAdmin_(p.adminPassword)) return { ok: true };
+  if (isAdmin) return { ok: true };
   return key ? { ok: false, denied: true } : { ok: false };
 }
 
