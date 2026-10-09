@@ -1626,7 +1626,8 @@
     renderDraft();
     // 新規予約は氏名／団体名の欄から入力できるようにする。
     // 変更時は入力欄に触れない（iPhoneでは部屋の選択肢やキーボードが勝手に開いてしまうため、見出しを選択状態にしている）
-    if (!edit) $('bPerson').focus();
+    // 名前が保存済み（自動入力された）ときは、キーボードを出さずに内容を見せる
+    if (!edit && !$('bPerson').value) $('bPerson').focus();
   }
 
   function updateBookingUi() {
