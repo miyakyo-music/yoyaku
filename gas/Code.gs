@@ -424,11 +424,12 @@ function adminGetData(p) {
   };
 }
 
-/** 未対応の不具合報告の件数（管理画面・管理者モードのバッジ用） */
+/** まだ片付いていない不具合報告（未対応・対応中）の件数（管理画面・管理者モードのバッジ用） */
 function openBugCount_(ss) {
   const sheet = ss.getSheetByName(SHEETS.bugs);
   if (!sheet) return 0;
-  return readTable_(sheet, 3).filter(r => r[0].trim() && (r[2] || BUG_STATUSES[0]) === BUG_STATUSES[0]).length;
+  const closed = [BUG_STATUSES[2], BUG_STATUSES[3]]; // 対応済み・対応しない
+  return readTable_(sheet, 3).filter(r => r[0].trim() && closed.indexOf(r[2] || BUG_STATUSES[0]) < 0).length;
 }
 
 /**

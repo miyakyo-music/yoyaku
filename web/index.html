@@ -1184,7 +1184,7 @@
     const bugs = isAdminMode() ? Number(res.openBugs) || 0 : 0;
     $('bugBadge').hidden = !bugs;
     $('bugBadge').textContent = bugs > 99 ? '99+' : String(bugs);
-    $('adminLink').setAttribute('aria-label', bugs ? `管理画面（未対応の不具合報告 ${bugs} 件）` : '管理画面');
+    $('adminLink').setAttribute('aria-label', bugs ? `管理画面（未対応・対応中の不具合報告 ${bugs} 件）` : '管理画面');
     state.data = res;
     state.settings = res.settings;
     state.rooms = res.rooms;
