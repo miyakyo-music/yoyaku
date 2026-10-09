@@ -83,6 +83,11 @@
   }
   .tabs button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
   .tabs .dot { color: var(--danger); margin-left: 4px; }
+  /* 未対応の不具合報告の件数 */
+  .badge {
+    display: inline-block; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 5px; border-radius: 9px;
+    background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; vertical-align: 1px;
+  }
 
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
   .field input, .field select, input.in, select.in {
@@ -355,7 +360,7 @@
         <button type="button" role="tab" data-tab="settings" aria-selected="false">利用時間<span class="lg">・制限</span><span class="dot" id="dotSettings" hidden>●</span></button>
         <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
-        <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span></button>
+        <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
       </nav>
 
       <!-- 練習室 -->
@@ -577,6 +582,7 @@
     $('logoutBtn').hidden = false;
     $('appName').textContent = d.settings.title;
     if (d.spreadsheetUrl) { $('sheetLink').href = d.spreadsheetUrl; $('sheetLink').hidden = false; }
+    setBugBadge(d.openBugs);
     document.title = d.settings.title + '（管理画面）';
     state.rooms = d.rooms.map((r) => ({ ...r }));
     state.closures = d.closures.slice();
@@ -996,6 +1002,12 @@
 
   // ---------------- 不具合報告 ----------------
   let bugData = null;
+  function setBugBadge(n) {
+    n = Number(n) || 0;
+    $('bugBadge').hidden = !n;
+    $('bugBadge').textContent = n > 99 ? '99+' : String(n);
+    $('bugBadge').setAttribute('aria-label', `未対応 ${n} 件`);
+  }
   async function loadBugs() {
     $('bugsError').textContent = '';
     $('bugList').innerHTML = '<p class="empty">読み込み中…</p>';
@@ -1003,6 +1015,7 @@
       const res = await api('adminGetBugReports', {});
       if (!res.ok) throw new Error(res.message);
       bugData = res;
+      setBugBadge(res.reports.filter((b) => b.status === res.statuses[0]).length);
       renderBugs();
     } catch (ex) {
       $('bugList').innerHTML = '';
@@ -1036,6 +1049,7 @@
       if (!res.ok) throw new Error(res.message);
       const b = bugData.reports.find((x) => x.id === sel.dataset.bugId);
       if (b) b.status = sel.value;
+      setBugBadge(bugData.reports.filter((x) => x.status === bugData.statuses[0]).length);
       renderBugs();
       toast('状態を変更しました');
     } catch (ex) {

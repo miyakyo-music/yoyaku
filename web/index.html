@@ -55,7 +55,7 @@
     color-scheme: light;
   }
   @media (max-width: 600px) {
-    :root { --label-w: 104px; --hour-w: 76px; --row-h: 42px; }
+    :root { --label-w: 84px; --hour-w: 68px; --row-h: 42px; }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -83,6 +83,13 @@
   .tools { display: flex; gap: 6px; align-items: center; margin-left: auto; }
   .admin-link { font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
   @media (hover: hover) { .admin-link:hover { color: var(--accent); border-color: var(--accent); } }
+  /* 管理者モードで、未対応の不具合報告があるときの件数 */
+  .admin-link { position: relative; }
+  .admin-link .badge {
+    position: absolute; top: -7px; right: -8px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+    box-shadow: 0 0 0 1.5px var(--surface);
+  }
   .status { font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
   /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
   .notice {
@@ -486,7 +493,7 @@
     .topbar .row { display: contents; }
     /* 1段目（タイトル・ボタン・お知らせ）は表の列とは切り離し、ボタンの幅を確保してタイトル側を縮める */
     .topbar .row:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; grid-area: head; min-width: 0; }
-    .brand { flex: 1 1 0; min-width: 0; overflow: hidden; }
+    .brand { flex: 1 1 0; min-width: 0; overflow: hidden; overflow: clip; overflow-y: visible; } /* 上下は切らない（「管理」の件数バッジを出すため） */
     .brand h1 { min-width: 0; flex: 0 1 auto; }
     .admin-mode .lg { display: none; }
     .brand { gap: 4px; }
@@ -500,6 +507,10 @@
     .tools .sm, .admin-link .sm { display: inline; }
     .admin-link { padding: 0 6px; font-size: 16px; line-height: 26px; }
     .tl-label .nm { font-size: 12px; }
+    /* 部屋名の列を細くする（左上は「部屋」「リセット」だけ、余白も詰める） */
+    .tl-corner .lg, .zoom-reset .lg { display: none; }
+    .tl-label { padding: 2px 4px 2px 5px; }
+    .tl-corner { padding: 0 5px; }
     .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
     .legend, .status #statusText { display: none; }
     .notice-row { order: 3; flex: 1 0 100%; }
@@ -650,7 +661,7 @@
   </div>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
       <div class="notice-row" id="noticeRow" hidden>
         <p class="notice" id="notice"><svg class="ic-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5M12 8h0l4.5-3.5A1 1 0 0 1 18 5.3v11.4a1 1 0 0 1-1.5.8L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg><svg class="ic-alert" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.4 3.9 1.8 18a1.9 1.9 0 0 0 1.6 2.9h17.2a1.9 1.9 0 0 0 1.6-2.9L13.6 3.9a1.9 1.9 0 0 0-3.2 0z"/></svg><span id="noticeText"></span></p>
       </div>
@@ -1072,6 +1083,11 @@
       else { $('limPass').value = ''; $('limError').textContent = ''; $('limitedDialog').showModal(); }
     }
     $('limitedMode').hidden = !(state.limitedKey && res.limitedAccess);
+    // 管理者モードでは、未対応の不具合報告の件数を「管理」に出す
+    const bugs = isAdminMode() ? Number(res.openBugs) || 0 : 0;
+    $('bugBadge').hidden = !bugs;
+    $('bugBadge').textContent = bugs > 99 ? '99+' : String(bugs);
+    $('adminLink').setAttribute('aria-label', bugs ? `管理画面（未対応の不具合報告 ${bugs} 件）` : '管理画面');
     state.data = res;
     state.settings = res.settings;
     state.rooms = res.rooms;
@@ -1274,7 +1290,7 @@
           row.label = roomLabelHtml(row.room, `<span class="free-until">${until}</span>`);
         }
       }
-      corner = '部屋 ＼ 時刻';
+      corner = '部屋<span class="lg"> ＼ 時刻</span>'; // スマホでは「部屋」だけにして列を細くする
     } else {
       const room = roomById(state.roomId);
       rows = [];
@@ -1283,11 +1299,11 @@
         const cls = (date === today ? ' today' : '') + (weekday(date) === 0 && date !== state.data.from ? ' week-start' : '');
         rows.push({ date, room, label: `<span class="nm ${dayClass(date)}">${esc(mdLabel(date))}</span>`, cls });
       }
-      corner = '日付 ＼ 時刻'; // 部屋名は上の部屋選択欄に表示している
+      corner = '日付<span class="lg"> ＼ 時刻</span>'; // 部屋名は上の部屋選択欄に表示している
     }
 
     const all = visibleReservations();
-    let html = `<div class="tl"><div class="tl-head"><div class="tl-corner"><span class="corner-text">${corner}</span><button type="button" class="zoom-reset" data-zoom-reset hidden>幅をリセット</button></div><div class="tl-scale">`;
+    let html = `<div class="tl"><div class="tl-head"><div class="tl-corner"><span class="corner-text">${corner}</span><button type="button" class="zoom-reset" data-zoom-reset hidden><span class="lg">幅を</span>リセット</button></div><div class="tl-scale">`;
     const nowHourShown = state.view === 'day' && state.data.from === today;
     for (let h = t0; h < t1; h += 60) {
       html += `<span${nowHourShown && now >= h && now < h + 60 ? ' class="now"' : ''}>${h / 60}:00</span>`;
@@ -2341,7 +2357,11 @@
   $('prevBtn').addEventListener('click', () => shift(-1));
   $('nextBtn').addEventListener('click', () => shift(1));
   $('todayBtn').addEventListener('click', () => setDate(todayStr()));
-  $('datePicker').addEventListener('change', (e) => setDate(e.target.value));
+  $('datePicker').addEventListener('change', (e) => {
+    // カレンダー表示で日付を選んだときは、その日の一覧に切り替える（カレンダーの日付を押したときと同じ）
+    if (state.view === 'month' && e.target.value) { state.date = e.target.value; setView('day'); return; }
+    setDate(e.target.value);
+  });
   $('refreshBtn').addEventListener('click', () => { invalidate(); load({ force: true }); });
   $('newBtn').addEventListener('click', () => {
     if (!state.settings) return;
