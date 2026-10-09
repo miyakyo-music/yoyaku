@@ -839,6 +839,17 @@
   .room-quick .rq b { font-size: 14px; font-weight: 600; white-space: nowrap; }
   .room-quick .rq small { font-size: 11px; color: var(--muted); line-height: 1.3; }
   .room-quick .rq:active small { color: inherit; }
+  /* 設備ごとに、表のタグと同じ色をごく薄く敷く（UP=オレンジ、GP=緑、電子=青、大=紫） */
+  .room-quick .rq.t-up { background: rgba(255, 149, 0, .09); } .room-quick .rq.t-up small { color: #8a5a00; }
+  .room-quick .rq.t-gp { background: rgba(52, 199, 89, .1); } .room-quick .rq.t-gp small { color: #22693f; }
+  .room-quick .rq.t-ep { background: rgba(0, 122, 255, .08); } .room-quick .rq.t-ep small { color: #2457a1; }
+  .room-quick .rq.t-large { background: rgba(175, 82, 222, .09); } .room-quick .rq.t-large small { color: #5b3aa8; }
+  html.dark .room-quick .rq.t-up { background: rgba(255, 159, 10, .13); } html.dark .room-quick .rq.t-up small { color: #ffc66b; }
+  html.dark .room-quick .rq.t-gp { background: rgba(48, 209, 88, .12); } html.dark .room-quick .rq.t-gp small { color: #7ee29a; }
+  html.dark .room-quick .rq.t-ep { background: rgba(10, 132, 255, .14); } html.dark .room-quick .rq.t-ep small { color: #8cc4ff; }
+  html.dark .room-quick .rq.t-large { background: rgba(191, 90, 242, .15); } html.dark .room-quick .rq.t-large small { color: #dcaef7; }
+  .room-quick .rq.t-up:active, .room-quick .rq.t-gp:active, .room-quick .rq.t-ep:active, .room-quick .rq.t-large:active { background: var(--accent); }
+  .room-quick .rq:active small { color: #fff !important; }
   @media (hover: hover) { .room-quick .rq:hover { background: var(--accent-weak); } }
   .room-quick .rq:active { background: var(--accent); color: #fff; }
 
@@ -2300,7 +2311,7 @@
     $('bRoomQuick').innerHTML = quick ? [...roomSel.options].map((op) => {
       const rm = state.rooms.find((x) => x.id === op.value) || { name: op.textContent };
       const sub = [rm.tags, rm.restriction === ADMIN_ONLY ? '管理者のみ' : ''].filter(Boolean).join('・');
-      return `<button type="button" class="rq" data-id="${esc(op.value)}" aria-label="${esc(op.textContent)}"><b>${esc(rm.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+      return `<button type="button" class="rq ${rm.tags ? tagClass(rm.tags) : ''}" data-id="${esc(op.value)}" aria-label="${esc(op.textContent)}"><b>${esc(rm.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
     }).join('') : '';
     $('bRoomQuickField').hidden = !quick;
     $('bRoomField').hidden = quick;
