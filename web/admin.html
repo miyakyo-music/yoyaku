@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
-  // ダークモード: 端末の設定に合わせる（URL に ?dark を付けると常にダーク）。白く一瞬光らないよう、最初に決める
+  // ダークモード: 端末の設定に合わせる（URL に ?dark で常にダーク、?light で常にライト）。白く一瞬光らないよう、最初に決める
   (function () {
     var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
-    var apply = function () { document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || !!(mq && mq.matches)); };
+    var apply = function () { document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || (!/[?&]light\b/.test(location.search) && !!(mq && mq.matches))); };
     apply();
     if (mq && mq.addEventListener) mq.addEventListener('change', apply);
   })();

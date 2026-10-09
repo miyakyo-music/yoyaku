@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
-  // ダークモード: 端末の設定に合わせる（URL に ?dark を付けると常にダーク）。白く一瞬光らないよう、最初に決める
-  if (/[?&]dark\b/.test(location.search) || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+  // ダークモード: 端末の設定に合わせる（URL に ?dark で常にダーク、?light で常にライト）。白く一瞬光らないよう、最初に決める
+  if (/[?&]dark\b/.test(location.search) || (!/[?&]light\b/.test(location.search) && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
 </script>
 <script>
   // iPhone / iPad では、16px 未満の入力欄・選択欄を押すと画面が勝手に拡大される。maximum-scale=1 でこれを止める
@@ -1133,7 +1133,7 @@
   const $ = (id) => document.getElementById(id);
   // ダークモード: 端末の設定が途中で変わったら（日没で自動切替など）追従する
   const darkMq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
-  const applyDark = () => document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || !!(darkMq && darkMq.matches));
+  const applyDark = () => document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || (!/[?&]light\b/.test(location.search) && !!(darkMq && darkMq.matches)));
   applyDark();
   if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', applyDark);
   $('betaBand').hidden = !/beta/i.test(APP_VERSION);
