@@ -55,7 +55,7 @@
     color-scheme: light;
   }
   @media (max-width: 600px) {
-    :root { --label-w: 84px; --hour-w: 68px; --row-h: 42px; }
+    :root { --label-w: 84px; --hour-w: 62px; --row-h: 42px; }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -734,6 +734,34 @@
     .brand { gap: 6px; }
   }
 
+  /* お知らせ: 管理者モードでは押すとその場で書き換えられる */
+  .notice.editable { cursor: pointer; }
+  @media (hover: hover) { .notice.editable:hover { filter: brightness(.97); } }
+  .notice-editor { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .notice-editor input {
+    flex: 1 1 220px; min-width: 0; height: 34px; padding: 0 12px; border: 0; border-radius: 11px; font-size: 16px;
+    background: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent);
+  }
+  .notice-editor select { flex: none; height: 34px; font-size: 14px; padding: 0 10px; }
+  .notice-editor .btn { flex: none; height: 34px; }
+  .date-field.disabled { opacity: .5; pointer-events: none; }
+  .field select:disabled { opacity: .5; }
+  /* スマホ: 表示の切り替え・設備の選択・空室・日付の行の高さを 34px にそろえる（iPhone で選択欄だけ少し高くなるのを防ぐ） */
+  @media (max-width: 600px) {
+    .tabs.seg, .selects select, .free-btn, .datenav .btn, .datenav .date-display { height: 34px; min-height: 0; box-sizing: border-box; line-height: normal; }
+    .selects { align-items: stretch; }
+  }
+
+  /* iPhone の Safari（タブバーを下にしている場合）: 予約表を画面のいちばん下（タブバーの裏）まで伸ばす。
+     100lvh = タブバーが引っ込んだときの高さ、100dvh = 今見えている高さ。その差（≒タブバーの分）だけ、
+     表の最後とダイアログ・通知はタブバーにかからないよう上に逃がす */
+  @supports (-webkit-touch-callout: none) and (height: 100lvh) {
+    body { height: 100lvh; }
+    .main-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); }
+    dialog { inset: 0 0 calc(100lvh - 100dvh) 0; max-height: calc(100dvh - 20px); }
+    .toast { bottom: calc(20px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); }
+  }
+
   /* 屈折に対応した環境（Chrome など）では、曲がった像が見えるようにガラスを少し薄くする */
   .refract .topbar { background: linear-gradient(180deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .38)); }
   .refract dialog { background: rgba(255, 255, 255, .6); }
@@ -759,8 +787,14 @@
   </div>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span id="statusText"></span></button></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span id="statusText"></span></button><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button></div>
       <div class="notice-row" id="noticeRow" hidden>
+        <form class="notice-editor" id="noticeEditor" hidden>
+          <input id="noticeInput" maxlength="200" autocomplete="off" aria-label="お知らせ（空欄にすると非表示）" placeholder="空欄にするとお知らせを出さない">
+          <select id="noticeLevel" aria-label="お知らせの種類"><option value="通常">通常</option><option value="重要">重要</option></select>
+          <button type="button" class="btn" id="noticeCancel">やめる</button>
+          <button type="submit" class="btn primary" id="noticeSave">保存</button>
+        </form>
         <p class="notice" id="notice"><svg class="ic-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5M12 8h0l4.5-3.5A1 1 0 0 1 18 5.3v11.4a1 1 0 0 1-1.5.8L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg><svg class="ic-alert" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.4 3.9 1.8 18a1.9 1.9 0 0 0 1.6 2.9h17.2a1.9 1.9 0 0 0 1.6-2.9L13.6 3.9a1.9 1.9 0 0 0-3.2 0z"/></svg><span id="noticeText"></span></p>
       </div>
       <div class="tools">
@@ -804,6 +838,10 @@
   <dialog id="bookDialog">
     <form id="bookForm" novalidate>
       <h2 id="bTitle" tabindex="-1" autofocus>新規予約</h2>
+      <div class="box" id="bSeriesBox" hidden>
+        <label class="check"><input type="checkbox" id="bSeries"><span>同じまとめ予約のうち、この日以降の分もまとめて変更する</span></label>
+        <p class="hint" id="bSeriesHint" hidden>時間・氏名／団体名・学籍番号／所属・備考をまとめて変更します。日付と部屋はそれぞれのままです。</p>
+      </div>
       <label class="field">部屋<select id="bRoom"></select></label>
       <div class="box" id="bMultiBox">
         <label class="check"><input type="checkbox" id="bMulti"><span>他の部屋も同時に予約する</span></label>
@@ -1080,7 +1118,7 @@
     const body = Object.assign({}, payload, { viewKey: state.viewKey });
     if (state.limitedKey && !body.limitedKey) body.limitedKey = state.limitedKey;
     // 管理者モードでは読み込みにも管理用パスワードを添える（限定公開の部屋も表示するため）
-    const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation'];
+    const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation', 'adminSetNotice'];
     if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
     const res = await callApi(fn, body); // web/api.js
     if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); throw new AuthError(res.message); }
@@ -1245,9 +1283,14 @@
     const s = state.settings;
     $('title').textContent = s.title;
     document.title = s.title;
-    $('noticeRow').hidden = !s.notice;
-    $('noticeText').textContent = s.notice || '';
-    $('notice').classList.toggle('important', s.noticeLevel === '重要');
+    // お知らせを書き換えている間は、裏の自動更新で入力中の内容を消さない
+    if (!state.noticeEditing) {
+      $('noticeRow').hidden = !s.notice;
+      $('noticeText').textContent = s.notice || '';
+      $('notice').classList.toggle('important', s.noticeLevel === '重要');
+    }
+    $('notice').classList.toggle('editable', isAdminMode());
+    $('notice').title = isAdminMode() ? '押すとお知らせを変更できます' : '';
     $('adminMode').hidden = !isAdminMode();
 
     const eq = $('equipFilter');
@@ -1735,8 +1778,14 @@
 
   let drag = null;
 
+  // 予約の帯に残っている青い枠（詳細を閉じたあとのフォーカス）を外す
+  function blurBlock() {
+    const a = document.activeElement;
+    if (a && a.closest && a.closest('.blk')) a.blur();
+  }
   function beginDrag(track, clientX) {
     clearPick();
+    blurBlock();
     const row = state.rows[Number(track.dataset.i)];
     const m = minuteAt(track, clientX);
     const free = freeSpanAt(row, m);
@@ -1796,6 +1845,7 @@
   const PICK_TIMEOUT_MS = 5000; // 「＋予約」の帯は、押されないまましばらくたったら消す
   let pickTimer = null;
   function pickSlot(track, clientX) {
+    blurBlock();
     state.pick = slotAt(track, clientX);
     renderDraft();
     clearTimeout(pickTimer);
@@ -2026,7 +2076,10 @@
     $('bSubmit').textContent = edit ? '変更を保存' : '予約確定';
 
     const roomSel = $('bRoom');
+    // 一覧で設備を絞り込んでいるときは、新規予約の部屋の選択肢も同じ設備に絞る（変更時は今の部屋を必ず含める）
+    const eqFilter = state.view === 'day' ? $('equipFilter').value : '';
     roomSel.innerHTML = state.rooms.filter((x) => x.restriction !== STOPPED)
+      .filter((x) => !eqFilter || x.equipment === eqFilter || (edit && x.id === r.roomId))
       .map((x) => `<option value="${esc(x.id)}">${esc(roomText(x))}${x.restriction === ADMIN_ONLY ? '［管理者のみ］' : ''}</option>`).join('');
     const firstRoom = roomSel.options[0] ? roomSel.options[0].value : '';
     // 部屋の初期値: 指定があればその部屋、部屋別・カレンダー表示中は選んでいる部屋、一覧からは先頭の部屋
@@ -2053,6 +2106,9 @@
     $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（任意・4桁の数字）';
     $('bPinHint').hidden = edit;
     $('bHint').hidden = edit;
+    // まとめ予約（くり返し・複数部屋）の1件を変更するときは、この日以降の分もまとめて変更できる
+    $('bSeriesBox').hidden = !(edit && r.groupId);
+    $('bSeries').checked = false;
 
     // くり返し予約・複数部屋の同時予約は、管理者モードか、管理者が全員に許可しているときだけ出す
     const showBulk = !edit && (isAdminMode() || !s.bulkRequiresAdmin);
@@ -2082,6 +2138,12 @@
     $('bDateDisplay').innerHTML = dateDisplayHtml($('bDate').value);
     const s = state.settings;
     const edit = state.booking.mode === 'edit';
+    // まとめて変更するときは、日付と部屋はそれぞれのままなので選べないようにする
+    const series = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
+    $('bRoom').disabled = series;
+    $('bDate').disabled = series;
+    $('bDate').closest('.date-field').classList.toggle('disabled', series);
+    $('bSeriesHint').hidden = !series;
     const start = getTime($('bStartH'), $('bStartM'));
     const end = getTime($('bEndH'), $('bEndM'));
     const dur = $('bDuration');
@@ -2297,7 +2359,8 @@
     err.textContent = '';
     try {
       let res;
-      if (edit) res = await api('updateReservation', Object.assign(payload, { id: state.booking.id }));
+      const series = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
+      if (edit) res = await api('updateReservation', Object.assign(payload, { id: state.booking.id }, series ? { scope: 'following' } : {}));
       else if (bulk) res = await api('createBulkReservations', Object.assign(payload, { roomIds, dates, skipConflicts: state.skipConflicts }));
       else res = await api('createReservation', payload);
 
@@ -2306,8 +2369,8 @@
         if (!edit) addMine(list);
         $('bookDialog').close();
         const skipped = res.skipped && res.skipped.length ? `（予約できなかった${res.skipped.length}件を除く）` : '';
-        toast(edit ? '予約を変更しました' : `${list.length}件予約しました${skipped}`);
-        invalidate(list.map((r) => r.date).concat(edit ? [state.booking.origDate] : []));
+        toast(edit ? (list.length > 1 ? `${list.length}件の予約をまとめて変更しました` : '予約を変更しました') : `${list.length}件予約しました${skipped}`);
+        invalidate(list.length > 1 ? undefined : list.map((r) => r.date).concat(edit ? [state.booking.origDate] : []));
         if (!edit && list[0].date !== state.date && state.view === 'day') setDate(list[0].date);
         else load({ force: true });
         return;
@@ -2322,6 +2385,7 @@
         return;
       }
       err.textContent = (res && res.message) || '処理に失敗しました。';
+      if (res && res.code === 'SERIES_CONFLICT') $('bConflicts').innerHTML = res.conflicts.map((c) => `<li>${esc(c)}</li>`).join('');
       if (res && res.code === 'CONFLICT') { invalidate([payload.date]); load({ force: true }); }
       btn.textContent = label;
     } catch (ex) {
@@ -2594,6 +2658,46 @@
   $('bookForm').addEventListener('submit', submitBooking);
   $('bookDialog').addEventListener('close', renderDraft); // 閉じたら仮予約の帯を消す
   $('bRoom').addEventListener('change', () => { state.extraRooms.delete($('bRoom').value); renderRoomPicker(); });
+  $('bSeries').addEventListener('change', updateBookingUi);
+
+  // ---------------- お知らせをその場で変更（管理者モードのとき、お知らせを押す） ----------------
+  function openNoticeEditor() {
+    if (!isAdminMode() || state.noticeEditing) return;
+    state.noticeEditing = true;
+    $('noticeInput').value = state.settings.notice || '';
+    $('noticeLevel').value = state.settings.noticeLevel === '重要' ? '重要' : '通常';
+    $('notice').hidden = true;
+    $('noticeEditor').hidden = false;
+    $('noticeRow').hidden = false;
+    $('noticeInput').focus();
+  }
+  function closeNoticeEditor() {
+    state.noticeEditing = false;
+    $('noticeEditor').hidden = true;
+    $('notice').hidden = false;
+    applySettings();
+  }
+  $('notice').addEventListener('click', openNoticeEditor);
+  $('noticeCancel').addEventListener('click', closeNoticeEditor);
+  $('noticeEditor').addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNoticeEditor(); });
+  $('noticeEditor').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('noticeSave');
+    btn.disabled = true;
+    try {
+      const res = await api('adminSetNotice', { notice: $('noticeInput').value.trim(), noticeLevel: $('noticeLevel').value });
+      if (!res || !res.ok) throw new Error((res && res.message) || '保存できませんでした。');
+      state.settings = Object.assign({}, state.settings, { notice: res.settings.notice, noticeLevel: res.settings.noticeLevel });
+      if (state.data) state.data.settings = state.settings;
+      closeNoticeEditor();
+      toast(res.settings.notice ? 'お知らせを変更しました' : 'お知らせを非表示にしました');
+      invalidate();
+    } catch (ex) {
+      if (!(ex instanceof AuthError)) toast(errMessage(ex), 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
   for (const id of ['bRoom', 'bDate', 'bStartH', 'bStartM', 'bEndH', 'bEndM', 'bInterval', 'bUntil']) {
     $(id).addEventListener('change', () => { resetConflicts(); updateBookingUi(); });
   }

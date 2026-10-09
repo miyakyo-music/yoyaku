@@ -95,6 +95,7 @@ const API = {
   submitBugReport: submitBugReport,
   adminGetData: adminGetData,
   adminSaveSettings: adminSaveSettings,
+  adminSetNotice: adminSetNotice,
   adminSaveRooms: adminSaveRooms,
   adminSaveClosures: adminSaveClosures,
   adminGetBugReports: adminGetBugReports,
@@ -280,7 +281,9 @@ function createBulkReservations(p) {
 
 /**
  * 予約内容（日付・部屋・時間・予約者・備考）を変更する。編集用パスワードまたは管理用パスワードで認証する。
- * @param {{id, pin, date, roomId, start, end, affiliation, name, memo, viewKey?}} p
+ * scope 'following' … 同じまとめ予約のうち、この日以降の分を同じ内容（時間・予約者・備考）にまとめて変更する。
+ *   日付と部屋はそれぞれのまま。1件でも変更できない日があれば、どれも変更しない。
+ * @param {{id, pin, date, roomId, start, end, affiliation, name, memo, scope?:'single'|'following', viewKey?}} p
  */
 function updateReservation(p) {
   p = p || {};
@@ -302,6 +305,8 @@ function updateReservation(p) {
       return fail_('この部屋の予約は管理者のみ変更できます。');
     }
 
+    if (p.scope === 'following' && target.groupId) return updateSeries_(ctx, rows, target, p, auth.admin);
+
     const v = validateBooking_(ctx, Object.assign({}, p, { pin: target.pin }), auth.admin);
     if (v.error) return fail_(v.error);
     const r = v.value;
@@ -319,6 +324,37 @@ function updateReservation(p) {
     log_(ctx.ss, auth.admin ? '変更（管理者）' : '変更', updated, '変更前: ' + target.date + ' ' + target.roomId + ' ' + describe_(target));
     return { ok: true, reservation: toPublic_(updated) };
   });
+}
+
+/** まとめ予約のこの日以降の分を、同じ時間・予約者・備考にまとめて変更する（updateReservation から、ロックの中で呼ぶ） */
+function updateSeries_(ctx, rows, target, p, isAdmin) {
+  const members = rows.filter(r => r.groupId === target.groupId && r.date >= target.date)
+    .filter(r => r.id === target.id || isAdmin || !isPast_(r.date, r.end));
+  const updates = [];
+  const problems = [];
+  const now = nowStr_('yyyy-MM-dd HH:mm:ss');
+  for (const m of members) {
+    const v = validateBooking_(ctx, Object.assign({}, p, { date: m.date, roomId: m.roomId, pin: m.pin }), isAdmin);
+    if (v.error) return fail_(v.error);
+    const r = v.value;
+    const reason = checkDateRules_(ctx, r, isAdmin) || closureError_(ctx, r);
+    const conflict = reason ? null : findConflict_(rows, r, m.id);
+    if (reason || conflict) {
+      problems.push(m.date + ' ' + roomOf_(ctx, m.roomId).name + ': ' + (reason || '既存の予約と重複（' + describe_(conflict) + '）'));
+      continue;
+    }
+    updates.push({ before: m, after: Object.assign({}, m, r, { id: m.id, pin: m.pin, createdAt: m.createdAt, groupId: m.groupId, updatedAt: now }) });
+  }
+  if (problems.length) {
+    return Object.assign(fail_('まとめて変更できない日があるため、変更しませんでした。'), { code: 'SERIES_CONFLICT', conflicts: problems });
+  }
+  updates.forEach(u => {
+    ctx.resSheet.getRange(u.before.row, 1, 1, HEADERS.reservations.length).setNumberFormat('@').setValues([toRow_(u.after)]);
+  });
+  SpreadsheetApp.flush();
+  log_(ctx.ss, isAdmin ? 'まとめて変更（管理者）' : 'まとめて変更', updates[0].after,
+    updates.length + '件（' + updates.map(u => u.after.date).join(', ') + '）変更前: ' + describe_(target));
+  return { ok: true, reservation: toPublic_(updates[0].after), reservations: updates.map(u => toPublic_(u.after)) };
 }
 
 /**
@@ -463,6 +499,22 @@ function adminSaveSettings(p) {
     logAdmin_(ss, '設定変更', SETTINGS.filter(d => SECRET_SETTINGS.indexOf(d.key) < 0).map(d => d.label + '=' + v.value[d.key]).join(' / '));
     return { ok: true, settings: settings, warnings: settingsWarnings_(ss, settings) };
   });
+}
+
+/**
+ * お知らせだけを変更する（予約表の画面で、管理者がお知らせを押してその場で書き換える用）。
+ * ほかの設定は今の値のまま、設定の保存と同じ確認・記録を通す。
+ * @param {{adminPassword, notice:string, noticeLevel:string}} p
+ */
+function adminSetNotice(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const current = loadSettings_(getSpreadsheet_());
+  const res = adminSaveSettings({
+    adminPassword: p.adminPassword,
+    settings: Object.assign({}, current, { notice: String(p.notice || ''), noticeLevel: String(p.noticeLevel || current.noticeLevel) }),
+  });
+  return res.ok ? { ok: true, settings: publicSettings_(res.settings) } : res;
 }
 
 /**
