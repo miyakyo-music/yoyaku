@@ -35,12 +35,13 @@
     --line-strong: #b8c1cb;
     --accent: #2563eb;
     --accent-weak: #e8f0ff;
-    --res: #fcebd4;
-    --res-border: #e9c48f;
-    --res-text: #5a3a0c;
-    --mine: #d4e9ff;
-    --mine-text: #0b3d6b;
-    --mine-border: #4b95dc;
+    /* 予約の帯の色（iOS のシステムカラーに近いオレンジと青を、白地に薄く敷いた色） */
+    --res: #ffefd9;
+    --res-border: #ff9500;
+    --res-text: #7a4300;
+    --mine: #dcebff;
+    --mine-text: #003f9e;
+    --mine-border: #007aff;
     --closed: #e4e7eb;
     --closed-text: #55606c;
     --past: rgba(120, 130, 145, .13);
@@ -49,12 +50,12 @@
     --sun: #cf3f3f;
     --label-w: 150px;
     --hour-w: 96px;
-    --row-h: 44px;
+    --row-h: 40px;
     --hours: 15;
     color-scheme: light;
   }
   @media (max-width: 600px) {
-    :root { --label-w: 104px; --hour-w: 76px; --row-h: 46px; }
+    :root { --label-w: 104px; --hour-w: 76px; --row-h: 42px; }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -169,8 +170,8 @@
   .legend { display: inline-flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-left: auto; }
   .legend span { display: inline-flex; align-items: center; gap: 4px; }
   .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line-strong); display: inline-block; }
-  .sw.res { background: var(--res); border-color: var(--res-border); }
-  .sw.mine { background: var(--mine); border-color: var(--mine-border); }
+  .sw.res { background: var(--res); border: 0; border-left: 3px solid var(--res-border); }
+  .sw.mine { background: var(--mine); border: 0; border-left: 3px solid var(--mine-border); }
   .sw.closed { background: var(--closed); }
   .spin { display: none; width: 12px; height: 12px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
   body.loading .spin { display: inline-block; }
@@ -271,21 +272,27 @@
   .now-line { position: absolute; top: 0; bottom: -1px; width: 2px; margin-left: -1px; background: #e5484d; opacity: .6; pointer-events: none; z-index: 2; }
   .tl-row.week-start .now-line { top: -2px; }
   .blk {
-    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
+    position: absolute; top: 3px; bottom: 3px; border-radius: 8px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
     overflow: hidden; overflow: clip; /* clip は中の文字の sticky を妨げない（未対応ブラウザは hidden） */
-    padding: 1px 4px; font-size: 11px; line-height: 1.3; cursor: pointer; min-width: 3px;
+    padding: 0 6px 0 10px; font-size: 11px; line-height: 1.2; cursor: pointer; min-width: 3px;
+    display: flex; flex-direction: column; justify-content: center; /* 名前と学番を帯の上下中央に */
   }
   /* ブロックの左側がスクロールで部屋名の列に隠れても、予約者名は見えている部分の左端に留まる */
   .blk b, .blk span {
     display: block; width: fit-content; max-width: 100%; white-space: nowrap; overflow: hidden;
     position: sticky; left: calc(var(--label-w) + 4px); z-index: 3;
   }
-  .blk b { font-weight: 700; }
-  .blk span { font-weight: 400; opacity: .85; }
+  .blk b { font-weight: 600; font-size: 11.5px; }
+  .blk span { font-weight: 400; font-size: 10.5px; opacity: .8; }
   /* 予約を送信中（サーバーの結果待ち）の表示 */
-  .blk.res.pending { opacity: .7; border-style: dashed; }
-  .blk.res { background: var(--res); color: var(--res-text); border: 1px solid var(--res-border); }
-  .blk.res.mine { background: var(--mine); color: var(--mine-text); border: 2px solid var(--mine-border); }
+  .blk.res.pending { opacity: .7; outline: 1px dashed var(--mine-border); outline-offset: -1px; }
+  /* iOS のカレンダー風: 枠線なしの薄い塗り＋左端の丸い縦線 */
+  .blk.res { background: var(--res); color: var(--res-text); }
+  .blk.res.mine { background: var(--mine); color: var(--mine-text); }
+  .blk.res::before {
+    content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--res-border);
+  }
+  .blk.res.mine::before { background: var(--mine-border); }
   .blk.res.ended { opacity: .6; }
   .blk.closed {
     background: var(--closed) repeating-linear-gradient(135deg, transparent 0 6px, rgba(0, 0, 0, .05) 6px 12px);
