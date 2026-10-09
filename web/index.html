@@ -288,6 +288,7 @@
     pointer-events: auto; cursor: pointer; border-style: dashed; background: rgba(37, 99, 235, .14);
     display: flex; align-items: center; justify-content: center; padding: 0 2px; overflow: visible;
   }
+  .ghost.pick.fading { opacity: 0; transition: opacity .3s; }
   .ghost.pick b { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
   .ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
   .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
@@ -1390,11 +1391,23 @@
    * スマホ: タップした所には「仮予約」の帯と「＋予約」を出すだけにし、もう一度その帯をタップしたら予約画面を開く
    * （触れただけで予約画面が開かないようにする）。スクロールしたら帯は消す。
    */
+  const PICK_TIMEOUT_MS = 5000; // 「＋予約」の帯は、押されないまましばらくたったら消す
+  let pickTimer = null;
   function pickSlot(track, clientX) {
     state.pick = slotAt(track, clientX);
     renderDraft();
+    clearTimeout(pickTimer);
+    if (state.pick) pickTimer = setTimeout(fadePick, PICK_TIMEOUT_MS);
+  }
+  /** 帯を薄くしてから消す */
+  function fadePick() {
+    const el = $('main').querySelector('.ghost.pick');
+    if (!el) { clearPick(); return; }
+    el.classList.add('fading');
+    pickTimer = setTimeout(clearPick, 300);
   }
   function clearPick() {
+    clearTimeout(pickTimer);
     if (!state.pick) return;
     state.pick = null;
     renderDraft();
