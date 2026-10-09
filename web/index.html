@@ -220,6 +220,10 @@
   .tl-row:nth-child(odd) .tl-label, .tl-row:nth-child(odd) .tl-track { background-color: #f7f9fb; }
   .tl-row.today .tl-label { background: #f0f6ff; }
   .tl-row.week-start { border-top: 2px solid var(--line-strong); }
+  /* 現在時刻の線は行の区切り線の上まで伸ばしているので、部屋名の列の下に回ったときに区切り線の所から透けないよう、
+     部屋名の列で区切り線の部分も覆う */
+  .tl-label { box-shadow: 0 1px 0 var(--line); }
+  .tl-row.week-start .tl-label { box-shadow: 0 1px 0 var(--line), 0 -2px 0 var(--line-strong); }
   .tl-label[data-room] { cursor: pointer; }
   .tl-label[data-room]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   @media (hover: hover) {
