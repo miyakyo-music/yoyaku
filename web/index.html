@@ -716,6 +716,24 @@
   }
   .toast.error { background: rgba(255, 59, 48, .9); }
 
+  /* 管理（歯車）と更新（↻）: 同じ大きさ・同じ線の太さのアイコンを、同じガラスのボタンに入れてそろえる
+     （歯車は文字の ⚙ だと iPhone で絵文字風の別デザインになるため、↻ と同じ線画のアイコンにする） */
+  .admin-link, .brand .admin-link, .status {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
+    height: 28px; padding: 0 10px; border: 0; border-radius: 9px; font-size: 12px; line-height: 1; color: #3a3a3c;
+    background-color: var(--glass); background-image: var(--glass-sheen);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  }
+  .admin-link svg, .status svg { flex: none; width: 15px; height: 15px; }
+  .status #statusText { color: var(--muted); }
+  @media (hover: hover) { .status:hover, .admin-link:hover { background-color: var(--glass-strong); color: var(--text); } }
+  @media (max-width: 600px) {
+    .admin-link, .brand .admin-link, .status { width: 32px; height: 32px; padding: 0; border-radius: 10px; }
+    .admin-link svg, .status svg { width: 17px; height: 17px; }
+    .brand { gap: 6px; }
+  }
+
   /* 屈折に対応した環境（Chrome など）では、曲がった像が見えるようにガラスを少し薄くする */
   .refract .topbar { background: linear-gradient(180deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .38)); }
   .refract dialog { background: rgba(255, 255, 255, .6); }
@@ -741,7 +759,7 @@
   </div>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span id="statusText"></span></button></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span id="statusText"></span></button></div>
       <div class="notice-row" id="noticeRow" hidden>
         <p class="notice" id="notice"><svg class="ic-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5M12 8h0l4.5-3.5A1 1 0 0 1 18 5.3v11.4a1 1 0 0 1-1.5.8L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg><svg class="ic-alert" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.4 3.9 1.8 18a1.9 1.9 0 0 0 1.6 2.9h17.2a1.9 1.9 0 0 0 1.6-2.9L13.6 3.9a1.9 1.9 0 0 0-3.2 0z"/></svg><span id="noticeText"></span></p>
       </div>
