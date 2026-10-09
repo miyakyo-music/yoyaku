@@ -754,10 +754,6 @@
     .selects { align-items: stretch; }
   }
 
-  /* キーボードが出ている間: ダイアログの大きさと位置は変えず、下端の「戻る」「予約確定」の帯だけをキーボードのすぐ上に持ち上げる。
-     持ち上げた分（--kb-lift）だけ下に余白を足し、キーボードに隠れた欄までスクロールできるようにする */
-  dialog form, dialog .body { padding-bottom: calc(16px + var(--kb-lift, 0px)); }
-  dialog .actions { bottom: var(--kb-lift, 0px); } /* 下端に貼り付く帯を、持ち上げた分だけ上に貼り付ける */
 
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
   .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
@@ -1448,41 +1444,6 @@
     }
     new MutationObserver(refreshLenses).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open', 'hidden'] });
     refreshLenses();
-  }
-
-  // ---------------- キーボード ----------------
-  // iPhone ではキーボードが出ても画面（レイアウト）の高さは変わらず、見えている範囲（visualViewport）だけが狭くなる。
-  // キーボードが出ている間は、開いているダイアログの「戻る」「予約確定」の帯をキーボードのすぐ上まで持ち上げ、
-  // 入力中の欄がその帯やキーボードに隠れていれば、ダイアログの中をスクロールして見える位置に出す
-  if (window.visualViewport) {
-    const vv = window.visualViewport;
-    const kbOpen = () => window.innerHeight - vv.height > 120; // 120px 以上狭くなったらキーボードが出ているとみなす
-    const fitKeyboard = () => {
-      const d = document.querySelector('dialog[open]');
-      if (!d) return;
-      const act = d.querySelector('.actions');
-      const visBottom = vv.offsetTop + vv.height;
-      const r = d.getBoundingClientRect();
-      const lift = kbOpen() ? Math.max(0, Math.round(r.bottom - visBottom)) : 0;
-      d.style.setProperty('--kb-lift', `${lift}px`);
-      // 入力中の欄を、帯の上（と画面の上端の下）に収める
-      const el = document.activeElement;
-      if (!lift || !el || !d.contains(el) || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-      const er = el.getBoundingClientRect();
-      const bottomLimit = (act ? act.getBoundingClientRect().top : visBottom) - 12;
-      const topLimit = Math.max(r.top, vv.offsetTop) + 12;
-      if (er.bottom > bottomLimit) d.scrollTop += er.bottom - bottomLimit;
-      else if (er.top < topLimit) d.scrollTop -= topLimit - er.top;
-    };
-    let fitTimer;
-    const fitSoon = () => { fitKeyboard(); clearTimeout(fitTimer); fitTimer = setTimeout(fitKeyboard, 300); }; // キーボードが出きってからもう一度
-    vv.addEventListener('resize', fitSoon);
-    vv.addEventListener('scroll', fitSoon);
-    document.addEventListener('focusin', (e) => { if (e.target.closest && e.target.closest('dialog[open]')) fitSoon(); });
-    document.addEventListener('close', (e) => {
-      if (e.target.tagName !== 'DIALOG') return;
-      e.target.style.removeProperty('--kb-lift');
-    }, true);
   }
 
   function updateChrome() {
