@@ -90,7 +90,15 @@
     background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
     box-shadow: 0 0 0 1.5px var(--surface);
   }
-  .status { font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+  /* 更新: 「12:07 更新」の表示そのものを押すと最新の予約を読み込む（読み込み中は矢印が回る） */
+  .status {
+    font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+    flex: none; height: 26px; padding: 0 7px; border: 0; border-radius: 13px; background: none; cursor: pointer;
+  }
+  .status svg { flex: none; }
+  @media (hover: hover) { .status:hover { background: #eef1f5; color: var(--text); } }
+  .status:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  body.loading .status svg { animation: spin .8s linear infinite; }
   /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
   .notice {
     margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 8px;
@@ -182,8 +190,6 @@
   .sw.res { background: var(--res); border: 0; border-left: 3px solid var(--res-border); }
   .sw.mine { background: var(--mine); border: 0; border-left: 3px solid var(--mine-border); }
   .sw.closed { background: var(--closed); }
-  .spin { display: none; width: 12px; height: 12px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
-  body.loading .spin { display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ---------- タイムライン（一覧・部屋別） ---------- */
@@ -231,11 +237,11 @@
      部屋名の列で区切り線の部分も覆う */
   .tl-label { box-shadow: 0 1px 0 var(--line); }
   .tl-row.week-start .tl-label { box-shadow: 0 1px 0 var(--line), 0 -2px 0 var(--line-strong); }
-  .tl-label[data-room] { cursor: pointer; }
-  .tl-label[data-room]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .tl-label[data-room], .tl-label[data-date] { cursor: pointer; }
+  .tl-label[data-room]:focus-visible, .tl-label[data-date]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   @media (hover: hover) {
-    .tl-label[data-room]:hover { background: #f6f9ff; }
-    .tl-label[data-room]:hover .nm { color: var(--accent); text-decoration: underline; }
+    .tl-label[data-room]:hover, .tl-label[data-date]:hover { background: #f6f9ff; }
+    .tl-label[data-room]:hover .nm, .tl-label[data-date]:hover .nm { color: var(--accent); text-decoration: underline; }
   }
   .tag { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; line-height: 15px; font-weight: 600; background: #eceff3; color: #4a5562; white-space: nowrap; }
   .tag.t-admin { background: #fde8e8; color: #9b2c2c; }
@@ -513,6 +519,8 @@
     .tl-corner { padding: 0 5px; }
     .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
     .legend, .status #statusText { display: none; }
+    .status { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 50%; background: #f1f3f6; color: var(--text); }
+    .status svg { width: 16px; height: 16px; }
     .notice-row { order: 3; flex: 1 0 100%; }
     .beta-label .wide-text { display: none; }
     .beta-label .narrow-text { display: inline; }
@@ -723,14 +731,13 @@
   </div>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span id="statusText"></span></button></div>
       <div class="notice-row" id="noticeRow" hidden>
         <p class="notice" id="notice"><svg class="ic-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5M12 8h0l4.5-3.5A1 1 0 0 1 18 5.3v11.4a1 1 0 0 1-1.5.8L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg><svg class="ic-alert" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.4 3.9 1.8 18a1.9 1.9 0 0 0 1.6 2.9h17.2a1.9 1.9 0 0 0 1.6-2.9L13.6 3.9a1.9 1.9 0 0 0-3.2 0z"/></svg><span id="noticeText"></span></p>
       </div>
       <div class="tools">
         <button type="button" class="btn" id="myBtn">自分の予約</button>
         <button type="button" class="btn primary" id="newBtn"><span class="lg">＋ 新規予約</span><span class="sm">＋予約</span></button>
-        <button type="button" class="btn" id="refreshBtn" aria-label="更新"><span class="lg">更新</span><span class="sm">↻</span></button>
       </div>
     </div>
     <div class="row">
@@ -1401,10 +1408,11 @@
       const busy = reservations.map((r) => [toMin(r.start), toMin(r.end)]).concat(closures.map((c) => [c.start, c.end]));
       const stopped = row.room.restriction === STOPPED;
 
-      // 一覧では部屋名を押すと、その部屋の部屋別表示（この日から1か月分）へ移動する
+      // 一覧では部屋名を押すと、その部屋の部屋別表示（この日から1か月分）へ移動する。
+      // 部屋別では日付を押すと、その日の一覧へ移動する
       const labelAttrs = state.view === 'day'
         ? ` data-room="${esc(row.room.id)}" role="button" tabindex="0" title="${esc(roomText(row.room))} の予約を1か月分表示"`
-        : '';
+        : ` data-date="${row.date}" role="button" tabindex="0" title="${esc(mdLabel(row.date))} の一覧を表示"`;
       html += `<div class="tl-row${row.cls}"><div class="tl-label"${labelAttrs}>${row.label}</div>` +
         `<div class="tl-track${stopped ? ' stopped' : ''}" data-i="${i}">`;
       if (open > t0) html += `<div class="blk off" style="${span(t0, open)}"></div>`;
@@ -1855,6 +1863,8 @@
     if (blk) { openDetail(blk.dataset.id); return; }
     const cell = e.target.closest('.mc');
     if (cell) { state.date = cell.dataset.date; setView('day'); return; }
+    const dayLabel = e.target.closest('.tl-label[data-date]');
+    if (dayLabel) { state.date = dayLabel.dataset.date; setView('day'); return; }
     const label = e.target.closest('.tl-label[data-room]');
     if (label) {
       state.roomId = label.dataset.room;
@@ -1864,7 +1874,7 @@
   });
   $('main').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const el = e.target.closest('.blk.res, .mc, .tl-label[data-room]');
+    const el = e.target.closest('.blk.res, .mc, .tl-label[data-room], .tl-label[data-date]');
     if (el) { e.preventDefault(); el.click(); }
   });
 
@@ -2440,11 +2450,7 @@
   $('prevBtn').addEventListener('click', () => shift(-1));
   $('nextBtn').addEventListener('click', () => shift(1));
   $('todayBtn').addEventListener('click', () => setDate(todayStr()));
-  $('datePicker').addEventListener('change', (e) => {
-    // カレンダー表示で日付を選んだときは、その日の一覧に切り替える（カレンダーの日付を押したときと同じ）
-    if (state.view === 'month' && e.target.value) { state.date = e.target.value; setView('day'); return; }
-    setDate(e.target.value);
-  });
+  $('datePicker').addEventListener('change', (e) => setDate(e.target.value));
   $('refreshBtn').addEventListener('click', () => { invalidate(); load({ force: true }); });
   $('newBtn').addEventListener('click', () => {
     if (!state.settings) return;
