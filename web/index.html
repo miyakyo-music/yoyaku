@@ -259,7 +259,9 @@
   .tl.narrow .tl-track { background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px); background-size: var(--hour-w) 100%; }
   .past { position: absolute; top: 0; bottom: 0; left: 0; background: var(--past); pointer-events: none; z-index: 0; }
   /* 現在時刻の線は半透明にし、予約の帯の色より前・帯の文字より後ろに置く（文字を横切らない） */
-  .now-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #e5484d; opacity: .45; pointer-events: none; z-index: 2; }
+  /* 行の区切り線（下の1px、週の区切りは上の2px）の上まで伸ばし、途切れずに1本の線に見せる */
+  .now-line { position: absolute; top: 0; bottom: -1px; width: 2px; margin-left: -1px; background: #e5484d; opacity: .6; pointer-events: none; z-index: 2; }
+  .tl-row.week-start .now-line { top: -2px; }
   .blk {
     position: absolute; top: 3px; bottom: 3px; border-radius: 4px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
     overflow: hidden; overflow: clip; /* clip は中の文字の sticky を妨げない（未対応ブラウザは hidden） */
