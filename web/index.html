@@ -761,6 +761,12 @@
     .main-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); }
   }
 
+  /* キーボードが出ている間は、ダイアログを見えている範囲（キーボードの上）に収め、下端の「予約確定」などが隠れないようにする */
+  html.kb-open dialog[open] {
+    top: calc(var(--vv-top, 0px) + 8px); bottom: auto; margin: 0 auto;
+    max-height: calc(var(--vv-h, 100dvh) - 16px);
+  }
+
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
   .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
   .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
@@ -1450,6 +1456,21 @@
     }
     new MutationObserver(refreshLenses).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open', 'hidden'] });
     refreshLenses();
+  }
+
+  // ---------------- キーボード ----------------
+  // iPhone ではキーボードが出ても画面（レイアウト）の高さは変わらず、見えている範囲だけが狭くなる。
+  // 見えている範囲（visualViewport）を測り、キーボードが出ている間はダイアログをその中に収める
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const fitKeyboard = () => {
+      const open = window.innerHeight - vv.height > 120; // 120px 以上狭くなったらキーボードが出ているとみなす
+      document.documentElement.classList.toggle('kb-open', open);
+      document.documentElement.style.setProperty('--vv-h', `${vv.height}px`);
+      document.documentElement.style.setProperty('--vv-top', `${vv.offsetTop}px`);
+    };
+    vv.addEventListener('resize', fitKeyboard);
+    vv.addEventListener('scroll', fitKeyboard);
   }
 
   function updateChrome() {
