@@ -825,11 +825,11 @@
     --res: rgba(255, 159, 10, .26); --res-border: #ff9f0a; --res-text: #ffd59a;
     --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
     --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
-    --glass: rgba(72, 72, 76, .6); --glass-strong: rgba(86, 86, 90, .78);
+    --glass: rgba(118, 118, 128, .16); --glass-strong: rgba(118, 118, 128, .26); /* 背景に近い控えめな面（浮かせすぎない） */
     /* ダークの光沢はライトと同じ向きで、気づかない程度（白 4% → 0）にとどめる。縁の上端にもごく薄い光 */
     --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, 0) 50%);
     --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .07), inset 0 0 0 .5px rgba(255, 255, 255, .07);
-    --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .6); --glass-lift: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+    --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent; /* ダークでは影で浮かせない */
     --fill-field: rgba(118, 118, 128, .24);
   }
   html.dark body { background: var(--bg); }
