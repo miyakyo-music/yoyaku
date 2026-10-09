@@ -564,13 +564,13 @@
     --sep: rgba(60, 60, 67, .16);
     --hdr-h: 0px; /* 上部（ガラスの帯）の高さ。予約表はこの下に潜り込む（JS で実測して入れる） */
     /* ガラスの材質 */
-    --glass: rgba(255, 255, 255, .62);
+    --glass: rgba(255, 255, 255, .7);
     --glass-strong: rgba(255, 255, 255, .8);
     --glass-blur: blur(16px) saturate(180%);
-    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .75), rgba(255, 255, 255, .15) 55%, rgba(255, 255, 255, .35));
-    --glass-rim: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .45), inset 0 0 0 .5px rgba(255, 255, 255, .55);
-    --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .08);
-    --glass-lift: 0 2px 6px rgba(0, 0, 0, .06), 0 6px 18px rgba(0, 0, 0, .07);
+    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 40%);
+    --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .9), inset 0 0 0 .5px rgba(255, 255, 255, .35);
+    --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .1);
+    --glass-lift: 0 1px 2px rgba(0, 0, 0, .05), 0 2px 8px rgba(0, 0, 0, .04);
     --fill-field: rgba(118, 118, 128, .1); /* ダイアログの入力欄 */
   }
 
@@ -589,7 +589,7 @@
 
   /* ---------- ボタン: ガラスのカプセル ---------- */
   .btn, .date-display, .selects select, .admin-link {
-    border: 0; border-radius: 999px;
+    border: 0; border-radius: 11px; /* 全部を丸いカプセルにすると安っぽく見えるので、角丸の四角に */
     background-color: var(--glass); background-image: var(--glass-sheen);
     -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
@@ -602,43 +602,47 @@
   .btn { font-weight: 500; }
   @media (hover: hover) { .btn:hover, .admin-link:hover { background-color: var(--glass-strong); } }
   /* 押した瞬間に少しふくらむ（液体が押し返すような動き） */
-  .btn:active { transform: scale(1.06); }
+  .btn:active { transform: scale(1.03); }
   #todayBtn, .btn.arrow { color: var(--accent); }
   #todayBtn { font-weight: 600; }
   /* 主役のボタン: 青い色ガラス */
   .btn.primary {
-    color: #fff; background-color: rgba(0, 122, 255, .9);
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, .32), rgba(255, 255, 255, 0) 55%, rgba(255, 255, 255, .1));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 1px rgba(255, 255, 255, .25), 0 0 0 .5px rgba(0, 60, 160, .25), 0 4px 14px rgba(0, 122, 255, .3);
+    color: #fff; background-color: rgba(0, 122, 255, .96);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 50%);
+    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .45), 0 0 0 .5px rgba(0, 60, 160, .25), 0 1px 3px rgba(0, 60, 160, .2);
   }
   @media (hover: hover) { .btn.primary:hover { background-color: rgba(0, 110, 235, .95); } }
   .btn.danger {
     color: #fff; background-color: rgba(255, 59, 48, .9);
     background-image: linear-gradient(180deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 55%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 0 0 .5px rgba(160, 20, 10, .25), 0 4px 14px rgba(255, 59, 48, .28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 0 0 .5px rgba(160, 20, 10, .25), 0 1px 3px rgba(160, 20, 10, .2);
   }
   .free-btn[aria-pressed="true"] { background-color: rgba(52, 199, 89, .22); color: #157a35; font-weight: 600; }
   .admin-link { color: var(--muted); }
-  .admin-mode { border: 0; border-radius: 999px; background: rgba(255, 59, 48, .12); color: #c4261d; }
+  .admin-mode { border: 0; border-radius: 7px; background: rgba(255, 59, 48, .12); color: #c4261d; }
   .limited-mode { background: rgba(175, 82, 222, .14); color: #7d3aa8; }
   .date-field:focus-within .date-display, .btn:focus-visible { outline: 0; box-shadow: var(--glass-rim), 0 0 0 2px var(--accent); }
 
+  @media (max-width: 600px) {
+    .status { border-radius: 10px; background-color: var(--glass); background-image: var(--glass-sheen); box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift); }
+  }
+
   /* ---------- 表示の切り替え: ガラスの溝の中を、白いガラスのつまみが滑る ---------- */
   .seg {
-    position: relative; height: 36px; padding: 3px; gap: 0; border-radius: 999px;
+    position: relative; height: 34px; padding: 2px; gap: 0; border-radius: 11px;
     background-color: rgba(118, 118, 128, .1);
     -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
     box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), inset 0 -1px 0 rgba(255, 255, 255, .6);
   }
   .seg::before {
-    content: ""; position: absolute; top: 3px; bottom: 3px; left: var(--thumb-x, 3px); width: var(--thumb-w, 0);
-    border-radius: 999px; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
-    box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .05), 0 3px 10px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .06);
+    content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x, 2px); width: var(--thumb-w, 0);
+    border-radius: 9px; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+    box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
     transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
   }
   .seg.no-anim::before { transition: none; }
   .seg .btn, .seg .btn:first-child, .seg .btn:last-child {
-    position: relative; z-index: 1; height: 30px; margin: 0; border-radius: 999px;
+    position: relative; z-index: 1; height: 30px; margin: 0; border-radius: 9px;
     background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; font-weight: 500;
   }
   .seg .btn[aria-pressed="true"] { background: none; color: var(--text); font-weight: 600; box-shadow: none; }
@@ -646,7 +650,7 @@
 
   /* ---------- お知らせ・試験運用中の帯 ---------- */
   .notice {
-    border: 0; border-radius: 16px; color: #0a3d91;
+    border: 0; border-radius: 12px; color: #0a3d91;
     background: rgba(0, 122, 255, .1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 0 0 .5px rgba(0, 122, 255, .15);
   }
   .notice.important { background: rgba(255, 59, 48, .11); color: #a3150c; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 0 0 .5px rgba(255, 59, 48, .18); }
@@ -664,7 +668,7 @@
 
   /* ---------- ダイアログ: 厚いガラスのシート ---------- */
   dialog {
-    border-radius: 28px; background: rgba(255, 255, 255, .8);
+    border-radius: 22px; background: rgba(255, 255, 255, .84);
     -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 0 0 .5px rgba(0, 0, 0, .08), 0 24px 60px rgba(0, 0, 0, .22);
   }
@@ -672,34 +676,34 @@
   dialog form, dialog .body { padding: 22px 20px 18px; }
   dialog h2 { font-size: 20px; font-weight: 700; }
   .field input, .field select, .field textarea, .b-date .date-display, .time select {
-    border: 0; border-radius: 14px; background-color: var(--fill-field); box-shadow: none;
+    border: 0; border-radius: 11px; background-color: var(--fill-field); box-shadow: none;
     -webkit-backdrop-filter: none; backdrop-filter: none; background-image: none;
   }
   .field .time select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"); }
   .field select { background-image: none; }
   .field input:focus, .field select:focus, .field textarea:focus, .time select:focus { outline: 0; background-color: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent); }
-  .box { border: 0; border-radius: 18px; background: rgba(118, 118, 128, .07); }
+  .box { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .07); }
   .box .field input, .box .field select { background-color: rgba(255, 255, 255, .9); }
-  .summary { border-radius: 18px; background: rgba(118, 118, 128, .08); }
+  .summary { border-radius: 14px; background: rgba(118, 118, 128, .08); }
   .rp-name, .rp-chip span { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 .5px var(--sep); }
   .rp-chip input:checked + span { background: var(--accent); box-shadow: none; }
   .conflicts { background: rgba(255, 59, 48, .08); border-radius: 14px; }
-  .mylist button { border: 0; border-radius: 18px; background: rgba(118, 118, 128, .08); padding: 11px 14px; }
+  .mylist button { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .08); padding: 11px 14px; }
   @media (hover: hover) { .mylist button:hover { background: rgba(118, 118, 128, .14); } }
-  .pw-reveal { border-radius: 14px; }
+  .pw-reveal { border-radius: 11px; }
   /* 下端のボタン: 区切り線をやめ、下から透明になるガラスの上にカプセルを浮かべる */
   .actions {
     margin: 4px -20px -18px; padding: 14px 20px 18px; border-top: 0;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .85) 30%);
   }
-  .actions .btn { height: 48px; font-size: 16px; }
+  .actions .btn { height: 46px; font-size: 16px; border-radius: 12px; }
   .actions .btn.primary, .actions .btn.danger { font-weight: 600; }
   @media (max-width: 600px) {
     .actions .btn { flex: 1; min-width: 0; }
     .actions .spacer { display: none; }
   }
   .hovercard {
-    border-radius: 18px; background: rgba(255, 255, 255, .78);
+    border-radius: 14px; background: rgba(255, 255, 255, .82);
     -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 0 0 .5px rgba(0, 0, 0, .08), 0 10px 30px rgba(0, 0, 0, .14);
   }
