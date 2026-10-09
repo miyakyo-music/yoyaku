@@ -292,13 +292,12 @@
   /* 左右に透明な 1px の余白を取り、時刻の縦の罫線に帯がかぶらないようにする */
   .blk.res { color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; }
   .blk.res.mine { color: var(--mine-text); }
-  /* 帯の色はすりガラス風: 半透明の色の下で背景（罫線など）を軽くぼかし、気配だけ残す。
-     帯の要素自体にぼかしを付けると重なり順が固定され、現在時刻の線が文字の上に来てしまうので、::after に付ける */
+  /* 帯の色: 白をほぼ不透明に重ねた上に半透明の色を敷き、背景の罫線や縞模様がうっすら見える程度にする */
   .blk.res::after {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--res);
-    -webkit-backdrop-filter: blur(2px) saturate(1.3); backdrop-filter: blur(2px) saturate(1.3);
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: linear-gradient(var(--res), var(--res)), rgba(255, 255, 255, .78);
   }
-  .blk.res.mine::after { background: var(--mine); }
+  .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), rgba(255, 255, 255, .78); }
   .blk.res::before {
     content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--res-border);
     z-index: 1;
