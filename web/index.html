@@ -391,6 +391,20 @@
   .summary { display: grid; grid-template-columns: 4.5em 1fr; gap: 6px 8px; margin: 0; padding: 10px 12px; background: var(--bg); border-radius: 10px; align-items: center; }
   .summary dt { color: var(--muted); font-size: 12px; }
   .summary dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+  /* PC で予約の帯にマウスを乗せたときの詳細カード（予約の詳細画面と同じ項目・同じ書き方で、帯と同じガラス風） */
+  .hovercard {
+    position: fixed; z-index: 50; width: 260px; max-width: calc(100vw - 16px); padding: 10px 12px; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(255, 255, 255, .92)); color: var(--text); pointer-events: none;
+    box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .08), 0 8px 24px rgba(0, 0, 0, .14), 0 2px 6px rgba(0, 0, 0, .06);
+    font-size: 12px; line-height: 1.45;
+  }
+  .hovercard .hc-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hovercard .hc-name { font-size: 15px; font-weight: 600; margin-top: 1px; overflow-wrap: anywhere; }
+  .hovercard .hc-aff { color: var(--muted); }
+  .hovercard .summary { margin-top: 8px; padding: 6px 8px; gap: 3px 8px; }
+  .hovercard .summary dd { font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .hovercard .hc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--res-border); }
+  .hovercard .hc-dot.mine { background: var(--mine-border); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   /* 氏名と学籍番号は、スマホでは入力例が切れないよう縦に並べる */
   @media (max-width: 600px) { .grid2.person { grid-template-columns: 1fr; } }
@@ -682,6 +696,9 @@
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button><button type="submit" class="btn primary" id="limSubmit">表示する</button></div>
     </form>
   </dialog>
+
+  <!-- PC で予約の帯にマウスを乗せたときの詳細カード -->
+  <div class="hovercard" id="hoverCard" role="tooltip" hidden></div>
 
   <!-- 不具合報告 -->
   <dialog id="bugDialog">
@@ -1199,7 +1216,7 @@
         if (r.pending) cls.push('mine', 'pending'); // 送信中の予約も自分の予約の色で表示する
         const title = `${hm(r.start)}〜${hm(r.end)} ${personText(r)}${r.memo ? '　' + r.memo : ''}${r.pending ? '（送信中）' : ''}`;
         // 予約者名を太字で先に、学籍番号/所属は2行目に細字で
-        html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}" title="${esc(title)}">` +
+        html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}" aria-label="${esc(title)}">` +
           `<div class="txt"><b>${r.groupId ? '↻' : ''}${esc(r.name)}</b>${r.affiliation ? `<span>${esc(r.affiliation)}</span>` : ''}</div></div>`;
       }
       html += '</div></div>';
@@ -1580,6 +1597,50 @@
     pickSlot(t.track, t.x);
   }, { passive: false });
   document.addEventListener('touchcancel', () => { if (touch) clearTimeout(touch.timer); touch = null; cancelDrag(); });
+
+  // ---------------- 予約の帯の詳細カード（PC でマウスを乗せたとき） ----------------
+  // スマホ（タップ）では出さず、今までどおり予約の詳細画面を開く。表示する項目と書き方は詳細画面とそろえる
+  if (window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    const card = $('hoverCard');
+    let hoverTimer = null;
+    let hoverBlk = null;
+    const hideCard = () => { clearTimeout(hoverTimer); hoverBlk = null; card.hidden = true; };
+    const showCard = (blk, x, y) => {
+      const r = state.data && visibleReservations().find((v) => v.id === blk.dataset.id);
+      if (!r || anyDialogOpen() || drag || mouse) return;
+      const room = roomById(r.roomId);
+      const mine = Object.prototype.hasOwnProperty.call(getMine(), r.id) || r.pending;
+      card.innerHTML =
+        `<div class="hc-time">${esc(mdLabel(r.date))} ${esc(hm(r.start))} 〜 ${esc(hm(r.end))}（${esc(durationLabel(toMin(r.end) - toMin(r.start)))}）</div>` +
+        `<div class="hc-name">${r.groupId ? '↻ ' : ''}${esc(r.name)}</div>` +
+        (r.affiliation ? `<div class="hc-aff">${esc(r.affiliation)}</div>` : '') +
+        '<dl class="summary">' +
+        `<dt>部屋</dt><dd><span class="hc-dot${mine ? ' mine' : ''}"></span>${esc(room ? roomText(room) : r.roomId)}${mine ? '・この端末の予約' : ''}</dd>` +
+        (r.memo ? `<dt>備考</dt><dd>${esc(r.memo)}</dd>` : '') +
+        (r.pending ? '<dt>状態</dt><dd>送信中</dd>' : '') +
+        '</dl>';
+      card.hidden = false;
+      // マウスの右下に出し、画面からはみ出す場合は反対側に回す
+      const w = card.offsetWidth, h = card.offsetHeight, m = 8;
+      const left = x + 14 + w > window.innerWidth - m ? Math.max(m, x - 14 - w) : x + 14;
+      const top = y + 18 + h > window.innerHeight - m ? Math.max(m, y - 12 - h) : y + 18;
+      card.style.left = `${left}px`;
+      card.style.top = `${top}px`;
+    };
+    $('main').addEventListener('mouseover', (e) => {
+      const blk = e.target.closest('.blk.res');
+      if (blk === hoverBlk) return;
+      hideCard();
+      if (!blk) return;
+      hoverBlk = blk;
+      const { clientX, clientY } = e;
+      hoverTimer = setTimeout(() => showCard(blk, clientX, clientY), 300);
+    });
+    $('main').addEventListener('mouseleave', hideCard);
+    $('main').addEventListener('mousedown', hideCard);
+    $('main').addEventListener('scroll', hideCard, { passive: true });
+    $('main').addEventListener('wheel', hideCard, { passive: true });
+  }
 
   $('main').addEventListener('click', (e) => {
     const blk = e.target.closest('.blk.res');
