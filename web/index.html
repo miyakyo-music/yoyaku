@@ -753,13 +753,14 @@
     .selects { align-items: stretch; }
   }
 
-  /* iPhone の Safari（タブバーを下にしている場合）: 予約表を画面のいちばん下（タブバーの裏）まで伸ばす。
-     100lvh = タブバーが引っ込んだときの高さ、100dvh = 今見えている高さ。その差（≒タブバーの分）だけ、
-     表の最後とダイアログ・通知はタブバーにかからないよう上に逃がす */
-  @supports (-webkit-touch-callout: none) and (height: 100lvh) {
-    body { height: 100lvh; }
-    .main-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom) + (100lvh - 100dvh)); }
-    dialog { inset: 0 0 calc(100lvh - 100dvh) 0; max-height: calc(100dvh - 20px); }
+  /* iPhone の Safari（タブバーを下にしている場合）: 予約表を画面のいちばん下（タブバーの裏）まで伸ばす */
+  @supports (-webkit-touch-callout: none) {
+    /* 100lvh だと画面の下端まで届かなかった（下に 60px ほど背景が見えた）。画面に固定した要素は画面の下端が基準に
+       なるので、ページ全体（body）を画面いっぱいに固定し、予約表をタブバーの裏まで伸ばす */
+    body { position: fixed; top: 0; right: 0; bottom: 0; left: 0; height: auto; }
+    /* 表の最後・ダイアログ・通知・「＋」は、タブバー（ホームバーの分＋約 60px）にかからない位置に */
+    .main-foot { padding-bottom: calc(18px + env(safe-area-inset-bottom) + 60px); }
+    dialog { inset: 0 0 calc(env(safe-area-inset-bottom) + 50px) 0; max-height: calc(100% - env(safe-area-inset-bottom) - 70px); }
     .toast { bottom: calc(env(safe-area-inset-bottom) + 70px); }
   }
 
