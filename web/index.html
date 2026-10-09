@@ -819,6 +819,17 @@
     @starting-style { body:not(.dialog-fallback) dialog[open] { transform: none; } }
   }
 
+  /* 小窓の中身: 上の入力欄だけをスクロールさせ、下端の「戻る」「予約確定」などは枠の一部として固定する。
+     （以前は sticky で下端に貼り付けていたが、開く動きの途中で Safari が帯の位置を遅れて計算し、
+       帯が中央付近から降ってくるようにカクついたため。.dlg-main は JS が起動時に作る入れ物） */
+  .dlg-main { display: flex; flex-direction: column; gap: 12px; }
+  body:not(.dialog-fallback) dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
+  body:not(.dialog-fallback) dialog > form, body:not(.dialog-fallback) dialog > .body { flex: 1 1 auto; min-height: 0; padding: 0; gap: 0; }
+  body:not(.dialog-fallback) .dlg-main { flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 22px 20px 6px; }
+  body:not(.dialog-fallback) dialog .actions { position: static; flex: none; margin: 0; padding: 12px 20px 18px; background: none; }
+  /* 小窓の中のボタンは、小窓自体がすりガラスなので、さらにぼかさない（開く動きを軽くする） */
+  dialog .btn { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
   /* 入力が必須の欄: 見出しの右に赤い「*」（Google フォームの必須の質問と同じ印） */
   .req { color: #d93025; margin-left: 3px; font-weight: 600; }
   html.dark .req { color: #ff6961; }
@@ -989,10 +1000,10 @@
       <p class="duration" id="bDuration"></p>
       <div class="grid2 person">
         <label class="field"><span>氏名／団体名<span class="req" aria-hidden="true">*</span></span><input id="bPerson" aria-required="true" maxlength="50" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="例：宮教太郎／宮教オケ"></label>
-        <label class="field">学籍番号／所属（任意）<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032／〇〇大学／教員"></label>
+        <label class="field">学籍番号／所属<input id="bAff" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：G8032／〇〇大学／教員"></label>
       </div>
-      <label class="field">備考（任意）<input id="bMemo" maxlength="100" autocomplete="off" spellcheck="false" placeholder="例：伴奏合わせ、レッスン"></label>
-      <label class="field" id="bPinField"><span><span id="bPinLabel">編集用パスワード（任意・4桁の数字）</span><span class="req" id="bPinReq" aria-hidden="true" hidden>*</span></span>
+      <label class="field">備考<input id="bMemo" maxlength="100" autocomplete="off" spellcheck="false" placeholder="例：伴奏合わせ、レッスン"></label>
+      <label class="field" id="bPinField"><span><span id="bPinLabel">編集用パスワード（4桁の数字）</span><span class="req" id="bPinReq" aria-hidden="true" hidden>*</span></span>
         <input id="bPin" class="pin-input" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="8" placeholder="4桁の数字">
         <span class="hint" id="bPinHint">設定しない場合、誰でもこの予約を変更・取消できます。</span>
       </label>
@@ -1092,7 +1103,7 @@
       <h2 tabindex="-1" autofocus>不具合を報告</h2>
       <p class="hint">気づいた不具合や使いにくい点を管理者に送れます。画像は添付できません。どの画面で何をしたらどうなったかを書いてください。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
       <label class="field"><span>内容<span class="req" aria-hidden="true">*</span></span><textarea id="bugMsg" aria-required="true" maxlength="2000" placeholder="例：予約確定を押しても画面が変わらない"></textarea></label>
-      <label class="field">連絡先（任意・返信が必要な場合）<input id="bugContact" maxlength="100" autocomplete="off" placeholder="例：メールアドレス"></label>
+      <label class="field">連絡先（返信が必要な場合）<input id="bugContact" maxlength="100" autocomplete="off" placeholder="例：メールアドレス"></label>
       <details class="env-info"><summary>一緒に送る端末・画面の情報</summary><pre id="bugEnv"></pre></details>
       <p class="error" id="bugError"></p>
       <div class="actions">
@@ -2288,7 +2299,7 @@
     $('bPin').value = edit ? (o.pin || '') : (profile.pin || '');
     // 変更時: 編集用パスワードのない予約・管理者モードでは編集用パスワード欄を出さない
     $('bPinField').hidden = edit && (!r.hasPin || isAdminMode());
-    $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（任意・4桁の数字）';
+    $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（4桁の数字）';
     $('bPinReq').hidden = !edit;
     $('bPinHint').hidden = edit;
     $('bHint').hidden = edit;
@@ -2952,6 +2963,15 @@
   $('detailForm').addEventListener('submit', submitCancel);
   $('dEdit').addEventListener('click', editFromDetail);
 
+  // 小窓の中身のうち、下端のボタン（.actions）より前を .dlg-main に包む（スクロールするのはこの中だけ）
+  for (const box of document.querySelectorAll('dialog > form, dialog > .body')) {
+    const act = box.querySelector(':scope > .actions');
+    if (!act) continue;
+    const main = document.createElement('div');
+    main.className = 'dlg-main';
+    while (box.firstChild !== act) main.appendChild(box.firstChild);
+    box.insertBefore(main, act);
+  }
   // <dialog> 非対応ブラウザ（iOS/iPadOS 15.3以前の Safari など）では簡易的な代替実装を使う
   const dialogs = [...document.querySelectorAll('dialog')];
   if (typeof HTMLDialogElement !== 'function' || !HTMLDialogElement.prototype.showModal || location.hash === '#nodialog') {
