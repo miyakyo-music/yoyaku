@@ -553,6 +553,184 @@
     .datenav .date-display svg { right: 8px; }
   }
 
+  /* ================= Liquid Glass 風デザイン（design-unify で調整中） =================
+     部品の見た目だけを上書きする層。確定したら上の各定義に統合する。
+     ガラス = 半透明の面＋背景のぼかし＋縁の光（上端の明るい線・下端の淡い反射）＋浮いた影。
+     屈折（像のゆがみ）は Safari が対応していないため使わない（iPhone で見え方が変わらないように） */
+  :root {
+    --accent: #007aff; --accent-weak: rgba(0, 122, 255, .1); --sat: #007aff;
+    --danger: #ff3b30; --sun: #e5352b;
+    --bg: #f2f2f7; --text: #1c1c1e; --muted: #6e6e73;
+    --sep: rgba(60, 60, 67, .16);
+    --hdr-h: 0px; /* 上部（ガラスの帯）の高さ。予約表はこの下に潜り込む（JS で実測して入れる） */
+    /* ガラスの材質 */
+    --glass: rgba(255, 255, 255, .7);
+    --glass-strong: rgba(255, 255, 255, .8);
+    --glass-blur: blur(16px) saturate(180%);
+    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 40%);
+    --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .9), inset 0 0 0 .5px rgba(255, 255, 255, .35);
+    --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .1);
+    --glass-lift: 0 1px 2px rgba(0, 0, 0, .05), 0 2px 8px rgba(0, 0, 0, .04);
+    --fill-field: rgba(118, 118, 128, .1); /* ダイアログの入力欄 */
+  }
+
+  /* ---------- 上部: ガラスの帯。予約表がこの下を通り抜ける ---------- */
+  .topbar {
+    position: relative; z-index: 20; margin-bottom: calc(-1 * var(--hdr-h));
+    background: linear-gradient(180deg, rgba(255, 255, 255, .86), rgba(255, 255, 255, .66));
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
+  }
+  /* 余白は padding ではなく見えない箱で取る（padding だとブラウザによって貼り付き位置の基準が変わるため） */
+  .main::before { content: ""; display: block; height: var(--hdr-h); }
+  .tl-head { top: var(--hdr-h); }
+  .month .dow { top: var(--hdr-h); }
+  .beta-band { position: relative; z-index: 21; }
+
+  /* ---------- ボタン: ガラスのカプセル ---------- */
+  .btn, .date-display, .selects select, .admin-link {
+    border: 0; border-radius: 11px; /* 全部を丸いカプセルにすると安っぽく見えるので、角丸の四角に */
+    background-color: var(--glass); background-image: var(--glass-sheen);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+    transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), box-shadow .18s, background-color .18s;
+  }
+  .selects select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen);
+    background-repeat: no-repeat, no-repeat; background-position: right 12px center, 0 0; background-size: auto, 100% 100%;
+  }
+  .btn { font-weight: 500; }
+  @media (hover: hover) { .btn:hover, .admin-link:hover { background-color: var(--glass-strong); } }
+  /* 押した瞬間に少しふくらむ（液体が押し返すような動き） */
+  .btn:active { transform: scale(1.03); }
+  .btn.arrow { color: var(--accent); }
+  #todayBtn { color: var(--text); }
+  #todayBtn.on-today { color: var(--accent); font-weight: 600; }
+  /* 主役のボタン: 青い色ガラス */
+  .btn.primary {
+    color: #fff; background-color: rgba(0, 122, 255, .96);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 50%);
+    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .45), 0 0 0 .5px rgba(0, 60, 160, .25), 0 1px 3px rgba(0, 60, 160, .2);
+  }
+  @media (hover: hover) { .btn.primary:hover { background-color: rgba(0, 110, 235, .95); } }
+  .btn.danger {
+    color: #fff; background-color: rgba(255, 59, 48, .9);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 55%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 0 0 .5px rgba(160, 20, 10, .25), 0 1px 3px rgba(160, 20, 10, .2);
+  }
+  .free-btn[aria-pressed="true"] { background-color: rgba(52, 199, 89, .22); color: #157a35; font-weight: 600; }
+  .admin-link { color: var(--muted); }
+  .admin-mode { border: 0; border-radius: 7px; background: rgba(255, 59, 48, .12); color: #c4261d; }
+  .limited-mode { background: rgba(175, 82, 222, .14); color: #7d3aa8; }
+  .date-field:focus-within .date-display, .btn:focus-visible { outline: 0; box-shadow: var(--glass-rim), 0 0 0 2px var(--accent); }
+
+  @media (max-width: 600px) {
+    .status { border-radius: 10px; background-color: var(--glass); background-image: var(--glass-sheen); box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift); }
+  }
+
+  /* ---------- 表示の切り替え: ガラスの溝の中を、白いガラスのつまみが滑る ---------- */
+  .seg {
+    position: relative; height: 34px; padding: 2px; gap: 0; border-radius: 11px;
+    background-color: rgba(118, 118, 128, .1);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), inset 0 -1px 0 rgba(255, 255, 255, .6);
+  }
+  .seg::before {
+    content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x, 2px); width: var(--thumb-w, 0);
+    border-radius: 9px; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+    box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
+    transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
+  }
+  .seg.no-anim::before { transition: none; }
+  .seg .btn, .seg .btn:first-child, .seg .btn:last-child {
+    position: relative; z-index: 1; height: 30px; margin: 0; border-radius: 9px;
+    background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; font-weight: 500;
+  }
+  .seg .btn[aria-pressed="true"] { background: none; color: var(--text); font-weight: 600; box-shadow: none; }
+  .seg .btn:active { transform: none; }
+
+  /* ---------- お知らせ・試験運用中の帯 ---------- */
+  .notice {
+    border: 0; border-radius: 12px; color: #0a3d91;
+    background: rgba(0, 122, 255, .1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 0 0 .5px rgba(0, 122, 255, .15);
+  }
+  .notice.important { background: rgba(255, 59, 48, .11); color: #a3150c; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 0 0 .5px rgba(255, 59, 48, .18); }
+  .beta-band { background: rgba(255, 214, 10, .16); border-bottom: .5px solid rgba(160, 120, 0, .2); }
+  .beta-report { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .75); box-shadow: var(--glass-rim), 0 0 0 .5px rgba(160, 120, 0, .22); }
+  .zoom-reset { border: 0; border-radius: 999px; }
+
+  /* ---------- 予約表の見出し（時刻）もガラスに ---------- */
+  .tl-head { background: rgba(255, 255, 255, .8); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+  .tl-corner { background: #fff; } /* 横に送った時刻が透けないよう、左上だけは不透明 */
+  .tl-scale span.now { background: rgba(0, 122, 255, .08); }
+  .tl-row.today .tl-label { background: #eef5ff; }
+  .ghost { background: rgba(0, 122, 255, .16); }
+  .ghost.pick, .ghost.draft { background: rgba(0, 122, 255, .12); }
+
+  /* ---------- ダイアログ: 厚いガラスのシート ---------- */
+  dialog {
+    border-radius: 22px; background: rgba(255, 255, 255, .84);
+    -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 0 0 .5px rgba(0, 0, 0, .08), 0 24px 60px rgba(0, 0, 0, .22);
+  }
+  dialog::backdrop, .dialog-backdrop { background: rgba(0, 0, 0, .22); }
+  dialog form, dialog .body { padding: 22px 20px 18px; }
+  dialog h2 { font-size: 20px; font-weight: 700; }
+  .field input, .field select, .field textarea, .b-date .date-display, .time select {
+    border: 0; border-radius: 11px; background-color: var(--fill-field); box-shadow: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none; background-image: none;
+  }
+  .field .time select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"); }
+  .field select { background-image: none; }
+  .field input:focus, .field select:focus, .field textarea:focus, .time select:focus { outline: 0; background-color: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent); }
+  .box { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .07); }
+  .box .field input, .box .field select { background-color: rgba(255, 255, 255, .9); }
+  .summary { border-radius: 14px; background: rgba(118, 118, 128, .08); }
+  .rp-name, .rp-chip span { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 .5px var(--sep); }
+  .rp-chip input:checked + span { background: var(--accent); box-shadow: none; }
+  .conflicts { background: rgba(255, 59, 48, .08); border-radius: 14px; }
+  .mylist button { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .08); padding: 11px 14px; }
+  @media (hover: hover) { .mylist button:hover { background: rgba(118, 118, 128, .14); } }
+  .pw-reveal { border-radius: 11px; }
+  /* 下端のボタン: 区切り線をやめ、下から透明になるガラスの上にカプセルを浮かべる */
+  .actions {
+    margin: 4px -20px -18px; padding: 14px 20px 18px; border-top: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .85) 30%);
+  }
+  .actions .btn { height: 46px; font-size: 16px; border-radius: 12px; }
+  .actions .btn.primary, .actions .btn.danger { font-weight: 600; }
+  @media (max-width: 600px) {
+    .actions .btn { flex: 1; min-width: 0; }
+    .actions .spacer { display: none; }
+  }
+  .hovercard {
+    border-radius: 14px; background: rgba(255, 255, 255, .82);
+    -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 0 0 .5px rgba(0, 0, 0, .08), 0 10px 30px rgba(0, 0, 0, .14);
+  }
+  .hovercard .summary { border-radius: 12px; }
+  .toast {
+    border-radius: 999px; background: rgba(40, 40, 44, .78);
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 8px 24px rgba(0, 0, 0, .2);
+  }
+  .toast.error { background: rgba(255, 59, 48, .9); }
+
+  /* 屈折に対応した環境（Chrome など）では、曲がった像が見えるようにガラスを少し薄くする */
+  .refract .topbar { background: linear-gradient(180deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .38)); }
+  .refract dialog { background: rgba(255, 255, 255, .6); }
+  .refract .hovercard { background: rgba(255, 255, 255, .5); }
+
+  /* ぼかしに対応していない環境・「透明度を下げる」設定の端末では、半透明をやめて不透明な面にする */
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .topbar, dialog, .hovercard { background: #fff; }
+    .btn:not(.primary):not(.danger), .date-display, .selects select, .admin-link { background-color: #ececf0; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .topbar, dialog, .hovercard, .tl-head, .tl-corner { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .btn:not(.primary):not(.danger), .date-display, .selects select, .admin-link { background-color: #ececf0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  }
+
 </style>
 </head>
 <body>
@@ -1084,14 +1262,122 @@
       '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
   }
 
+  // ---------------- ガラスの見た目の補助 ----------------
+  // 表示の切り替えのつまみ（.seg::before）を、選択中のボタンの位置・幅に合わせる（CSS の transition で滑る）
+  function placeSegThumb(noAnim) {
+    for (const seg of document.querySelectorAll('.seg')) {
+      const on = seg.querySelector('[aria-pressed="true"]');
+      if (!on) continue;
+      seg.classList.toggle('no-anim', !!noAnim);
+      seg.style.setProperty('--thumb-x', `${on.offsetLeft}px`);
+      seg.style.setProperty('--thumb-w', `${on.offsetWidth}px`);
+    }
+  }
+  // 上部のガラスの帯の高さを実測し、予約表をその下に潜り込ませる余白（--hdr-h）にする
+  function measureHeader() {
+    const h = document.querySelector('.topbar').offsetHeight;
+    document.documentElement.style.setProperty('--hdr-h', `${h}px`);
+    placeSegThumb(true);
+  }
+  if (window.ResizeObserver) new ResizeObserver(measureHeader).observe(document.querySelector('.topbar'));
+  window.addEventListener('resize', measureHeader);
+
+  // ---------------- 光の屈折（ガラスの縁で、下の予約表が曲がって見える） ----------------
+  // 縁の近くほど強く内側の像を引き込む「ずらし地図」を Canvas で作り、SVG フィルタ（feDisplacementMap）として
+  // backdrop-filter に使う。これに対応しているのは Chrome・Edge などだけ。Safari（iPhone）では今まで通りぼかしのみ。
+  const canRefract = !!(navigator.userAgentData && navigator.userAgentData.brands.some((b) => /Chromium/.test(b.brand)))
+    && !matchMedia('(prefers-reduced-transparency: reduce)').matches;
+  if (canRefract) {
+    document.documentElement.classList.add('refract');
+    const NS = 'http://www.w3.org/2000/svg';
+    const defs = document.createElementNS(NS, 'svg');
+    defs.setAttribute('width', '0'); defs.setAttribute('height', '0'); defs.setAttribute('aria-hidden', 'true');
+    defs.style.position = 'absolute';
+    document.body.appendChild(defs);
+
+    // 角丸の四角の内側で、縁からの距離に応じた「内向きのずれ」を赤（横）・緑（縦）に入れた画像
+    function lensMap(w, h, radius, bezel) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(w, h);
+      const hw = w / 2, hh = h / 2, r = Math.min(radius, hw, hh);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          // 角丸の四角までの符号付き距離（内側が負）と、外向きの向き
+          const px = x + 0.5 - hw, py = y + 0.5 - hh;
+          const qx = Math.abs(px) - (hw - r), qy = Math.abs(py) - (hh - r);
+          let nx, ny, dist;
+          if (qx > 0 && qy > 0) { const l = Math.hypot(qx, qy) || 1; dist = l - r; nx = qx / l; ny = qy / l; }
+          else if (qx > qy) { dist = qx - r; nx = 1; ny = 0; }
+          else { dist = qy - r; nx = 0; ny = 1; }
+          nx *= Math.sign(px) || 1; ny *= Math.sign(py) || 1;
+          const d = -dist; // 縁からの深さ
+          const k = d < bezel ? Math.pow(1 - Math.max(0, d) / bezel, 2) : 0;
+          const i = (y * w + x) * 4;
+          img.data[i] = 128 - nx * k * 127;     // 内側の像を引き込む
+          img.data[i + 1] = 128 - ny * k * 127;
+          img.data[i + 2] = 128;
+          img.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL();
+    }
+
+    const lenses = new Map(); // 要素 → { id, w, h }
+    let seq = 0;
+    function applyLens(el, { radius, bezel, strength, blur }) {
+      const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
+      if (!w || !h) return;
+      let L = lenses.get(el);
+      if (L && L.w === w && L.h === h) return;
+      if (!L) { L = { id: `lens${++seq}` }; lenses.set(el, L); }
+      L.w = w; L.h = h;
+      defs.querySelector(`#${L.id}`)?.remove();
+      const f = document.createElementNS(NS, 'filter');
+      f.id = L.id;
+      f.setAttribute('x', '0'); f.setAttribute('y', '0'); f.setAttribute('width', String(w)); f.setAttribute('height', String(h));
+      f.setAttribute('filterUnits', 'userSpaceOnUse'); f.setAttribute('color-interpolation-filters', 'sRGB');
+      f.innerHTML = `<feImage href="${lensMap(w, h, radius, bezel)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="map"/>` +
+        `<feDisplacementMap in="SourceGraphic" in2="map" scale="${strength}" xChannelSelector="R" yChannelSelector="G"/>`;
+      defs.appendChild(f);
+      el.style.setProperty('backdrop-filter', `url(#${L.id}) blur(${blur}px) saturate(180%)`);
+    }
+    const LENS = {
+      topbar: { radius: 0, bezel: 30, strength: 80, blur: 3 },
+      dialog: { radius: 22, bezel: 34, strength: 90, blur: 5 },
+      card: { radius: 14, bezel: 22, strength: 60, blur: 2 },
+    };
+    const topbar = document.querySelector('.topbar');
+    const refreshLenses = () => {
+      applyLens(topbar, LENS.topbar);
+      for (const d of document.querySelectorAll('dialog[open]')) applyLens(d, LENS.dialog);
+      const hc = $('hoverCard');
+      if (!hc.hidden) applyLens(hc, LENS.card);
+    };
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(refreshLenses);
+      ro.observe(topbar);
+      for (const d of document.querySelectorAll('dialog')) ro.observe(d);
+      ro.observe($('hoverCard'));
+    }
+    new MutationObserver(refreshLenses).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open', 'hidden'] });
+    refreshLenses();
+  }
+
   function updateChrome() {
     for (const b of document.querySelectorAll('.tabs .btn')) b.setAttribute('aria-pressed', String(b.dataset.view === state.view));
+    placeSegThumb();
     // 矢印だけのボタンなので、何日（何か月）動くかは説明と読み上げで伝える
     const [prev, next] = state.view === 'day' ? ['前日', '翌日'] : ['前月', '翌月'];
     $('prevBtn').title = prev; $('prevBtn').setAttribute('aria-label', prev);
     $('nextBtn').title = next; $('nextBtn').setAttribute('aria-label', next);
     $('datePicker').value = state.date;
     $('dateDisplay').innerHTML = dateDisplayHtml(state.date);
+    // 「今日」は、今日（カレンダーでは今月）を表示しているときだけ青、それ以外は黒
+    const t = todayStr();
+    $('todayBtn').classList.toggle('on-today', state.view === 'month' ? monthStart(state.date) === monthStart(t) : state.date === t);
     $('equipFilter').hidden = state.view !== 'day';
     $('freeBtn').hidden = state.view !== 'day';
     if (state.freeNow && (state.view !== 'day' || state.date !== todayStr())) state.freeNow = false;
