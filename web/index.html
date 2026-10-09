@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
+  // ダークモード: 端末の設定に合わせる（URL に ?dark を付けると常にダーク）。白く一瞬光らないよう、最初に決める
+  if (/[?&]dark\b/.test(location.search) || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+</script>
+<script>
   // iPhone / iPad では、16px 未満の入力欄・選択欄を押すと画面が勝手に拡大される。maximum-scale=1 でこれを止める
   // （iOS では指での拡大は引き続きできる。Android では指での拡大まで止まってしまうので付けない）
   if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
@@ -792,6 +796,112 @@
     .btn:not(.primary):not(.danger), .date-display, .selects select, .admin-link { background-color: #ececf0; -webkit-backdrop-filter: none; backdrop-filter: none; }
   }
 
+  /* ---------- 小窓（ダイアログ）を開く・閉じる動き ----------
+     押した予約やボタンの位置から広がって開き、閉じるとそこへ縮んで戻る。
+     押した位置は JS が --dx, --dy（画面中央からのずれ）に入れる。
+     @starting-style に対応していない古い Safari（iOS 17.4 以前）では動かず、今まで通りぱっと開く */
+  body:not(.dialog-fallback) dialog {
+    position: fixed; inset: 0; margin: auto;
+    opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.12);
+    transition: opacity .18s ease-in, transform .2s ease-in, display .2s allow-discrete, overlay .2s allow-discrete;
+  }
+  body:not(.dialog-fallback) dialog[open] {
+    opacity: 1; transform: none;
+    transition: opacity .22s ease-out, transform .5s cubic-bezier(.28, 1.12, .4, 1), display .5s allow-discrete, overlay .5s allow-discrete;
+  }
+  @starting-style { body:not(.dialog-fallback) dialog[open] { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.12); } }
+  body:not(.dialog-fallback) dialog::backdrop { opacity: 0; transition: opacity .2s, display .2s allow-discrete, overlay .2s allow-discrete; }
+  body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-duration: .28s; }
+  @starting-style { body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 0; } }
+  /* 端末で「視差効果を減らす」をオンにしている人には、動かさずに薄く出すだけにする */
+  @media (prefers-reduced-motion: reduce) {
+    body:not(.dialog-fallback) dialog, body:not(.dialog-fallback) dialog[open] { transform: none; }
+    @starting-style { body:not(.dialog-fallback) dialog[open] { transform: none; } }
+  }
+
+  /* ================= ダークモード =================
+     端末がダークモードのとき（または URL に ?dark を付けたとき）、html に .dark を付けて色を差し替える */
+  html.dark {
+    color-scheme: dark;
+    /* iOS の設定アプリのダークモードに合わせる: 背景は黒、表やカードは一段明るい #1c1c1e、ボタンは上端にだけ光のある濃い灰色 */
+    --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93;
+    --line: rgba(255, 255, 255, .07); --line-strong: rgba(84, 84, 88, .65); --sep: rgba(84, 84, 88, .6);
+    --accent: #0a84ff; --accent-weak: rgba(10, 132, 255, .18); --sat: #409cff; --sun: #ff6961; --danger: #ff453a;
+    --res: rgba(255, 159, 10, .26); --res-border: #ff9f0a; --res-text: #ffd59a;
+    --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
+    --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
+    --glass: #262628; --glass-strong: #303033;
+    --glass-sheen: none;
+    --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .14); /* 上端だけのかすかな光（iOS の戻るボタンと同じ） */
+    --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent;
+    --fill-field: rgba(118, 118, 128, .24);
+  }
+  html.dark body { background: var(--bg); }
+  html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180deg, #000 0, #000 40%, rgba(0, 0, 0, .86) 70%, rgba(0, 0, 0, .72)); }
+  html.dark .main, html.dark .tl-label, html.dark .tl-corner, html.dark .month .dow { background: var(--surface); }
+  html.dark .tl-head { background: rgba(28, 28, 30, .9); }
+  html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #222224; }
+  html.dark .tl-row.today .tl-label { background: #10243d; }
+  html.dark .tl-scale span.now { background: rgba(10, 132, 255, .16); }
+  html.dark .blk.res::after { background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(255, 159, 10, .35), 0 1px 2px rgba(0, 0, 0, .5); }
+  html.dark .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(10, 132, 255, .4), 0 1px 2px rgba(0, 0, 0, .5); }
+  html.dark .blk.closed { background: #2c2c2e repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .05) 6px 12px); }
+  html.dark .tag { background: rgba(255, 255, 255, .1); color: #d1d1d6; }
+  html.dark .tag.t-up { background: rgba(255, 159, 10, .2); color: #ffc66b; }
+  html.dark .tag.t-gp { background: rgba(48, 209, 88, .18); color: #7ee29a; }
+  html.dark .tag.t-ep { background: rgba(10, 132, 255, .2); color: #8cc4ff; }
+  html.dark .tag.t-large { background: rgba(191, 90, 242, .22); color: #dcaef7; }
+  html.dark .seg::before { background: rgba(99, 99, 102, .9); }
+  html.dark .seg .btn[aria-pressed="true"] { color: #fff; }
+  html.dark .notice { background: rgba(10, 132, 255, .18); color: #a8d1ff; box-shadow: none; }
+  html.dark .notice.important { background: rgba(255, 69, 58, .2); color: #ffb3ad; }
+  html.dark .beta-band { background: #1f1c10; color: #e8c766; border-bottom-color: rgba(255, 214, 10, .2); }
+  html.dark .beta-report { background: rgba(255, 255, 255, .08); color: #e8c766; }
+  html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen); }
+  /* 青いボタン: iOS のダークモードの決定ボタンと同じく、少し明るい平らな青に、縁（特に下側）がかすかに明るく光るガラスの輪郭 */
+  html.dark .btn.primary, html.dark .fab {
+    background-color: #3b8ff5;
+    background-image: radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 60%);
+    box-shadow: inset 0 0 0 1px rgba(130, 195, 255, .45), inset 0 -1.5px 2px rgba(150, 210, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .18);
+  }
+  html.dark .btn.danger {
+    background-color: #f2473d; background-image: none;
+    box-shadow: inset 0 0 0 1px rgba(255, 150, 140, .4), inset 0 -1.5px 2px rgba(255, 170, 160, .4);
+  }
+  html.dark .seg { background-color: #1c1c1e; box-shadow: none; }
+  html.dark .seg::before { background-color: #3a3a3c; box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .14); }
+  html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
+  html.dark dialog, html.dark .hovercard { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6); }
+  html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
+  html.dark dialog, html.dark .refract dialog { background: rgba(28, 28, 30, .94); color: var(--text); }
+  html.dark .actions { background: linear-gradient(180deg, rgba(28, 28, 30, 0), rgba(28, 28, 30, .94) 30%); }
+  html.dark .field input:focus, html.dark .field select:focus, html.dark .field textarea:focus { background-color: rgba(118, 118, 128, .32); }
+  html.dark .box .field input, html.dark .box .field select, html.dark .rp-name, html.dark .rp-chip span { background-color: rgba(118, 118, 128, .3); }
+  html.dark .hovercard, html.dark .refract .hovercard { background: rgba(44, 44, 46, .88); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .15), 0 10px 30px rgba(0, 0, 0, .5); }
+  html.dark .mc.other { background: #151517; color: #636366; }
+  html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
+  html.dark .admin-link, html.dark .brand .admin-link, html.dark .status { color: #e5e5ea; }
+  html.dark .status #statusText { color: var(--muted); }
+
+  /* iOS の共有シートのような「すりガラス」。後ろの表がぼけて透ける */
+  html.dark dialog, html.dark .refract dialog {
+    background: rgba(40, 40, 44, .52);
+    -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
+    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .16), 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .45);
+  }
+  html.dark dialog::backdrop, html.dark .dialog-backdrop { background: rgba(0, 0, 0, .12); }
+  html.dark .actions { background: linear-gradient(180deg, rgba(40, 40, 44, 0), rgba(40, 40, 44, .55) 35%); }
+  html.dark dialog .summary, html.dark dialog .box { background: rgba(255, 255, 255, .07); }
+  html.dark dialog .field input, html.dark dialog .field select, html.dark dialog .field textarea,
+  html.dark dialog .b-date .date-display, html.dark dialog .time select { background-color: rgba(255, 255, 255, .1); }
+  html.dark dialog .btn:not(.primary):not(.danger), html.dark dialog .mylist button { background-color: rgba(255, 255, 255, .12); box-shadow: none; }
+  html.dark .hovercard, html.dark .refract .hovercard {
+    background: rgba(40, 40, 44, .55);
+    -webkit-backdrop-filter: blur(24px) saturate(190%); backdrop-filter: blur(24px) saturate(190%);
+    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .16), 0 0 0 .5px rgba(255, 255, 255, .06), 0 10px 30px rgba(0, 0, 0, .4);
+  }
+  html.dark .hovercard .summary { background: rgba(255, 255, 255, .07); }
+
 </style>
 </head>
 <body>
@@ -1021,6 +1131,11 @@
   const MAX_HOUR_W = 480; // 時間軸を広げたときの1時間の最大幅（px）
 
   const $ = (id) => document.getElementById(id);
+  // ダークモード: 端末の設定が途中で変わったら（日没で自動切替など）追従する
+  const darkMq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  const applyDark = () => document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || !!(darkMq && darkMq.matches));
+  applyDark();
+  if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', applyDark);
   $('betaBand').hidden = !/beta/i.test(APP_VERSION);
   const state = {
     view: load_(LS.view, 'day'),
@@ -2844,6 +2959,23 @@
     }
     $('dialogBackdrop').addEventListener('click', () => dialogs.filter((d) => d.id !== 'loginDialog').forEach((d) => d.close()));
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dialogs.filter((d) => d.id !== 'loginDialog').forEach((d) => d.close()); });
+  }
+  // 小窓を開くとき、直前に押した位置（1.5秒以内）から広がるように、画面中央からのずれを渡す。
+  // キーボード操作などで押した位置がないときは、中央から広がる。
+  let lastPoint = null;
+  const notePoint = (e) => { lastPoint = { x: e.clientX, y: e.clientY, t: Date.now() }; };
+  document.addEventListener('pointerdown', notePoint, true);
+  document.addEventListener('pointerup', notePoint, true);
+  if (!document.body.classList.contains('dialog-fallback')) {
+    for (const d of dialogs) {
+      const show = d.showModal;
+      d.showModal = function () {
+        const p = lastPoint && Date.now() - lastPoint.t < 1500 ? lastPoint : null;
+        this.style.setProperty('--dx', p ? `${Math.round(p.x - innerWidth / 2)}px` : '0px');
+        this.style.setProperty('--dy', p ? `${Math.round(p.y - innerHeight / 2)}px` : '0px');
+        return show.call(this);
+      };
+    }
   }
   for (const dlg of dialogs) {
     dlg.addEventListener('click', (e) => {

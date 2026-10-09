@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  // ダークモード: 端末の設定に合わせる（URL に ?dark を付けると常にダーク）。白く一瞬光らないよう、最初に決める
+  (function () {
+    var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+    var apply = function () { document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || !!(mq && mq.matches)); };
+    apply();
+    if (mq && mq.addEventListener) mq.addEventListener('change', apply);
+  })();
+</script>
 <meta name="robots" content="noindex">
 <meta name="description" content="宮教大音楽棟 練習室予約の管理画面です。">
 <meta property="og:title" content="宮教大音楽棟 練習室予約（管理画面）">
@@ -383,6 +392,49 @@
   }
   @media (prefers-reduced-transparency: reduce) {
     .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
+  }
+  /* ================= ダークモード（予約表と同じ色） =================
+     端末がダークモードのとき（または URL に ?dark を付けたとき）、html に .dark を付けて色を差し替える */
+  html.dark {
+    color-scheme: dark;
+    --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93;
+    --line: rgba(255, 255, 255, .07); --line-strong: rgba(84, 84, 88, .65); --sep: rgba(84, 84, 88, .6);
+    --accent: #0a84ff; --accent-weak: rgba(10, 132, 255, .18); --danger: #ff453a;
+    --warn-bg: rgba(255, 159, 10, .16); --warn-text: #ffc66b;
+    --glass: #262628; --glass-strong: #303033; --glass-sheen: none;
+    --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .14);
+    --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent;
+    --fill-field: rgba(118, 118, 128, .24);
+  }
+  html.dark body { background: var(--bg); }
+  html.dark .topbar { background: rgba(0, 0, 0, .82); box-shadow: 0 .5px 0 var(--sep); }
+  html.dark .card { background: var(--surface); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .06); }
+  @media (hover: hover) { html.dark .btn:hover { background-color: var(--glass-strong); } }
+  html.dark .btn.primary {
+    background-color: #3b8ff5;
+    background-image: radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 60%);
+    box-shadow: inset 0 0 0 1px rgba(130, 195, 255, .45), inset 0 -1.5px 2px rgba(150, 210, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .18);
+  }
+  @media (hover: hover) { html.dark .btn.primary:hover { background-color: #4a99f7; } }
+  html.dark .btn.danger { background-color: #f2473d; color: #fff; }
+  html.dark .tabs { background: #1c1c1e; box-shadow: none; }
+  html.dark .tabs.has-thumb::before, html.dark .tabs button[aria-selected="true"] { background: #3a3a3c; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
+  html.dark .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
+  html.dark input:focus, html.dark select:focus { background-color: rgba(118, 118, 128, .32); }
+  html.dark .room, html.dark .bug, html.dark .table-wrap tr { background: rgba(255, 255, 255, .05); }
+  html.dark .room.new { background: rgba(10, 132, 255, .14); }
+  html.dark .room input, html.dark .room select { background-color: rgba(118, 118, 128, .3); }
+  html.dark .room.open { background: #2c2c2e; box-shadow: 0 0 0 1.5px var(--accent), 0 8px 20px rgba(0, 0, 0, .4); }
+  html.dark .room.open input, html.dark .room.open select { background-color: rgba(118, 118, 128, .3); }
+  html.dark .room.dragging { background: #2c2c2e; }
+  html.dark .room-sum .chip { background: rgba(255, 255, 255, .1); color: #d1d1d6; }
+  html.dark .room-sum .chip.warn { background: rgba(255, 159, 10, .2); color: #ffc66b; }
+  html.dark th { background: rgba(255, 255, 255, .06); }
+  html.dark .sat { color: #409cff; }
+  html.dark .msg.error { background: rgba(255, 69, 58, .16); }
+  html.dark .toast { background: rgba(58, 58, 60, .9); }
+  html.dark .field select, html.dark select.in, html.dark .bug-head select, html.dark .notice-edit select, html.dark .time select, html.dark .suffix select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E");
   }
 </style>
 </head>

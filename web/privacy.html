@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  // ダークモード: 端末の設定に合わせる（URL に ?dark を付けると常にダーク）
+  (function () {
+    var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+    var apply = function () { document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || !!(mq && mq.matches)); };
+    apply();
+    if (mq && mq.addEventListener) mq.addEventListener('change', apply);
+  })();
+</script>
 <meta name="robots" content="noindex">
 <meta name="description" content="宮教大音楽棟 練習室予約で扱う情報と、その利用目的・保管・公開範囲について。">
 <meta property="og:title" content="プライバシーポリシー｜宮教大音楽棟 練習室予約">
@@ -64,6 +73,14 @@
   }
   .card { border: 0; border-radius: 18px; background: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .05); }
   .note { border-radius: 14px; }
+  /* ダークモード（予約表と同じ色）: 端末がダークモードのとき（または URL に ?dark）、html に .dark を付ける */
+  html.dark { color-scheme: dark; --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93; --line: rgba(84, 84, 88, .6); --accent: #409cff; }
+  html.dark body { background: var(--bg); }
+  html.dark .topbar { background: rgba(0, 0, 0, .82); }
+  html.dark .back { background: #262628; box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .14); }
+  html.dark .card { background: var(--surface); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .06); }
+  html.dark .note { background: rgba(255, 159, 10, .16); color: #ffc66b; }
+  html.dark .site-foot, html.dark .site-foot > * + *::before { color: var(--muted); }
 </style>
 </head>
 <body>
