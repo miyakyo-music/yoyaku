@@ -771,6 +771,13 @@
     .free-btn { padding: 0 10px; }
   }
 
+  /* 「‹」「›」で日付を切り替えたときに、表を進む向きから軽くすべり込ませる */
+  @keyframes slide-next { from { transform: translateX(18px); opacity: .35; } to { transform: none; opacity: 1; } }
+  @keyframes slide-prev { from { transform: translateX(-18px); opacity: .35; } to { transform: none; opacity: 1; } }
+  .slide-next { animation: slide-next .2s ease-out; }
+  .slide-prev { animation: slide-prev .2s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .slide-next, .slide-prev { animation: none; } }
+
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
   .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
   .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
@@ -1015,6 +1022,7 @@
 
   const LS = {
     profile: 'prr.profile',        // { affiliation, name, pin }
+    snapshot: 'prr.snapshot',      // { key, res, at }  前回表示した予約表（開いた直後にすぐ出し、裏で最新に差し替える）
     mine: 'prr.myReservations',    // { [reservationId]: 'YYYY-MM-DD' }
     filter: 'prr.equipFilter',
     view: 'prr.view',
@@ -1163,16 +1171,17 @@
   function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
 
   // ---------------- 表示範囲 ----------------
-  function currentRange() {
+  function currentRange() { return rangeFor(state.view, state.date); }
+  function rangeFor(view, date) {
     // 部屋別: 選んだ日から1か月分（例：10/8〜11/7）
-    if (state.view === 'room') return { from: state.date, to: addDays(addMonths(state.date, 1), -1) };
-    if (state.view === 'month') {
-      const first = parseDate(monthStart(state.date));
+    if (view === 'room') return { from: date, to: addDays(addMonths(date, 1), -1) };
+    if (view === 'month') {
+      const first = parseDate(monthStart(date));
       const from = addDays(fmtDate(first), -first.getDay());
-      const last = parseDate(addDays(monthStart(addMonths(state.date, 1)), -1));
+      const last = parseDate(addDays(monthStart(addMonths(date, 1)), -1));
       return { from, to: addDays(fmtDate(last), 6 - last.getDay()) };
     }
-    return { from: state.date, to: state.date };
+    return { from: date, to: date };
   }
 
   // ---------------- 予約データの取得とキャッシュ ----------------
@@ -1217,6 +1226,15 @@
       show(hit, key);
       afterShow(opts);
       return;
+    }
+    // 開いた直後: 前回と同じ表示なら、端末に覚えておいた予約表をすぐ出し、最新の取得は裏で行って差し替える
+    if (!state.data && !hit) {
+      const snap = load_(LS.snapshot, null);
+      if (snap && snap.key === `${state.view}|${key}` && Date.now() - snap.at < 24 * 3600 * 1000) {
+        show({ res: snap.res, at: snap.at }, key);
+        $('statusText').textContent = '更新中…';
+        opts = Object.assign({}, opts, { background: true });
+      }
     }
     // 自動更新（opts.background）は裏で取得し、画面を薄くしない
     if (!opts.background) document.body.classList.add('loading');
@@ -1268,6 +1286,8 @@
     if (keyChanged) scrollToNow();
     const t = new Date(entry.at);
     $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
+    // 次に開いたときにすぐ出せるよう、端末に覚えておく（閲覧パスワードが必要な予約表では覚えない）
+    if (!res.settings.viewPasswordRequired) save_(LS.snapshot, { key: shownKey, res, at: entry.at });
   }
 
   /**
@@ -1294,13 +1314,16 @@
     prefetchNext();
   }
 
-  /** 一覧表示では翌日分を裏で取得しておき、「翌日」を押したときにすぐ表示できるようにする */
+  /** 「‹」「›」で次に開きそうな前後の期間を裏で取得しておき、押したときにすぐ表示できるようにする
+   * （一覧は前日・翌日、部屋別・カレンダーは前月・翌月）。翌日（翌月）を先に取る */
   function prefetchNext() {
-    if (state.view !== 'day') return;
-    const next = addDays(state.date, 1);
-    const hit = state.cache.get(rangeKey({ from: next, to: next }));
-    if (hit && Date.now() - hit.at < CACHE_TTL_MS) return;
-    fetchRange({ from: next, to: next }).catch(() => { /* 先読みの失敗は無視（表示時に取り直す） */ });
+    const step = state.view === 'day' ? (d, n) => addDays(d, n) : (d, n) => addMonths(d, n);
+    for (const dir of [1, -1]) {
+      const range = rangeFor(state.view, step(state.date, dir));
+      const hit = state.cache.get(rangeKey(range));
+      if (hit && Date.now() - hit.at < CACHE_TTL_MS) continue;
+      fetchRange(range).catch(() => { /* 先読みの失敗は無視（表示時に取り直す） */ });
+    }
   }
 
   /** 表示中の予約（サーバーのデータ + 送信中・確定直後の予約 − 取消中の予約） */
@@ -1523,6 +1546,7 @@
   }
 
   function shift(dir) {
+    state.slide = dir; // 次の描画で、表を進む向きからすべり込ませる
     if (state.view === 'day') setDate(addDays(state.date, dir));
     else if (state.view === 'room') setDate(addMonths(state.date, dir));
     else setDate(addMonths(state.date, dir));
@@ -1544,6 +1568,12 @@
   function render() {
     if (state.view === 'month') renderMonth();
     else renderTimeline();
+    // 「‹」「›」で日付（月）を切り替えたときだけ、表を進む向きから軽くすべり込ませる
+    if (state.slide) {
+      const cls = state.slide > 0 ? 'slide-next' : 'slide-prev';
+      state.slide = 0;
+      for (const el of $('main').querySelectorAll('.tl-track, .month')) el.classList.add(cls);
+    }
   }
 
   /** 空室ランプ: 今この部屋が 空き / まもなく予約あり / 使用中 / 利用時間外・使用停止 のどれか（今日の一覧のときだけ） */
@@ -2135,7 +2165,7 @@
     const s = state.settings;
     const edit = o.mode === 'edit';
     const r = o.reservation;
-    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null };
+    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null };
     $('bTitle').textContent = edit ? '予約の変更' : '新規予約';
     $('bSubmit').textContent = edit ? '変更を保存' : '予約確定';
 
@@ -2401,6 +2431,17 @@
     if (bulk && total > s.maxBulkCount) return fail(`まとめて予約は最大${s.maxBulkCount}件までです（今回${total}件）。部屋か期間を減らしてください。`);
     if (!edit) save_(LS.profile, { affiliation: payload.affiliation, name: payload.name, pin: payload.pin }); // 予約確定時にこの端末へ保存
 
+    // 1件の変更（まとめて変更でないもの）も、サーバーの結果を待たずに画面へ反映する（失敗したら元に戻す）
+    const seriesEdit = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
+    if (edit && !seriesEdit && state.booking.orig) {
+      if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
+        const clash = visibleReservations().find((r) => r.id !== state.booking.id && r.date === payload.date && r.roomId === payload.roomId &&
+          toMin(r.start) < toMin(payload.end) && toMin(payload.start) < toMin(r.end));
+        if (clash) return fail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
+      }
+      updateOptimistic(payload, state.booking.orig);
+      return;
+    }
     // 1件の新規予約は、サーバーの結果を待たずに画面へ反映する（失敗したら元に戻す）
     if (!edit && !bulk) {
       if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
@@ -2495,6 +2536,52 @@
         $('bPerson').value = payload.name;
         $('bMemo').value = payload.memo;
         $('bPin').value = payload.pin;
+        $('bError').textContent = message;
+      }
+    }
+  }
+
+  /** 予約の変更（1件）を楽観的に反映してから送信する。元の予約を隠して変更後の姿を出し、失敗したら元に戻して変更画面を開き直す。 */
+  async function updateOptimistic(payload, orig) {
+    const temp = Object.assign({}, orig, payload, { id: `tmpedit_${orig.id}`, pending: true });
+    delete temp.pin;
+    delete temp.adminPassword;
+    const entry = { r: temp, status: 'sending' };
+    state.pending.push(entry);
+    state.hidden.set(orig.id, orig.date);
+    $('bookDialog').close();
+    if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
+    else if (state.data) render();
+    const restore = () => {
+      state.pending = state.pending.filter((x) => x !== entry);
+      state.hidden.delete(orig.id);
+      if (state.data) render();
+    };
+    try {
+      const res = await api('updateReservation', Object.assign({}, payload, { id: orig.id }));
+      if (!res || !res.ok) throw Object.assign(new Error((res && res.message) || '変更できませんでした。'), { code: res && res.code });
+      entry.status = 'done';
+      entry.r = Object.assign({}, res.reservation, { id: temp.id }); // 再取得で台帳に反映されるまで、変更後の姿を出しておく
+      toast('予約を変更しました');
+      invalidate([orig.date, payload.date]);
+      await load({ force: true });
+      restore(); // 最新の台帳に変更後の予約が入ったので、仮の表示を片付ける
+    } catch (ex) {
+      restore();
+      if (ex instanceof AuthError) return;
+      const message = errMessage(ex);
+      toast(message, 'error');
+      if (ex.code === 'CONFLICT' || ex.code === 'NOT_FOUND') { invalidate([orig.date, payload.date]); load({ force: true }); }
+      if (!anyDialogOpen() && ex.code !== 'NOT_FOUND') {
+        openBooking({ mode: 'edit', reservation: orig, pin: payload.pin });
+        $('bRoom').value = payload.roomId;
+        $('bDate').value = payload.date;
+        setTime($('bStartH'), $('bStartM'), toMin(payload.start));
+        setTime($('bEndH'), $('bEndM'), toMin(payload.end));
+        $('bAff').value = payload.affiliation;
+        $('bPerson').value = payload.name;
+        $('bMemo').value = payload.memo;
+        updateBookingUi();
         $('bError').textContent = message;
       }
     }

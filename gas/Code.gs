@@ -160,17 +160,29 @@ function getSchedule(p) {
   if (!isValidDate_(from) || !isValidDate_(to) || from > to) return fail_('日付の指定が正しくありません。');
   if (daysBetween_(from, to) >= SYSTEM.MAX_RANGE_DAYS) return fail_('一度に表示できる期間は' + SYSTEM.MAX_RANGE_DAYS + '日までです。');
 
-  const visible = visibleIn_(ctx);
-  return Object.assign({
-    ok: true,
-    from: from,
-    to: to,
-    rooms: ctx.rooms,
-    reservations: readReservations_(ctx.resSheet).filter(r => r.date >= from && r.date <= to && visible(r)).map(toPublic_),
-    closures: readClosures_(ctx.ss).filter(c => c.date >= from && c.date <= to && visible(c)),
-    settings: publicSettings_(ctx.settings),
-    serverNow: nowStr_('yyyy-MM-dd HH:mm'),
-  }, limitedInfo_(ctx), ctx.isAdmin ? { openBugs: openBugCount_(ctx.ss) } : {});
+  // 同じ期間の予約表は、予約・設定が変わるまで（最長60秒）覚えておき、スプレッドシートを読み直さずに返す。
+  // 予約・設定を変える処理（withLock_ の中）が成功すると版が変わり、覚えていた分は使われなくなる
+  const cache = CacheService.getScriptCache();
+  const ckey = 'sched_' + scheduleVersion_() + '_' + from + '_' + to + '_' + (ctx.limited.ok ? 'L' : 'P');
+  let base = null;
+  const cached = cache.get(ckey);
+  if (cached) base = JSON.parse(cached);
+  if (!base) {
+    const visible = visibleIn_(ctx);
+    base = {
+      ok: true,
+      from: from,
+      to: to,
+      rooms: ctx.rooms,
+      reservations: readReservations_(ctx.resSheet).filter(r => r.date >= from && r.date <= to && visible(r)).map(toPublic_),
+      closures: readClosures_(ctx.ss).filter(c => c.date >= from && c.date <= to && visible(c)),
+      settings: publicSettings_(ctx.settings),
+    };
+    const json = JSON.stringify(base);
+    if (json.length < 90000) cache.put(ckey, json, 60); // 1件に覚えられるのは 100KB まで
+  }
+  return Object.assign(base, { serverNow: nowStr_('yyyy-MM-dd HH:mm') },
+    limitedInfo_(ctx), ctx.isAdmin ? { openBugs: openBugCount_(ctx.ss) } : {});
 }
 
 /**
@@ -1320,10 +1332,23 @@ function withLock_(fn) {
     return fail_('アクセスが集中しています。少し待ってから再度お試しください。', 'BUSY');
   }
   try {
-    return fn();
+    const result = fn();
+    if (result && result.ok) bumpScheduleVersion_(); // 予約・設定が変わったので、覚えていた予約表を使わないようにする
+    return result;
   } finally {
     lock.releaseLock();
   }
+}
+
+/** 覚えておいた予約表の版（予約・設定が変わるたびに新しくなる） */
+function scheduleVersion_() {
+  const cache = CacheService.getScriptCache();
+  let v = cache.get('schedVer');
+  if (!v) { v = String(Date.now()); cache.put('schedVer', v, 21600); }
+  return v;
+}
+function bumpScheduleVersion_() {
+  CacheService.getScriptCache().put('schedVer', String(Date.now()) + Math.floor(Math.random() * 1000), 21600);
 }
 
 /** 現在使われている「りざぶ郎」の部屋構成に合わせた初期データ。実際の設備に合わせて部屋マスタを編集すること。 */
