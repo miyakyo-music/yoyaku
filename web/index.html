@@ -138,6 +138,9 @@
   .btn.arrow { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
   @media (hover: hover) { .btn.arrow:hover { color: var(--text); } }
   .date-field { position: relative; display: inline-flex; }
+  /* 予約画面の日付欄（ほかの入力欄と同じ高さ・幅） */
+  .b-date { display: flex; width: 100%; }
+  .b-date .date-display { width: 100%; height: 40px; color: var(--text); }
   .date-display {
     display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px;
     border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface);
@@ -450,11 +453,11 @@
     .tabs .btn { flex: 1; }
     .datenav { grid-area: datenav; display: flex; min-width: 0; }
     .datenav .date-field { flex: 1; min-width: 0; }
-    .date-display { width: 100%; }
+    .datenav .date-display { width: 100%; }
     .range-label { display: none; } /* 日付欄と同じ内容なので出さない */
     /* 日付は年まで出して中央に置き、カレンダーのアイコンは右端に */
-    .date-display { position: relative; justify-content: center; padding: 0 30px; }
-    .date-display svg { position: absolute; right: 10px; margin: 0; }
+    .datenav .date-display { position: relative; justify-content: center; padding: 0 30px; }
+    .datenav .date-display svg { position: absolute; right: 10px; margin: 0; }
     /* 右端の「空室」と「今日」は同じ幅にそろえる */
     .free-btn, #todayBtn { width: 54px; flex: none; padding: 0; }
     .tabs .btn { padding: 0 9px; }
@@ -468,8 +471,8 @@
     .tabs .btn { padding: 0 6px; }
     .selects select { padding: 0 20px 0 6px; background-position: right 6px center; }
     .btn.arrow { width: 40px; }
-    .date-display { padding: 0 26px; }
-    .date-display svg { right: 8px; }
+    .datenav .date-display { padding: 0 26px; }
+    .datenav .date-display svg { right: 8px; }
   }
 
 </style>
@@ -536,7 +539,7 @@
           <div class="room-picker" id="bRoomPicker"></div>
         </div>
       </div>
-      <label class="field">日付<input type="date" id="bDate"></label>
+      <div class="field">日付<label class="date-field b-date"><span class="date-display" id="bDateDisplay" aria-hidden="true"></span><input type="date" id="bDate" aria-label="日付"></label></div>
       <div class="grid2">
         <div class="field">開始<div class="time"><select id="bStartH" aria-label="開始（時）"></select>:<select id="bStartM" aria-label="開始（分）"></select></div></div>
         <div class="field">終了<div class="time"><select id="bEndH" aria-label="終了（時）"></select>:<select id="bEndM" aria-label="終了（分）"></select></div></div>
@@ -568,7 +571,7 @@
       <label class="field" id="bAdminField" hidden><span id="bAdminLabel">管理用パスワード</span>
         <input id="bAdmin" type="password" autocomplete="off">
       </label>
-      <p class="hint" id="bHint">入力内容はこの端末に記憶され、次回から自動で入ります。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
+      <p class="hint" id="bHint">入力内容はローカルに保存されます。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
       <p class="error" id="bError"></p>
       <ul class="conflicts" id="bConflicts"></ul>
       <div class="actions">
@@ -985,6 +988,16 @@
     if (rs.value !== state.roomId) rs.value = '';
   }
 
+  /** 日付欄の表示（例：2026/10/09(金) とカレンダーのアイコン） */
+  function dateDisplayHtml(date) {
+    if (!date) return '<span>日付を選択</span>';
+    const dd = parseDate(date);
+    const w = dd.getDay();
+    return `<span><span class="yr">${dd.getFullYear()}/</span>${pad(dd.getMonth() + 1)}/${pad(dd.getDate())}` +
+      `<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">(${WEEKDAYS[w]})</span></span>` +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+  }
+
   function updateChrome() {
     for (const b of document.querySelectorAll('.tabs .btn')) b.setAttribute('aria-pressed', String(b.dataset.view === state.view));
     // 矢印だけのボタンなので、何日（何か月）動くかは説明と読み上げで伝える
@@ -992,11 +1005,7 @@
     $('prevBtn').title = prev; $('prevBtn').setAttribute('aria-label', prev);
     $('nextBtn').title = next; $('nextBtn').setAttribute('aria-label', next);
     $('datePicker').value = state.date;
-    const dd = parseDate(state.date);
-    const w = dd.getDay();
-    $('dateDisplay').innerHTML = `<span><span class="yr">${dd.getFullYear()}/</span>${pad(dd.getMonth() + 1)}/${pad(dd.getDate())}` +
-      `<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">(${WEEKDAYS[w]})</span></span>` +
-      '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+    $('dateDisplay').innerHTML = dateDisplayHtml(state.date);
     $('equipFilter').hidden = state.view !== 'day';
     $('freeBtn').hidden = state.view !== 'day';
     if (state.freeNow && (state.view !== 'day' || state.date !== todayStr())) state.freeNow = false;
@@ -1631,6 +1640,7 @@
   }
 
   function updateBookingUi() {
+    $('bDateDisplay').innerHTML = dateDisplayHtml($('bDate').value);
     const s = state.settings;
     const edit = state.booking.mode === 'edit';
     const start = getTime($('bStartH'), $('bStartM'));
