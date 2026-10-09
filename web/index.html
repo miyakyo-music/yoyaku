@@ -755,6 +755,12 @@
   }
 
 
+  /* キーボードが出ている間（html.kb-open）: 下端に貼り付けていた「戻る」「予約確定」の帯を、入力欄の続きに置き直し、
+     その下にキーボードの高さ（--kb-h）の余白を足す。指で少しスクロールすれば、帯をキーボードの上まで出せる。
+     画面やボタンの位置をこちらから動かすことはしない（Safari の動きとぶつかって不安定になるため） */
+  html.kb-open dialog .actions { position: static; }
+  html.kb-open dialog form, html.kb-open dialog .body { padding-bottom: calc(16px + var(--kb-h, 0px)); }
+
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
   .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
   .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
@@ -1444,6 +1450,18 @@
     }
     new MutationObserver(refreshLenses).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open', 'hidden'] });
     refreshLenses();
+  }
+
+  // ---------------- キーボード ----------------
+  // キーボードが出ているかと、その高さだけを測る（見えている範囲 visualViewport が画面より 120px 以上狭ければ出ているとみなす）
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const measureKeyboard = () => {
+      const h = Math.max(0, Math.round(window.innerHeight - vv.height));
+      document.documentElement.classList.toggle('kb-open', h > 120);
+      document.documentElement.style.setProperty('--kb-h', `${h}px`);
+    };
+    vv.addEventListener('resize', measureKeyboard);
   }
 
   function updateChrome() {
