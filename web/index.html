@@ -126,6 +126,9 @@
   .tl-label .nm-line .nm { flex: none; }
   .tl-label .free-until { font-size: 11px; color: #1e7a43; font-weight: 600; white-space: nowrap; }
   /* 日付欄: 曜日付きの表示の上に、透明にした標準の日付入力を重ねる（押すと標準のカレンダーが開く） */
+  .datenav { display: inline-flex; align-items: center; gap: 6px; }
+  .btn.arrow { width: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+  @media (hover: hover) { .btn.arrow:hover { color: var(--text); } }
   .date-field { position: relative; display: inline-flex; }
   .date-display {
     display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px;
@@ -407,7 +410,7 @@
       grid-template-areas:
         "head   head"
         "tabs   select"
-        "nav    date";
+        "datenav datenav";
     }
     .topbar .row { display: contents; }
     /* 1段目（タイトル・ボタン・お知らせ）は表の列とは切り離し、ボタンの幅を確保してタイトル側を縮める */
@@ -437,9 +440,8 @@
     .free-btn { flex: none; padding: 0 10px; }
     .tabs { grid-area: tabs; display: flex; }
     .tabs .btn { flex: 1; }
-    .nav { grid-area: nav; display: flex; }
-    .nav .btn { flex: 1; padding: 0 4px; }
-    .date-field { grid-area: date; width: 100%; min-width: 0; }
+    .datenav { grid-area: datenav; display: flex; min-width: 0; }
+    .datenav .date-field { flex: 1; min-width: 0; }
     .date-display { width: 100%; }
     .range-label { display: none; } /* 日付欄と同じ内容なので出さない */
     .date-display .yr { display: none; } /* 年は省いて幅を詰める */
@@ -476,15 +478,16 @@
         <button type="button" class="btn" data-view="room" aria-pressed="false">部屋別</button>
         <button type="button" class="btn" data-view="month" aria-pressed="false">カレンダー</button>
       </div>
-      <div class="seg nav">
-        <button type="button" class="btn" id="prevBtn">‹ 前日</button>
-        <button type="button" class="btn" id="todayBtn">本日</button>
-        <button type="button" class="btn" id="nextBtn">翌日 ›</button>
+      <!-- 日付の移動: ‹ 日付 › 今日 -->
+      <div class="datenav">
+        <button type="button" class="btn arrow" id="prevBtn" title="前日" aria-label="前日"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <label class="date-field" id="dateField">
+          <span class="date-display" id="dateDisplay" aria-hidden="true"></span>
+          <input type="date" id="datePicker" aria-label="日付を選択">
+        </label>
+        <button type="button" class="btn arrow" id="nextBtn" title="翌日" aria-label="翌日"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button type="button" class="btn" id="todayBtn">今日</button>
       </div>
-      <label class="date-field" id="dateField">
-        <span class="date-display" id="dateDisplay" aria-hidden="true"></span>
-        <input type="date" id="datePicker" aria-label="日付を選択">
-      </label>
       <span class="range-label" id="rangeLabel"></span>
       <span class="selects">
         <select id="equipFilter" aria-label="設備で絞り込み"><option value="">すべての設備</option></select>
@@ -964,15 +967,15 @@
 
   function updateChrome() {
     for (const b of document.querySelectorAll('.tabs .btn')) b.setAttribute('aria-pressed', String(b.dataset.view === state.view));
-    const labels = { day: ['‹ 前日', '本日', '翌日 ›'], room: ['‹ 前月', '今日', '翌月 ›'], month: ['‹ 前月', '今月', '翌月 ›'] }[state.view];
-    $('prevBtn').textContent = labels[0];
-    $('todayBtn').textContent = labels[1];
-    $('nextBtn').textContent = labels[2];
+    // 矢印だけのボタンなので、何日（何か月）動くかは説明と読み上げで伝える
+    const [prev, next] = state.view === 'day' ? ['前日', '翌日'] : ['前月', '翌月'];
+    $('prevBtn').title = prev; $('prevBtn').setAttribute('aria-label', prev);
+    $('nextBtn').title = next; $('nextBtn').setAttribute('aria-label', next);
     $('datePicker').value = state.date;
     const dd = parseDate(state.date);
     const w = dd.getDay();
     $('dateDisplay').innerHTML = `<span><span class="yr">${dd.getFullYear()}/</span>${pad(dd.getMonth() + 1)}/${pad(dd.getDate())}` +
-      `<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">（${WEEKDAYS[w]}）</span></span>` +
+      `<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">(${WEEKDAYS[w]})</span></span>` +
       '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
     $('equipFilter').hidden = state.view !== 'day';
     $('freeBtn').hidden = state.view !== 'day';
