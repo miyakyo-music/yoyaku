@@ -290,10 +290,18 @@
   .blk.res.pending { opacity: .7; outline: 1px dashed var(--mine-border); outline-offset: -1px; }
   /* iOS のカレンダー風: 枠線なしの薄い塗り＋左端の丸い縦線 */
   /* 左右に透明な 1px の余白を取り、時刻の縦の罫線に帯がかぶらないようにする */
-  .blk.res { background: var(--res); color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; background-clip: padding-box; }
-  .blk.res.mine { background: var(--mine); color: var(--mine-text); }
+  .blk.res { color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; }
+  .blk.res.mine { color: var(--mine-text); }
+  /* 帯の色はすりガラス風: 半透明の色の下で背景（罫線など）を軽くぼかし、気配だけ残す。
+     帯の要素自体にぼかしを付けると重なり順が固定され、現在時刻の線が文字の上に来てしまうので、::after に付ける */
+  .blk.res::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--res);
+    -webkit-backdrop-filter: blur(2px) saturate(1.3); backdrop-filter: blur(2px) saturate(1.3);
+  }
+  .blk.res.mine::after { background: var(--mine); }
   .blk.res::before {
     content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--res-border);
+    z-index: 1;
   }
   .blk.res.mine::before { background: var(--mine-border); }
   .blk.res.ended { opacity: .6; }
@@ -303,7 +311,7 @@
   }
   .blk.off { background: var(--closed); border: 0; border-radius: 0; top: 0; bottom: 0; cursor: default; }
   .blk:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  @media (hover: hover) { .blk.res:hover { filter: brightness(.96); } }
+  @media (hover: hover) { .blk.res:hover::after { filter: brightness(.96); } }
   .ghost {
     position: absolute; top: 2px; bottom: 2px; z-index: 5; border-radius: 4px; pointer-events: none;
     background: rgba(37, 99, 235, .18); border: 2px solid var(--accent); color: var(--accent);
