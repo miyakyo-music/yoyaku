@@ -819,13 +819,13 @@
      端末がダークモードのとき（または URL に ?dark を付けたとき）、html に .dark を付けて色を差し替える */
   html.dark {
     color-scheme: dark;
-    --bg: #000; --surface: #1c1c1e; --text: #f2f2f7; --muted: #98989f;
-    --line: rgba(255, 255, 255, .07); --line-strong: rgba(255, 255, 255, .16); --sep: rgba(255, 255, 255, .14);
+    --bg: #161618; --surface: #232326; --text: #f2f2f7; --muted: #a1a1a8;
+    --line: rgba(255, 255, 255, .08); --line-strong: rgba(255, 255, 255, .18); --sep: rgba(255, 255, 255, .16);
     --accent: #0a84ff; --accent-weak: rgba(10, 132, 255, .18); --sat: #409cff; --sun: #ff6961; --danger: #ff453a;
     --res: rgba(255, 159, 10, .26); --res-border: #ff9f0a; --res-text: #ffd59a;
     --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
     --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
-    --glass: rgba(58, 58, 60, .62); --glass-strong: rgba(72, 72, 74, .8);
+    --glass: rgba(72, 72, 76, .6); --glass-strong: rgba(86, 86, 90, .78);
     /* ダークの光沢はライトと同じ向きで、気づかない程度（白 4% → 0）にとどめる。縁の上端にもごく薄い光 */
     --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, 0) 50%);
     --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .07), inset 0 0 0 .5px rgba(255, 255, 255, .07);
@@ -833,10 +833,10 @@
     --fill-field: rgba(118, 118, 128, .24);
   }
   html.dark body { background: var(--bg); }
-  html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180deg, #1c1c1e 0, #1c1c1e 40%, rgba(28, 28, 30, .86) 70%, rgba(28, 28, 30, .7)); }
+  html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180deg, #232326 0, #232326 40%, rgba(35, 35, 38, .86) 70%, rgba(35, 35, 38, .7)); }
   html.dark .main, html.dark .tl-label, html.dark .tl-corner, html.dark .month .dow { background: var(--surface); }
-  html.dark .tl-head { background: rgba(28, 28, 30, .86); }
-  html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #232325; }
+  html.dark .tl-head { background: rgba(35, 35, 38, .86); }
+  html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #2a2a2e; }
   html.dark .tl-row.today .tl-label { background: #10243d; }
   html.dark .tl-scale span.now { background: rgba(10, 132, 255, .16); }
   html.dark .blk.res::after { background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(255, 159, 10, .35), 0 1px 2px rgba(0, 0, 0, .5); }
@@ -851,7 +851,7 @@
   html.dark .seg .btn[aria-pressed="true"] { color: #fff; }
   html.dark .notice { background: rgba(10, 132, 255, .18); color: #a8d1ff; box-shadow: none; }
   html.dark .notice.important { background: rgba(255, 69, 58, .2); color: #ffb3ad; }
-  html.dark .beta-band { background: #2a2410; color: #e8c766; border-bottom-color: rgba(255, 214, 10, .2); }
+  html.dark .beta-band { background: #33301f; color: #e8c766; border-bottom-color: rgba(255, 214, 10, .2); }
   html.dark .beta-report { background: rgba(255, 255, 255, .08); color: #e8c766; }
   html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen); }
   html.dark .btn.primary, html.dark .fab, html.dark .btn.danger {
@@ -862,8 +862,8 @@
   html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
   html.dark dialog, html.dark .hovercard { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6); }
   html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
-  html.dark dialog, html.dark .refract dialog { background: rgba(28, 28, 30, .9); color: var(--text); }
-  html.dark .actions { background: linear-gradient(180deg, rgba(28, 28, 30, 0), rgba(28, 28, 30, .9) 30%); }
+  html.dark dialog, html.dark .refract dialog { background: rgba(44, 44, 48, .9); color: var(--text); }
+  html.dark .actions { background: linear-gradient(180deg, rgba(44, 44, 48, 0), rgba(44, 44, 48, .9) 30%); }
   html.dark .field input:focus, html.dark .field select:focus, html.dark .field textarea:focus { background-color: rgba(118, 118, 128, .32); }
   html.dark .box .field input, html.dark .box .field select, html.dark .rp-name, html.dark .rp-chip span { background-color: rgba(118, 118, 128, .3); }
   html.dark .hovercard, html.dark .refract .hovercard { background: rgba(44, 44, 46, .88); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .15), 0 10px 30px rgba(0, 0, 0, .5); }
