@@ -755,29 +755,6 @@
   }
 
 
-  /* キーボードが出ている間（html.kb-open）: 下端に貼り付けていた「戻る」「予約確定」の帯を、入力欄の続きに置き直し、
-     その下にキーボードの高さ（--kb-h）の余白を足す。指で少しスクロールすれば、帯をキーボードの上まで出せる。
-     画面やボタンの位置をこちらから動かすことはしない（Safari の動きとぶつかって不安定になるため） */
-  html.kb-open dialog .actions { position: static; }
-  html.kb-open dialog form, html.kb-open dialog .body { padding-bottom: calc(16px + var(--kb-h, 0px)); }
-
-  /* タブレット縦（iPad 12.9 インチの 1024px など）: 2段目（表示の切替・日付・設備・空室・凡例）が1行に収まるよう、余白を少し詰める */
-  @media (min-width: 601px) and (max-width: 1199px) {
-    .topbar > .row { gap: 6px; }
-    .seg .btn, .seg .btn:first-child, .seg .btn:last-child { padding: 0 10px; }
-    .datenav { gap: 4px; }
-    .legend { gap: 4px 8px; font-size: 11.5px; }
-    .selects select { padding: 0 26px 0 10px; background-position: right 9px center, 0 0; }
-    .free-btn { padding: 0 10px; }
-  }
-
-  /* 「‹」「›」で日付を切り替えたときに、表を進む向きから軽くすべり込ませる */
-  @keyframes slide-next { from { transform: translateX(18px); opacity: .35; } to { transform: none; opacity: 1; } }
-  @keyframes slide-prev { from { transform: translateX(-18px); opacity: .35; } to { transform: none; opacity: 1; } }
-  .slide-next { animation: slide-next .2s ease-out; }
-  .slide-prev { animation: slide-prev .2s ease-out; }
-  @media (prefers-reduced-motion: reduce) { .slide-next, .slide-prev { animation: none; } }
-
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
   .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
   .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
@@ -1483,18 +1460,6 @@
     }
     new MutationObserver(refreshLenses).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open', 'hidden'] });
     refreshLenses();
-  }
-
-  // ---------------- キーボード ----------------
-  // キーボードが出ているかと、その高さだけを測る（見えている範囲 visualViewport が画面より 120px 以上狭ければ出ているとみなす）
-  if (window.visualViewport) {
-    const vv = window.visualViewport;
-    const measureKeyboard = () => {
-      const h = Math.max(0, Math.round(window.innerHeight - vv.height));
-      document.documentElement.classList.toggle('kb-open', h > 120);
-      document.documentElement.style.setProperty('--kb-h', `${h}px`);
-    };
-    vv.addEventListener('resize', measureKeyboard);
   }
 
   function updateChrome() {
