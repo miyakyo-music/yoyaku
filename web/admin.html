@@ -336,6 +336,17 @@
     color: var(--text); font-weight: 600; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
     box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
   }
+  /* 予約表の表示の切り替えと同じく、白いつまみが選んだタブへ滑る（JS が位置を入れたら .has-thumb） */
+  .tabs { position: relative; }
+  .tabs.has-thumb::before {
+    content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x); width: var(--thumb-w); border-radius: 9px;
+    background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+    box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
+    transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
+  }
+  .tabs.no-anim::before { transition: none; }
+  .tabs.has-thumb button { position: relative; z-index: 1; }
+  .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
   .field input, .field select, input.in, select.in, .bug-head select { border: 0; border-radius: 11px; background-color: var(--fill-field); }
   .time select, .suffix select { background-color: var(--fill-field); }
   input:focus, select:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); background-color: #fff; }
@@ -1030,9 +1041,22 @@
     t.addEventListener('click', () => {
       for (const x of document.querySelectorAll('.tabs [data-tab]')) x.setAttribute('aria-selected', String(x === t));
       for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== t.dataset.tab;
+      placeTabThumb();
       if (t.dataset.tab === 'bugs') loadBugs();
     });
   }
+  // タブの白いつまみを、選択中のタブの位置・幅に合わせる（最初に置くときだけは滑らせない）
+  function placeTabThumb() {
+    const tabs = document.querySelector('.tabs');
+    const on = tabs.querySelector('[aria-selected="true"]');
+    if (!on || !on.offsetWidth) return; // 管理画面が非表示（ログイン前）のときは測れない
+    tabs.classList.toggle('no-anim', !tabs.classList.contains('has-thumb'));
+    tabs.style.setProperty('--thumb-x', `${on.offsetLeft}px`);
+    tabs.style.setProperty('--thumb-w', `${on.offsetWidth}px`);
+    tabs.classList.add('has-thumb');
+  }
+  if (window.ResizeObserver) new ResizeObserver(placeTabThumb).observe(document.querySelector('.tabs'));
+  window.addEventListener('resize', placeTabThumb);
 
   // ---------------- 不具合報告 ----------------
   let bugData = null;
@@ -1041,6 +1065,7 @@
     $('bugBadge').hidden = !n;
     $('bugBadge').textContent = n > 99 ? '99+' : String(n);
     $('bugBadge').setAttribute('aria-label', `未対応 ${n} 件`);
+    placeTabThumb(); // バッジの有無でタブの幅が変わるため
   }
   async function loadBugs() {
     $('bugsError').textContent = '';
