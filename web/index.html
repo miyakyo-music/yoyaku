@@ -293,7 +293,9 @@
   .blk b { font-weight: 600; font-size: 11.5px; }
   .blk span { font-weight: 400; font-size: 10.5px; opacity: .8; }
   /* 予約を送信中（サーバーの結果待ち）の表示 */
-  .blk.res.pending { opacity: .7; outline: 1px dashed var(--mine-border); outline-offset: -1px; }
+  .blk.res.pending { opacity: .7; }
+  /* 送信中の点線は帯の色の層（::after）の枠として描き、角丸に沿わせる（outline は Safari で角丸に沿わない） */
+  .blk.res.pending::after { border: 1px dashed var(--mine-border); }
   /* iOS のカレンダー風: 枠線なしの薄い塗り＋左端の丸い縦線 */
   /* 左右に透明な 1px の余白を取り、時刻の縦の罫線に帯がかぶらないようにする */
   .blk.res { color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; }
@@ -320,12 +322,13 @@
     color: var(--closed-text); cursor: default; border: 1px dashed var(--line-strong);
   }
   .blk.off { background: var(--closed); border: 0; border-radius: 0; top: 0; bottom: 0; cursor: default; }
-  .blk:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .blk:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); } /* 角丸に沿う枠 */
   @media (hover: hover) { .blk.res:hover::after { filter: brightness(.96); } }
   .ghost {
-    position: absolute; top: 2px; bottom: 2px; z-index: 5; border-radius: 4px; pointer-events: none;
+    position: absolute; top: 3px; bottom: 3px; z-index: 5; border-radius: 9px; pointer-events: none; /* 予約の帯と同じ位置・角丸 */
     background: rgba(37, 99, 235, .18); border: 2px solid var(--accent); color: var(--accent);
-    font-size: 11px; font-weight: 700; padding: 1px 4px; white-space: nowrap; overflow: visible;
+    font-size: 11px; font-weight: 700; padding: 1px 6px; white-space: nowrap; overflow: visible;
+    display: flex; align-items: center; /* 時間の表示を枠の上下中央に */
   }
   /* 予約画面を開いている間の仮予約の帯（点線で、まだ確定していないことを示す） */
   .ghost.pick {
