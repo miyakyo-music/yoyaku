@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  // iPhone / iPad では、16px 未満の入力欄・選択欄を押すと画面が勝手に拡大される。maximum-scale=1 でこれを止める
+  // （iOS では指での拡大は引き続きできる。Android では指での拡大まで止まってしまうので付けない）
+  if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+    document.querySelector('meta[name=viewport]').content += ', maximum-scale=1';
+  }
+</script>
 <meta name="robots" content="noindex">
 <!-- LINE・SNS などで URL を送ったときに表示される説明（ページの本文ではなくこれが使われる） -->
 <meta name="description" content="宮教大音楽棟の練習室を予約">
@@ -116,6 +123,7 @@
   .selects { display: inline-flex; gap: 6px; align-items: center; }
   /* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く */
   .selects select {
+    font-size: 14px; /* ほかのボタンと同じ大きさにそろえる */
     -webkit-appearance: none; appearance: none; padding: 0 30px 0 10px;
     background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
   }
@@ -127,7 +135,7 @@
   .tl-label .free-until { font-size: 11px; color: #1e7a43; font-weight: 600; white-space: nowrap; }
   /* 日付欄: 曜日付きの表示の上に、透明にした標準の日付入力を重ねる（押すと標準のカレンダーが開く） */
   .datenav { display: inline-flex; align-items: center; gap: 6px; }
-  .btn.arrow { width: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+  .btn.arrow { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
   @media (hover: hover) { .btn.arrow:hover { color: var(--text); } }
   .date-field { position: relative; display: inline-flex; }
   .date-display {
@@ -458,6 +466,9 @@
   @media (max-width: 380px) {
     .tabs .btn { padding: 0 6px; }
     .selects select { padding: 0 20px 0 6px; background-position: right 6px center; }
+    .btn.arrow { width: 40px; }
+    .date-display { padding: 0 26px; }
+    .date-display svg { right: 8px; }
   }
 
 </style>
