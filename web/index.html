@@ -127,8 +127,8 @@
     -webkit-appearance: none; appearance: none; padding: 0 30px 0 10px;
     background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
   }
-  /* 一覧の日付は日付欄と同じ内容なので、PC では出さない（スマホでは表の直前の見出しとして出す） */
-  @media (min-width: 601px) { .range-label.is-day { display: none; } }
+  /* 一覧・部屋別の日付（期間）は日付欄と表を見ればわかるので出さない。カレンダーの「○年○月」だけ出す */
+  .range-label.redundant { display: none; }
   .free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; color: #1e7a43; font-weight: 700; }
   .tl-label .nm-line { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
   .tl-label .nm-line .nm { flex: none; }
@@ -1016,11 +1016,11 @@
     const d = parseDate(state.date);
     if (state.view === 'day') {
       label.textContent = `${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`;
-      label.className = 'range-label is-day ' + dayClass(state.date);
+      label.className = 'range-label redundant';
     } else if (state.view === 'room') {
       const { from, to } = currentRange();
       label.textContent = `${mdLabel(from)}〜${mdLabel(to)}`;
-      label.className = 'range-label';
+      label.className = 'range-label redundant';
     } else {
       label.textContent = `${d.getFullYear()}年${d.getMonth() + 1}月`;
       label.className = 'range-label';
