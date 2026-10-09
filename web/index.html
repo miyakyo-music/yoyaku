@@ -1282,11 +1282,12 @@
 
   // ---------------- ガラスの見た目の補助 ----------------
   // 表示の切り替えのつまみ（.seg::before）を、選択中のボタンの位置・幅に合わせる（CSS の transition で滑る）
-  function placeSegThumb(noAnim) {
+  // 最初に置くときだけは滑らせない
+  function placeSegThumb() {
     for (const seg of document.querySelectorAll('.seg')) {
       const on = seg.querySelector('[aria-pressed="true"]');
       if (!on) continue;
-      seg.classList.toggle('no-anim', !!noAnim);
+      seg.classList.toggle('no-anim', !seg.style.getPropertyValue('--thumb-w'));
       seg.style.setProperty('--thumb-x', `${on.offsetLeft}px`);
       seg.style.setProperty('--thumb-w', `${on.offsetWidth}px`);
     }
@@ -1295,7 +1296,8 @@
   function measureHeader() {
     const h = document.querySelector('.topbar').offsetHeight;
     document.documentElement.style.setProperty('--hdr-h', `${h}px`);
-    placeSegThumb(true);
+    // 切り替えで上部の高さが変わったときもここに来る。つまみは止めずに滑らせたまま位置を合わせ直す
+    placeSegThumb();
   }
   if (window.ResizeObserver) new ResizeObserver(measureHeader).observe(document.querySelector('.topbar'));
   window.addEventListener('resize', measureHeader);
