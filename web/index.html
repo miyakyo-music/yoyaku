@@ -409,7 +409,7 @@
   .summary dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
   /* PC で予約の帯にマウスを乗せたときの詳細カード（予約の詳細画面と同じ項目・同じ書き方で、帯と同じガラス風） */
   .hovercard {
-    position: fixed; z-index: 50; width: 260px; max-width: calc(100vw - 16px); padding: 10px 12px; border-radius: 12px;
+    position: fixed; z-index: 50; left: 0; top: 0; will-change: transform; /* 位置は transform で動かす（マウスに軽くついてくるように） */ width: 260px; max-width: calc(100vw - 16px); padding: 10px 12px; border-radius: 12px;
     background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(255, 255, 255, .92)); color: var(--text); pointer-events: none;
     box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .08), 0 8px 24px rgba(0, 0, 0, .14), 0 2px 6px rgba(0, 0, 0, .06);
     font-size: 12px; line-height: 1.45;
@@ -2097,21 +2097,28 @@
         (r.pending ? '<dt>状態</dt><dd>送信中</dd>' : '') +
         '</dl>';
       card.hidden = false;
-      // マウスの右下に出し、画面からはみ出す場合は反対側に回す
+      placeCard(x, y);
+    };
+    // マウスの右下に出し、画面からはみ出す場合は反対側に回す（マウスを動かすとついてくる）
+    let lastX = 0, lastY = 0;
+    const placeCard = (x, y) => {
       const w = card.offsetWidth, h = card.offsetHeight, m = 8;
       const left = x + 14 + w > window.innerWidth - m ? Math.max(m, x - 14 - w) : x + 14;
       const top = y + 18 + h > window.innerHeight - m ? Math.max(m, y - 12 - h) : y + 18;
-      card.style.left = `${left}px`;
-      card.style.top = `${top}px`;
+      card.style.transform = `translate(${left}px, ${top}px)`;
     };
+    $('main').addEventListener('mousemove', (e) => {
+      lastX = e.clientX; lastY = e.clientY;
+      if (!card.hidden) placeCard(lastX, lastY);
+    }, { passive: true });
     $('main').addEventListener('mouseover', (e) => {
       const blk = e.target.closest('.blk.res');
       if (blk === hoverBlk) return;
       hideCard();
       if (!blk) return;
       hoverBlk = blk;
-      const { clientX, clientY } = e;
-      hoverTimer = setTimeout(() => showCard(blk, clientX, clientY), 300);
+      lastX = e.clientX; lastY = e.clientY;
+      hoverTimer = setTimeout(() => showCard(blk, lastX, lastY), 300); // 300ms の間に動いた先に出す
     });
     $('main').addEventListener('mouseleave', hideCard);
     $('main').addEventListener('mousedown', hideCard);

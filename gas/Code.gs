@@ -728,7 +728,7 @@ function adminChangePassword(p) {
   if (denied) return denied;
   const next = String(p.newPassword || '');
   if (next.length < 6) return fail_('新しいパスワードは6文字以上にしてください。');
-  PropertiesService.getScriptProperties().setProperty('ADMIN_PASSWORD', next);
+  setProp_('ADMIN_PASSWORD', next);
   logAdmin_(getSpreadsheet_(), '管理用パスワード変更', '');
   return { ok: true };
 }
@@ -919,7 +919,7 @@ function setAdminPassword() {
   const value = res.getResponseText().trim();
   const props = PropertiesService.getScriptProperties();
   if (!value) {
-    props.deleteProperty('ADMIN_PASSWORD');
+    setProp_('ADMIN_PASSWORD', '');
     ui.alert('管理用パスワードを無効化しました。');
     return;
   }
@@ -927,7 +927,7 @@ function setAdminPassword() {
     ui.alert('6文字以上で設定してください。');
     return;
   }
-  props.setProperty('ADMIN_PASSWORD', value);
+  setProp_('ADMIN_PASSWORD', value);
   ui.alert('管理用パスワードを設定しました。');
 }
 
@@ -998,7 +998,7 @@ function resolveAdmin_(password) {
 
 /** 管理用パスワードを照合する。一致すれば null、不一致ならエラーメッセージ。総当たり対策付き。 */
 function verifyAdmin_(password) {
-  const adminPassword = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
+  const adminPassword = prop_('ADMIN_PASSWORD');
   if (!adminPassword) return '管理用パスワードが設定されていません。管理者に連絡してください。';
   // 誤入力の回数は全体で数える。ただし、管理画面にログインしたことのある端末は、その端末だけの回数で数える
   // （誰かがわざと間違え続けて全体がロックされても、いつもの端末からは管理者が入れるように）
@@ -1019,7 +1019,7 @@ function verifyAdmin_(password) {
 /** 管理画面にログインしたことのある端末か */
 function isTrustedDevice_(token) {
   if (!token) return false;
-  const list = JSON.parse(PropertiesService.getScriptProperties().getProperty('ADMIN_DEVICES') || '{}');
+  const list = JSON.parse(prop_('ADMIN_DEVICES') || '{}');
   return Object.prototype.hasOwnProperty.call(list, token);
 }
 
@@ -1031,7 +1031,7 @@ function rememberDevice_(token) {
   list[id] = nowStr_('yyyy-MM-dd');
   const keys = Object.keys(list).sort((x, y) => list[y].localeCompare(list[x]));
   keys.slice(SYSTEM.MAX_ADMIN_DEVICES).forEach(k => delete list[k]); // 古い端末から忘れる
-  props.setProperty('ADMIN_DEVICES', JSON.stringify(list));
+  setProp_('ADMIN_DEVICES', JSON.stringify(list));
   return id;
 }
 
@@ -1169,8 +1169,32 @@ function describe_(r) {
 // ---------------------------------------------------------------------------
 
 function getSpreadsheet_() {
-  const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  const id = prop_('SPREADSHEET_ID');
   return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+}
+
+/**
+ * スクリプトプロパティを読む。読み出しは1日5万回までなので、毎回は読まず CacheService に10分覚えておく
+ * （予約表を開いている人が1分ごとに自動更新するため、そのたびに読むと上限に近づく）
+ */
+const PROP_MEMO_ = {};
+function prop_(key) {
+  if (Object.prototype.hasOwnProperty.call(PROP_MEMO_, key)) return PROP_MEMO_[key];
+  const cache = CacheService.getScriptCache();
+  let v = cache.get('prop_' + key);
+  if (v === null) {
+    v = PropertiesService.getScriptProperties().getProperty(key) || '';
+    cache.put('prop_' + key, v, 600);
+  }
+  PROP_MEMO_[key] = v;
+  return v;
+}
+/** スクリプトプロパティを書き換え、覚えている値も入れ替える（空なら削除） */
+function setProp_(key, value) {
+  const props = PropertiesService.getScriptProperties();
+  if (value) props.setProperty(key, value); else props.deleteProperty(key);
+  CacheService.getScriptCache().put('prop_' + key, value || '', 600);
+  PROP_MEMO_[key] = value || '';
 }
 
 function getSheet_(ss, name) {
