@@ -278,16 +278,18 @@
   .now-line { position: absolute; top: 0; bottom: -1px; width: 2px; margin-left: -1px; background: #e5484d; opacity: .6; pointer-events: none; z-index: 2; }
   .tl-row.week-start .now-line { top: -2px; }
   .blk {
-    position: absolute; top: 3px; bottom: 3px; border-radius: 8px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
+    position: absolute; top: 3px; bottom: 3px; border-radius: 9px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
     overflow: hidden; overflow: clip; /* clip は中の文字の sticky を妨げない（未対応ブラウザは hidden） */
     padding: 0 6px 0 10px; font-size: 11px; line-height: 1.2; cursor: pointer; min-width: 3px;
     display: flex; flex-direction: column; justify-content: center; /* 名前と学番を帯の上下中央に */
   }
-  /* ブロックの左側がスクロールで部屋名の列に隠れても、予約者名は見えている部分の左端に留まる */
-  .blk b, .blk span {
-    display: block; width: fit-content; max-width: 100%; white-space: nowrap; overflow: hidden;
+  /* ブロックの左側がスクロールで部屋名の列に隠れても、予約者名は見えている部分の左端に留まる。
+     名前と学籍番号はひとまとめにして動かし、左端をそろえたまま一緒に隠れるようにする */
+  .blk .txt, .blk.closed > span {
+    display: block; width: fit-content; max-width: 100%; min-width: 0;
     position: sticky; left: calc(var(--label-w) + 4px); z-index: 3;
   }
+  .blk b, .blk span { display: block; white-space: nowrap; overflow: hidden; }
   .blk b { font-weight: 600; font-size: 11.5px; }
   .blk span { font-weight: 400; font-size: 10.5px; opacity: .8; }
   /* 予約を送信中（サーバーの結果待ち）の表示 */
@@ -296,14 +298,19 @@
   /* 左右に透明な 1px の余白を取り、時刻の縦の罫線に帯がかぶらないようにする */
   .blk.res { color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; }
   .blk.res.mine { color: var(--mine-text); }
-  /* 帯の色: 白をほぼ不透明に重ねた上に半透明の色を敷き、背景の罫線や縞模様がうっすら見える程度にする */
+  /* 帯の色（控えめなガラス風）: 上ほど明るい白をほぼ不透明に重ね、その上に半透明の色を敷く。
+     上端の光の筋・細い縁・ごく薄い影でガラスの板のように見せる（ぼかしは使わない） */
   .blk.res::after {
     content: ""; position: absolute; inset: 0; border-radius: inherit;
-    background: linear-gradient(var(--res), var(--res)), rgba(255, 255, 255, .78);
+    background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .72));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(255, 149, 0, .3), 0 1px 2px rgba(150, 80, 0, .1);
   }
-  .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), rgba(255, 255, 255, .78); }
+  .blk.res.mine::after {
+    background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .72));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(0, 122, 255, .3), 0 1px 2px rgba(0, 60, 150, .1);
+  }
   .blk.res::before {
-    content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--res-border);
+    content: ""; position: absolute; left: 4px; top: 7px; bottom: 7px; width: 3px; border-radius: 2px; background: var(--res-border);
     z-index: 1;
   }
   .blk.res.mine::before { background: var(--mine-border); }
@@ -1193,7 +1200,7 @@
         const title = `${hm(r.start)}〜${hm(r.end)} ${personText(r)}${r.memo ? '　' + r.memo : ''}${r.pending ? '（送信中）' : ''}`;
         // 予約者名を太字で先に、学籍番号/所属は2行目に細字で
         html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}" title="${esc(title)}">` +
-          `<b>${r.groupId ? '↻' : ''}${esc(r.name)}</b>${r.affiliation ? `<span>${esc(r.affiliation)}</span>` : ''}</div>`;
+          `<div class="txt"><b>${r.groupId ? '↻' : ''}${esc(r.name)}</b>${r.affiliation ? `<span>${esc(r.affiliation)}</span>` : ''}</div></div>`;
       }
       html += '</div></div>';
       return { date: row.date, roomId: row.room.id, stopped, busy };
