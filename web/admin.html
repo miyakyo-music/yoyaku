@@ -115,6 +115,9 @@
 
   .savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
+  .notice-edit { display: flex; gap: 6px; }
+  .notice-edit input { flex: 1; min-width: 0; }
+  .notice-edit select { flex: none; width: auto; }
   .copy-row, .pw-row { display: flex; gap: 6px; align-items: center; }
   .pw-row input { flex: 1; min-width: 0; }
   .pw-reveal { flex: none; height: auto; padding: 0 10px; font-size: 13px; min-width: 56px; }
@@ -333,7 +336,7 @@
         <p class="lead">保存すると、利用者の画面には次回の更新（最大1分後）から反映されます。既に入っている予約は自動では取り消されません。</p>
         <form id="settingsForm" class="form-grid" novalidate>
           <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
-          <label class="field full">お知らせ（予約表の上部に表示。空欄なら非表示）<input id="sNotice" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません"></label>
+          <div class="field full">お知らせ（予約表の上部に表示。空欄なら非表示）<div class="notice-edit"><input id="sNotice" class="in" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません" aria-label="お知らせ"><select id="sNoticeLevel" class="in" aria-label="お知らせの種類"><option value="通常">通常（青）</option><option value="重要">重要（赤）</option></select></div><span class="help">「重要」は休館など予約に直結する連絡に使ってください（赤で目立つ表示になります）</span></div>
           <div class="field">利用開始時刻<div class="time"><select id="sOpenH" class="in"></select>:<select id="sOpenM" class="in"></select></div></div>
           <div class="field">利用終了時刻<div class="time"><select id="sCloseH" class="in"></select>:<select id="sCloseM" class="in"></select></div></div>
           <label class="field">予約単位<span class="suffix"><select id="sUnit" class="in"></select>分</span><span class="help">予約の開始・終了時刻をこの単位で指定します</span></label>
@@ -707,6 +710,7 @@
   function fillSettings(s) {
     $('sTitle').value = s.title;
     $('sNotice').value = s.notice || '';
+    $('sNoticeLevel').value = s.noticeLevel === '重要' ? '重要' : '通常';
     timeSelects($('sOpenH'), $('sOpenM'), 23);
     timeSelects($('sCloseH'), $('sCloseM'), 24);
     setTime($('sOpenH'), $('sOpenM'), s.openTime);
@@ -733,6 +737,7 @@
     const settings = {
       title: $('sTitle').value,
       notice: $('sNotice').value,
+      noticeLevel: $('sNoticeLevel').value,
       openTime: getTime($('sOpenH'), $('sOpenM')),
       closeTime: getTime($('sCloseH'), $('sCloseM')),
       unitMinutes: Number($('sUnit').value),

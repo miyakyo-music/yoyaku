@@ -57,6 +57,7 @@ const SYSTEM = {
 const SETTINGS = [
   { key: 'title', label: '予約表のタイトル', def: '練習室予約', desc: '画面上部に表示される名前' },
   { key: 'notice', label: 'お知らせ', def: '', desc: '画面上部に表示するお知らせ（空欄なら表示しない）' },
+  { key: 'noticeLevel', label: 'お知らせの種類', def: '通常', desc: '通常（青）／ 重要（赤。休館など予約に直結する連絡）' },
   { key: 'openTime', label: '利用開始時刻', def: '07:00', desc: '例：07:00' },
   { key: 'closeTime', label: '利用終了時刻', def: '22:00', desc: '例：22:00' },
   { key: 'unitMinutes', label: '予約単位（分）', def: '5', desc: '1, 5, 10, 15, 30 など60を割り切れる数' },
@@ -649,6 +650,7 @@ function requireAdmin_(p) {
 function validateSettings_(s) {
   const title = String(s.title || '').trim();
   const notice = String(s.notice || '').trim().replace(/\s+/g, ' ');
+  const noticeLevel = s.noticeLevel === '重要' ? '重要' : '通常';
   const open = normTime_(s.openTime);
   const close = normTime_(s.closeTime);
   const unit = Number(s.unitMinutes);
@@ -680,6 +682,7 @@ function validateSettings_(s) {
     value: {
       title: title,
       notice: notice,
+      noticeLevel: noticeLevel,
       openTime: open,
       closeTime: close,
       unitMinutes: String(unit),
@@ -1140,6 +1143,7 @@ function loadSettings_(ss) {
   return {
     title: v.title || '練習室予約',
     notice: v.notice,
+    noticeLevel: v.noticeLevel === '重要' ? '重要' : '通常',
     openTime: open,
     closeTime: close,
     unitMinutes: unit > 0 && 60 % unit === 0 ? unit : 5,

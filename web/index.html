@@ -83,11 +83,19 @@
   .admin-link { font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
   @media (hover: hover) { .admin-link:hover { color: var(--accent); border-color: var(--accent); } }
   .status { font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-  .notice { margin: 0; padding: 6px 10px; border-radius: 8px; background: #fff7e0; color: #6b4e00; font-size: 13px; }
+  /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
+  .notice {
+    margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 8px;
+    background: #e8f0ff; border: 1px solid #bcd0fb; color: #1e3a8a; font-size: 13px; font-weight: 600; line-height: 1.5;
+  }
+  .notice svg { flex: none; margin-top: 2px; }
+  .notice .ic-alert, .notice.important .ic-info { display: none; }
+  .notice.important .ic-alert { display: inline; }
+  .notice.important { background: #fdecec; border-color: #f3b5b5; color: #8f1d1d; }
   /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
   /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
   .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
-  .notice-row .notice { flex: 0 1 auto; min-width: 0; }
+  .notice-row .notice { flex: 1; min-width: 0; }
   /* 試験運用中の帯 */
   .beta-band {
     flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -467,7 +475,7 @@
     /* 右端の「空室」と「今日」は同じ幅にそろえる */
     .free-btn, #todayBtn { width: 54px; flex: none; padding: 0; }
     .tabs .btn { padding: 0 9px; }
-    .notice { padding: 4px 8px; font-size: 12px; }
+    .notice { padding: 6px 9px; font-size: 13px; }
     .selects { grid-area: select; min-width: 0; }
     .selects select { width: 100%; min-width: 0; }
     .selects select { padding: 0 24px 0 8px; background-position: right 8px center; } /* 欄が狭いので矢印の余白を詰める */
@@ -493,7 +501,7 @@
     <div class="row">
       <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><span class="lg">管理</span><span class="sm">⚙</span></a><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button><span class="status"><span class="spin"></span><span id="statusText"></span></span></div>
       <div class="notice-row" id="noticeRow" hidden>
-        <p class="notice" id="notice"></p>
+        <p class="notice" id="notice"><svg class="ic-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5M12 8h0l4.5-3.5A1 1 0 0 1 18 5.3v11.4a1 1 0 0 1-1.5.8L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg><svg class="ic-alert" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.4 3.9 1.8 18a1.9 1.9 0 0 0 1.6 2.9h17.2a1.9 1.9 0 0 0 1.6-2.9L13.6 3.9a1.9 1.9 0 0 0-3.2 0z"/></svg><span id="noticeText"></span></p>
       </div>
       <div class="tools">
         <button type="button" class="btn" id="myBtn">自分の予約</button>
@@ -971,7 +979,8 @@
     $('title').textContent = s.title;
     document.title = s.title;
     $('noticeRow').hidden = !s.notice;
-    $('notice').textContent = s.notice || '';
+    $('noticeText').textContent = s.notice || '';
+    $('notice').classList.toggle('important', s.noticeLevel === '重要');
     $('adminMode').hidden = !isAdminMode();
 
     const eq = $('equipFilter');
