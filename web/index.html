@@ -114,6 +114,11 @@
   }
   .range-label { font-size: 15px; font-weight: 700; white-space: nowrap; }
   .selects { display: inline-flex; gap: 6px; align-items: center; }
+  /* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く */
+  .selects select {
+    -webkit-appearance: none; appearance: none; padding: 0 30px 0 10px;
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
+  }
   /* 一覧の日付は日付欄と同じ内容なので、PC では出さない（スマホでは表の直前の見出しとして出す） */
   @media (min-width: 601px) { .range-label.is-day { display: none; } }
   .free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; color: #1e7a43; font-weight: 700; }
@@ -442,6 +447,7 @@
     .notice { padding: 4px 8px; font-size: 12px; }
     .selects { grid-area: select; min-width: 0; }
     .selects select { width: 100%; min-width: 0; }
+    .selects select { padding: 0 24px 0 8px; background-position: right 8px center; } /* 欄が狭いので矢印の余白を詰める */
   }
 
 </style>
