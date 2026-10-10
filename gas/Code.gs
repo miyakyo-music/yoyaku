@@ -17,6 +17,9 @@
  * スクリプトプロパティ:
  *   ADMIN_PASSWORD  … 管理用パスワード（メニューから設定）。どの予約も変更・取消でき、各種制限を受けない。
  *   SPREADSHEET_ID  … （任意）データ保存先スプレッドシートのID
+ *   PRIMARY         … 'cloudflare' のとき、予約の正本は Cloudflare（cache/store.js）。このスクリプトは画面からの呼び出しに
+ *                     「MOVED（Cloudflare を使って）」と返し、Cloudflare の変更をスプレッドシートへ写す係だけをする。
+ *                     メニュー「Cloudflare に移す」「GAS に戻す」で切り替える（仕様書 4.6）
  */
 
 const SHEETS = {
@@ -120,6 +123,7 @@ const API = {
   adminSetBugStatus: adminSetBugStatus,
   adminChangePassword: adminChangePassword,
   adminPasskeyTicket: adminPasskeyTicket,
+  mirrorNow: mirrorNow,
 };
 
 /**
@@ -134,7 +138,12 @@ function doPost(e) {
     MEMO_ = {};
     REQ_DEVICE_ = String((req.params && req.params.adminDevice) || '').slice(0, 64);
     const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
-    result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
+    if (fn && req.action !== 'mirrorNow' && isCloudflarePrimary_()) {
+      // 正本は Cloudflare に移っている。画面はこれを受けて Cloudflare へ送り直す（web/api.js）
+      result = { ok: false, code: 'MOVED', primary: 'cloudflare', message: '予約システムの保存先が切り替わりました。ページを再読み込みしてください。' };
+    } else {
+      result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
+    }
   } catch (err) {
     console.error(err);
     result = fail_('サーバーでエラーが発生しました。時間をおいて再度お試しください。', 'SERVER_ERROR');
@@ -300,7 +309,7 @@ function createBulkReservations(p) {
     if (v.error) return fail_(v.error);
     bases[roomId] = v.value;
   }
-  if (bases[roomIds[0]].pin && !/^\d{4}$/.test(bases[0].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
+  if (bases[roomIds[0]].pin && !/^\d{4}$/.test(bases[roomIds[0]].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
 
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
@@ -940,6 +949,11 @@ function pushCache_() {
  */
 function cacheRetry(e) {
   if (!cacheEnabled_()) return;
+  if (isCloudflarePrimary_()) { // 正本が Cloudflare のときは、送る代わりに、Cloudflare の変更をスプレッドシートへ写す
+    const done = mirrorPull_();
+    if (!(e && e.triggerUid)) alert_(done.ok ? 'Cloudflare の変更をスプレッドシートに写しました（' + done.applied + '件）。' : '写せませんでした。\n理由: ' + done.message);
+    return;
+  }
   const props = PropertiesService.getScriptProperties();
   const fromTrigger = !!(e && e.triggerUid);
   const due = props.getProperty('CACHE_DIRTY') === '1' || props.getProperty('CACHE_PUSHED_DATE') !== nowStr_('yyyy-MM-dd');
@@ -975,6 +989,269 @@ function addMonths_(dateStr, n) {
 }
 
 // ---------------------------------------------------------------------------
+// 予約の正本を Cloudflare に置くとき（スクリプトプロパティ PRIMARY = 'cloudflare'）
+//
+// 正本は Cloudflare（cache/store.js）。画面からの呼び出しには doPost が「MOVED」と返し、画面は Cloudflare へ送り直す。
+// このスクリプトは、Cloudflare に積まれた変更を読んで、スプレッドシートに写す（閲覧・控え用）。
+//   - Cloudflare は予約が変わるたびに mirrorNow を呼ぶ（合図だけ。中身は、こちらから合言葉つきで読みに行く）
+//   - 合図が届かなくても、5分ごとのトリガー（cacheRetry）が写す
+// 写しのシートを手で書き換えても、正本（Cloudflare）には反映されない。変更は管理画面から行う。
+// メニュー「予約の正本を Cloudflare に移す」で移し、「予約の正本を GAS に戻す」で、写しを最新にしてから GAS に戻す。
+// ---------------------------------------------------------------------------
+
+function isCloudflarePrimary_() {
+  return prop_('PRIMARY') === 'cloudflare';
+}
+
+/** Cloudflare（高速キャッシュの Worker）を合言葉つきで呼ぶ。応答の JSON を返す（つながらないときは例外） */
+function cfCall_(method, path, body) {
+  const base = cacheProp_('CACHE_PUSH_URL').trim().replace(/\/push\/?$/, '');
+  const token = cacheProp_('CACHE_PUSH_TOKEN').trim();
+  if (!base || !token) throw new Error('高速キャッシュの CACHE_PUSH_URL・CACHE_PUSH_TOKEN が設定されていません。');
+  const opts = { method: method, headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true };
+  if (body) { opts.contentType = 'application/json'; opts.payload = JSON.stringify(body); }
+  const res = UrlFetchApp.fetch(base + path, opts);
+  const code = res.getResponseCode();
+  let data = null;
+  try { data = JSON.parse(res.getContentText()); } catch (e) { /* 下で扱う */ }
+  if (code !== 200 || !data) throw new Error('Cloudflare の応答 ' + code + ': ' + res.getContentText().slice(0, 200));
+  return data;
+}
+
+/** Cloudflare からの合図（予約が変わった）。誰が呼んでも、することは「Cloudflare から合言葉つきで読んで写す」だけ */
+function mirrorNow() {
+  if (!isCloudflarePrimary_()) return { ok: true, skipped: true };
+  const r = mirrorPull_();
+  return { ok: r.ok };
+}
+
+/** Cloudflare に積まれた変更を、順番どおりにスプレッドシートへ写す。{ok, applied} / {ok:false, message} */
+function mirrorPull_() {
+  const lock = LockService.getScriptLock();
+  // ほかの写しが動いていれば、それが終わるのを待ってから続きを写す（その間に積まれた変更を取りこぼさない）
+  if (!lock.tryLock(8000)) return { ok: true, applied: 0, busy: true };
+  try {
+    const ss = getSpreadsheet_();
+    const props = PropertiesService.getScriptProperties();
+    let applied = 0;
+    for (let round = 0; round < 10; round++) {
+      const after = Number(props.getProperty('MIRROR_SEQ') || 0);
+      const res = cfCall_('get', '/mirror/changes?after=' + after);
+      if (!res.ok) return { ok: false, message: res.message || res.code };
+      if (res.changes.length) {
+        applyMirror_(ss, res.changes);
+        SpreadsheetApp.flush();
+        applied += res.changes.length;
+      }
+      props.setProperty('MIRROR_SEQ', String(res.seq));
+      if (!res.more) break;
+    }
+    return { ok: true, applied: applied };
+  } catch (e) {
+    console.error(e);
+    return { ok: false, message: String(e && e.message || e).slice(0, 300) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 変更の一覧を写す。予約は ID ごとに最後の状態だけを反映する（書き換え → 消す → 足す の順） */
+function applyMirror_(ss, changes) {
+  const res = {};
+  const bugs = {};
+  const logs = [];
+  let rooms = null, closures = null, settings = null;
+  changes.forEach(c => {
+    const d = c.data;
+    if (c.kind === 'res') res[d[0]] = d;
+    else if (c.kind === 'resdel') d.forEach(id => { res[id] = null; });
+    else if (c.kind === 'rooms') rooms = d;
+    else if (c.kind === 'closures') closures = d;
+    else if (c.kind === 'settings') settings = d;
+    else if (c.kind === 'bug') bugs[d[0]] = d;
+    else if (c.kind === 'log') logs.push(d);
+  });
+
+  const ids = Object.keys(res);
+  if (ids.length) {
+    const sheet = ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations);
+    const width = HEADERS.reservations.length;
+    const rowOf = {};
+    readTable_(sheet, 1).forEach((r, i) => { const id = String(r[0]).trim(); if (id) rowOf[id] = i + 2; });
+    const deletes = [];
+    const appends = [];
+    ids.forEach(id => {
+      const row = rowOf[id];
+      if (res[id] && row) sheet.getRange(row, 1, 1, width).setNumberFormat('@').setValues([res[id]]);
+      else if (res[id]) appends.push(res[id]);
+      else if (row) deletes.push(row);
+    });
+    deletes.sort((a, b) => b - a).forEach(row => sheet.deleteRow(row));
+    if (appends.length) appendRows_(sheet, appends);
+  }
+  if (rooms) writeRoomsSheet_(ss, rooms);
+  if (closures) writeClosuresSheet_(ss, closures);
+  if (settings) writeSettingsSheet_(ss, settings);
+  const bugIds = Object.keys(bugs);
+  if (bugIds.length) {
+    const sheet = ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs);
+    const rowOf = {};
+    readTable_(sheet, 1).forEach((r, i) => { const id = String(r[0]).trim(); if (id) rowOf[id] = i + 2; });
+    bugIds.forEach(id => {
+      const row = rowOf[id] || sheet.getLastRow() + 1;
+      sheet.getRange(row, 1, 1, HEADERS.bugs.length).setNumberFormat('@').setValues([bugs[id]]);
+    });
+  }
+  if (logs.length) {
+    const sheet = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
+    sheet.getRange(sheet.getLastRow() + 1, 1, logs.length, HEADERS.log.length).setNumberFormat('@').setValues(logs);
+  }
+}
+
+/** シートの2行目から下を、rows で置き換える */
+function replaceRows_(sheet, width, rows) {
+  const last = sheet.getLastRow();
+  if (last >= 2) sheet.getRange(2, 1, last - 1, width).clearContent();
+  if (rows.length) sheet.getRange(2, 1, rows.length, width).setNumberFormat('@').setValues(rows);
+}
+function writeRoomsSheet_(ss, rows) {
+  replaceRows_(ensureSheet_(ss, SHEETS.rooms, HEADERS.rooms), HEADERS.rooms.length, rows.map(r => r.map(v => String(v == null ? '' : v))));
+}
+function writeClosuresSheet_(ss, rows) {
+  replaceRows_(ensureSheet_(ss, SHEETS.closures, HEADERS.closures), HEADERS.closures.length, rows);
+}
+/** 「設定」シートの各項目の値を書き換える（values はキーごとの文字。項目の行がなければ足す） */
+function writeSettingsSheet_(ss, values) {
+  const sheet = ensureSheet_(ss, SHEETS.settings, HEADERS.settings);
+  sheet.getRange('B:B').setNumberFormat('@');
+  const labels = readTable_(sheet, 1).map(r => r[0].trim());
+  SETTINGS.forEach(def => {
+    if (!Object.prototype.hasOwnProperty.call(values, def.key)) return;
+    const idx = [def.label].concat(def.aliases || []).map(l => labels.indexOf(l)).find(i => i >= 0);
+    const row = idx !== undefined ? idx + 2 : sheet.getLastRow() + 1;
+    if (idx === undefined) labels.push(def.label);
+    sheet.getRange(row, 1, 1, 3).setValues([[def.label, values[def.key], def.desc]]);
+  });
+}
+
+/** Cloudflare の中身で、スプレッドシートを丸ごと写し直す（ロックの中で呼ぶ）。写した予約の件数を返す */
+function mirrorFull_(ss) {
+  const res = cfCall_('get', '/mirror/full');
+  if (!res.ok) throw new Error(res.message || res.code);
+  replaceRows_(ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations), HEADERS.reservations.length, res.reservations);
+  writeRoomsSheet_(ss, res.rooms);
+  writeClosuresSheet_(ss, res.closures);
+  writeSettingsSheet_(ss, res.settings);
+  replaceRows_(ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs), HEADERS.bugs.length, res.bugs);
+  SpreadsheetApp.flush();
+  PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', String(res.seq));
+  return res.reservations.length;
+}
+
+/** メニュー: Cloudflare の中身で、スプレッドシートを丸ごと写し直す（写しがずれたと思ったとき） */
+function mirrorFullMenu() {
+  if (!isCloudflarePrimary_()) { alert_('いまは GAS（このスプレッドシート）が正本です。写し直す必要はありません。'); return; }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) { alert_('他の処理が実行中です。少し待ってから再度実行してください。'); return; }
+  try {
+    const n = mirrorFull_(getSpreadsheet_());
+    alert_('Cloudflare の内容で写し直しました（予約 ' + n + ' 件）。');
+  } catch (e) {
+    alert_('写し直せませんでした。\n理由: ' + (e && e.message || e));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * メニュー: 予約の正本を Cloudflare に移す。
+ * 先にこのスクリプトでの書き込みを止め（PRIMARY）、スプレッドシートの中身を Cloudflare に送ってから、Cloudflare で受付を始める。
+ * 途中で失敗したら、GAS のままに戻す（予約は失われない）。
+ */
+function migrateToCloudflare() {
+  if (!cacheEnabled_()) { alert_('先に高速キャッシュ（スクリプトプロパティの CACHE_PUSH_URL・CACHE_PUSH_TOKEN）を設定してください。'); return; }
+  if (isCloudflarePrimary_()) { alert_('すでに Cloudflare が正本です。'); return; }
+  if (!confirm_('予約の正本を Cloudflare に移します（1分ほどかかり、その間は予約を受け付けません）。\n' +
+    '移したあとは、このスプレッドシートは写しになります（ここを書き換えても予約表には反映されません。変更は管理画面から）。\n' +
+    'よろしいですか？')) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) { alert_('他の処理が実行中です。少し待ってから再度実行してください。'); return; }
+  try {
+    setProp_('PRIMARY', 'cloudflare'); // 先に GAS での書き込みを止める（移している間に入った予約が取り残されないように）
+    const ss = getSpreadsheet_();
+    const begin = cfCall_('post', '/migrate', { op: 'begin' });
+    if (!begin.ok) throw new Error(begin.message || begin.code);
+    const rows = readTable_(getSheet_(ss, SHEETS.reservations), HEADERS.reservations.length).filter(r => String(r[0]).trim());
+    for (let i = 0; i < rows.length; i += 500) {
+      const part = cfCall_('post', '/migrate', { op: 'reservations', rows: rows.slice(i, i + 500) });
+      if (!part.ok) throw new Error(part.message || part.code);
+    }
+    const closureSheet = ss.getSheetByName(SHEETS.closures);
+    const bugSheet = ss.getSheetByName(SHEETS.bugs);
+    const master = cfCall_('post', '/migrate', {
+      op: 'master',
+      rooms: readTable_(getSheet_(ss, SHEETS.rooms), HEADERS.rooms.length),
+      closures: closureSheet ? readTable_(closureSheet, HEADERS.closures.length) : [],
+      settings: rawSettings_(ss),
+      bugs: bugSheet ? readTable_(bugSheet, HEADERS.bugs.length).filter(r => String(r[0]).trim()) : [],
+      adminPassword: prop_('ADMIN_PASSWORD'),
+      adminDevices: prop_('ADMIN_DEVICES') || '{}',
+      spreadsheetUrl: ss.getUrl(),
+    });
+    if (!master.ok) throw new Error(master.message || master.code);
+    const ids = new Set(rows.map(r => String(r[0]).trim()));
+    const check = cfCall_('get', '/store/status');
+    if (check.reservations !== ids.size) throw new Error('予約の件数が合いません（スプレッドシート ' + ids.size + ' 件、Cloudflare ' + check.reservations + ' 件）。');
+    const done = cfCall_('post', '/migrate', { op: 'finish' }); // ここから Cloudflare で受付を始める
+    if (!done.ok) throw new Error(done.message || done.code);
+    PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', '0');
+    logAdmin_(ss, '正本を Cloudflare に移動', '予約 ' + ids.size + ' 件');
+    alert_('予約の正本を Cloudflare に移しました（予約 ' + ids.size + ' 件・部屋 ' + done.rooms + ' 室・休館 ' + done.closures + ' 件・不具合報告 ' + done.bugs + ' 件）。\n' +
+      '開いている予約表は、次の操作のときに自動で Cloudflare に切り替わります。');
+  } catch (e) {
+    console.error(e);
+    try { cfCall_('post', '/migrate', { op: 'disable' }); } catch (e2) { /* 届かなければ、もともと受け付けていない */ }
+    setProp_('PRIMARY', '');
+    alert_('移せませんでした。GAS（このスプレッドシート）が正本のままです。\n理由: ' + (e && e.message || e));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * メニュー: 予約の正本を GAS に戻す（ロールバック）。
+ * Cloudflare での受付を止め、Cloudflare の中身でスプレッドシートを丸ごと写し直してから、GAS で受付を再開する。
+ */
+function rollbackToGas() {
+  if (!isCloudflarePrimary_()) { alert_('いまは GAS（このスプレッドシート）が正本です。'); return; }
+  if (!confirm_('予約の正本を GAS（このスプレッドシート）に戻します。\nCloudflare の最新の内容でシートを写し直してから切り替えます。よろしいですか？')) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) { alert_('他の処理が実行中です。少し待ってから再度実行してください。'); return; }
+  let stopped = false;
+  try {
+    const off = cfCall_('post', '/migrate', { op: 'disable' }); // Cloudflare での受付を止める
+    if (!off.ok) throw new Error(off.message || off.code);
+    stopped = true;
+    const ss = getSpreadsheet_();
+    const n = mirrorFull_(ss);
+    setProp_('PRIMARY', '');
+    invalidateMaster_();
+    bumpScheduleVersion_();
+    MEMO_ = {};
+    pushCache_(); // 高速キャッシュの写しも、シートの内容で作り直す
+    logAdmin_(ss, '正本を GAS に戻す', '予約 ' + n + ' 件');
+    alert_('予約の正本を GAS に戻しました（予約 ' + n + ' 件）。\n' +
+      '管理用パスワードは、Cloudflare に移す前のもの（スクリプトプロパティの ADMIN_PASSWORD）に戻ります。');
+  } catch (e) {
+    console.error(e);
+    if (stopped) { try { cfCall_('post', '/migrate', { op: 'finish' }); } catch (e2) { /* 下で知らせる */ } }
+    alert_('戻せませんでした。Cloudflare が正本のままです。\n理由: ' + (e && e.message || e));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 管理者用メニュー（スプレッドシート上で使用）
 // ---------------------------------------------------------------------------
 
@@ -988,6 +1265,10 @@ function onOpen() {
     .addSeparator()
     .addItem('高速キャッシュに今すぐ送る', 'cacheRetry')
     .addItem('高速キャッシュの自動送り直しを設定', 'setupCacheTrigger')
+    .addSeparator()
+    .addItem('予約の正本を Cloudflare に移す', 'migrateToCloudflare')
+    .addItem('Cloudflare から全部写し直す', 'mirrorFullMenu')
+    .addItem('予約の正本を GAS に戻す', 'rollbackToGas')
     .addToUi();
 }
 
@@ -1516,7 +1797,8 @@ function readClosures_(ss) {
     .filter(c => isValidDate_(c.date));
 }
 
-function loadSettings_(ss) {
+/** 「設定」シートの値を、項目のキーごとの文字のまま読む（シートにない項目は既定値） */
+function rawSettings_(ss) {
   const raw = {};
   const sheet = ss.getSheetByName(SHEETS.settings);
   if (sheet) readTable_(sheet, 2).forEach(r => { raw[r[0].trim()] = r[1].trim(); });
@@ -1525,6 +1807,11 @@ function loadSettings_(ss) {
     const label = [s.label].concat(s.aliases || []).find(l => Object.prototype.hasOwnProperty.call(raw, l));
     v[s.key] = label ? raw[label] : s.def;
   });
+  return v;
+}
+
+function loadSettings_(ss) {
+  const v = rawSettings_(ss);
 
   const unit = Number(v.unitMinutes);
   let open = normTime_(v.openTime);

@@ -40,13 +40,36 @@
   // 管理画面にログインしたことのある端末の印（管理用パスワードを送るときだけ添える。
   // 誤入力のロック中でも、この端末からは管理者がパスワードを試せる）
   const DEVICE_KEY = 'prr.adminDevice';
+  // 呼び出し先: 予約の正本が Cloudflare に移っていれば Cloudflare（cache/worker.js の /api）、まだなら GAS。
+  // どちらに移っているかは、相手から「MOVED（もう一方を使って）」と返ってきたときに覚え直す。
+  // 切り替え（と戻し）は、スプレッドシートのメニューから行う（仕様書 4.6）
+  const PRIMARY_KEY = 'prr.primary';
+  const cfApiUrl = () => (window.CACHE_API_URL ? String(window.CACHE_API_URL).replace(/\/+$/, '') + '/api' : '');
+  function usesCloudflare() {
+    try { return !!cfApiUrl() && localStorage.getItem(PRIMARY_KEY) === 'cf'; } catch (e) { return false; }
+  }
+  function setPrimary(cf) {
+    try { if (cf) localStorage.setItem(PRIMARY_KEY, 'cf'); else localStorage.removeItem(PRIMARY_KEY); } catch (e) { /* 覚えられない環境では、毎回 GAS から */ }
+  }
+
   window.callApi = async function (action, params) {
-    const url = window.GAS_API_URL;
     params = Object.assign({}, params);
     if (params.adminPassword) {
       try { const d = localStorage.getItem(DEVICE_KEY); if (d) params.adminDevice = d; } catch (e) { /* 保存できない環境では付けない */ }
     }
-    if (!url) throw new Error('接続先が設定されていません（web/config.js の GAS_API_URL）。');
+    if (!window.GAS_API_URL) throw new Error('接続先が設定されていません（web/config.js の GAS_API_URL）。');
+    let data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params);
+    if (data && data.code === 'MOVED' && cfApiUrl()) {
+      // 正本の場所が変わっていた: 覚え直して、もう一方へ送り直す（1回だけ）
+      setPrimary(data.primary === 'cloudflare');
+      data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params);
+    }
+    if (data && data.apiVersion !== API_VERSION) warnVersion();
+    if (data && data.adminDevice) { try { localStorage.setItem(DEVICE_KEY, data.adminDevice); } catch (e) { /* 無視 */ } }
+    return data;
+  };
+
+  async function post(url, action, params) {
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctrl && setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     let res;
@@ -68,16 +91,12 @@
       if (timer) clearTimeout(timer);
     }
     if (!res.ok) throw new Error(`サーバーに接続できませんでした（${res.status}）。時間をおいて再度お試しください。`);
-    let data;
     try {
-      data = await res.json();
+      return await res.json();
     } catch (e) {
       throw new Error('サーバーの応答を読み取れませんでした。時間をおいて再度お試しください。');
     }
-    if (data && data.apiVersion !== API_VERSION) warnVersion();
-    if (data && data.adminDevice) { try { localStorage.setItem(DEVICE_KEY, data.adminDevice); } catch (e) { /* 無視 */ } }
-    return data;
-  };
+  }
 
   /**
    * 高速キャッシュ（Cloudflare。cache/worker.js）から予約表を読む。web/config.js の CACHE_API_URL が空なら使わない。
@@ -97,6 +116,7 @@
       const data = await res.json();
       if (!data || !data.ok) return null;
       if (data.apiVersion !== API_VERSION) return null; // 写しの形が画面と合わないときは使わない
+      if (data.primary) setPrimary(true); // 正本から返ってきた（予約・変更も Cloudflare へ送る）
       return data;
     } catch (e) {
       return null;

@@ -19,14 +19,24 @@
  * 届いたら「表が変わった」という合図（版の番号だけ。名前などの中身は送らない）を全員に送る。画面はそれを受けて読み直す。
  * つながりは Durable Objects（下の Hub。1つだけ）がまとめて持つ。待っている間は眠っていて、料金・回数を使わない。
  *
+ * 4つ目の役目: 予約の正本（store.js の StoreCore を、下の Durable Object「Store」の中で動かす）。
+ * - POST /api … 画面からの呼び出し（予約・変更・取消・管理画面の操作）。GAS の doPost と同じ形で受けて返す。
+ * - GET /schedule … 正本になっていれば、正本から返す（なっていなければ、これまでどおり写しから）。
+ * - /migrate・/mirror/* … GAS 専用（合言葉つき）。スプレッドシートからの移し替えと、スプレッドシートへの写し。
+ * 正本になるのは、GAS のメニュー「Cloudflare に移す」を実行したときだけ。それまでは /api は「GAS を使って」と返す。
+ *
  * 設定（wrangler.toml とリポジトリの Secrets）:
  *   DB             … D1 データベースのつなぎ（wrangler.toml）
  *   PUSH_TOKEN     … GAS と共有する合言葉（Cloudflare の秘密の設定。GitHub Actions が Secrets から登録する）。
  *                    パスキーの署名にも使う（変えると、パスキーでのログイン中の人はログインし直しになる）
  *   PASSKEY_RP_ID  … パスキーを使うサイトのドメイン（wrangler.toml。例: miyakyo-music.github.io）。空ならパスキーは使わない
- *   PASSKEY_ORIGIN … 管理画面のサイトの起点（例: https://miyakyo-music.github.io）
+ *   PASSKEY_ORIGIN … 管理画面のサイトの起点（例: https://miyakyo-music.github.io）。/api も、このサイトからだけ読める
+ *   GAS_URL        … GAS のウェブアプリの URL（wrangler.toml）。予約が変わったら「写して」と合図を送る
  */
 
+import './store.js';
+
+const StoreCore = globalThis.StoreCore;
 let tableReady = false;
 
 export default {
@@ -35,6 +45,14 @@ export default {
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
     if (url.pathname === '/live') return live(request, env);
     try {
+      if (url.pathname === '/api' && request.method === 'POST') return apiCors(await store(env).fetch(request), env);
+      if (url.pathname === '/migrate' || url.pathname.startsWith('/mirror/') || url.pathname === '/store/status') return await store(env).fetch(request);
+      if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
+        // 正本になっていれば正本から（まだなら、これまでどおり写しから）
+        const res = await store(env).fetch(request);
+        const data = await res.clone().json().catch(() => null);
+        if (data && data.ok) return cors(new Response(res.body, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }));
+      }
       await ensureTable(env);
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
       if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
@@ -312,6 +330,65 @@ function icsResponse(url) {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+// ---------------- 予約の正本 ----------------
+
+function store(env) { return env.STORE.get(env.STORE.idFromName('main')); }
+
+/** /api の応答は、予約表のサイトからだけ読めるようにする（本文は text/plain で届くので、事前確認は来ない） */
+function apiCors(res, env) {
+  const h = new Headers(res.headers);
+  h.set('Access-Control-Allow-Origin', String(env.PASSKEY_ORIGIN || '*'));
+  h.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  h.set('Vary', 'Origin');
+  return new Response(res.body, { status: res.status, headers: h });
+}
+
+/**
+ * 正本を持つ Durable Object。1つだけ（名前 'main'）。中身の処理は store.js。
+ * データは この Durable Object の中の SQLite に置く（Cloudflare が自動で控えを取り、30日前までの状態に戻せる）
+ */
+export class Store {
+  constructor(ctx, env) {
+    this.ctx = ctx;
+    this.env = env;
+    const sql = ctx.storage.sql;
+    this.core = new StoreCore({
+      exec: (q, ...b) => sql.exec(q, ...b).toArray(),
+      txn: (fn) => ctx.storage.transactionSync(fn),
+    }, env, { changed: () => this.changed() });
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    let body = {};
+    if (request.method === 'POST') {
+      const text = await request.text();
+      if (text.length > 2 * 1024 * 1024) return json({ ok: false, code: 'TOO_LARGE' }, 413);
+      try { body = JSON.parse(text || '{}'); } catch (e) { return json({ ok: false, code: 'BAD_REQUEST', message: '形式が正しくありません。' }, 400); }
+    }
+    const res = await StoreCore.handleHttp(this.core, {
+      method: request.method, path: url.pathname, query: url.searchParams,
+      auth: (request.headers.get('Authorization') || '').trim(), body,
+    });
+    return json(res.body, res.status, { 'Cache-Control': 'no-store' });
+  }
+
+  /** 予約などが変わったとき: 開いている画面に知らせ、GAS に「スプレッドシートへ写して」と合図する（どちらも待たない） */
+  changed() {
+    const version = Date.now();
+    const jobs = [];
+    if (this.env.HUB) jobs.push(hub(this.env).fetch('https://hub/notify', { method: 'POST', body: JSON.stringify({ type: 'changed', version }) }).catch(() => {}));
+    const gas = String(this.env.GAS_URL || '').trim();
+    if (gas) {
+      jobs.push(fetch(gas, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
+        body: JSON.stringify({ action: 'mirrorNow', params: {} }),
+      }).catch(() => {}));
+    }
+    this.ctx.waitUntil(Promise.all(jobs));
+  }
 }
 
 // ---------------- リアルタイム同期 ----------------
