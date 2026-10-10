@@ -834,6 +834,17 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
   @starting-style { body:not(.dialog-fallback) dialog[open] { transform: none; } }
 }
 
+/* 予約の帯と小窓のあいだを、形を変えながらつなぐ（View Transitions。JS の morph()）。
+   動いている間は、小窓自身の広がる動きを止める（二重に動かさない）。
+   帯の写しは引き伸ばして（帯の色が広がって小窓になるように）、小窓の写しは上端をそろえて切り抜いて重ねる（閉じるときは逆。html.vt-close） */
+body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
+::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
+::view-transition-image-pair(morph) { overflow: clip; border-radius: 14px; }
+::view-transition-old(morph), ::view-transition-new(morph) { height: 100%; animation-duration: .26s; animation-timing-function: ease-out; }
+::view-transition-old(morph), html.vt-close::view-transition-new(morph) { object-fit: fill; }
+::view-transition-new(morph), html.vt-close::view-transition-old(morph) { object-fit: cover; object-position: top; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .26s; }
+
 /* 小窓の中身: 上の入力欄だけをスクロールさせ、下端の「戻る」「予約確定」などは枠の一部として固定する。
    （以前は sticky で下端に貼り付けていたが、開く動きの途中で Safari が帯の位置を遅れて計算し、
      帯が中央付近から降ってくるようにカクついたため。.dlg-main は JS が起動時に作る入れ物） */

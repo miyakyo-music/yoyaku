@@ -555,6 +555,44 @@
     else setDate(addMonths(state.date, dir));
   }
 
+  // ---------------- 帯と小窓をつなぐ動き（View Transitions） ----------------
+  // 予約の帯を押すと、その帯が形を変えながら小窓になり、閉じると帯へ戻る。予約を確定すると、小窓が新しい帯へ縮む。
+  // 対応していない端末（iOS 17 以前など）や「視差効果を減らす」の端末では、今まで通りの開き方・閉じ方になる。
+  const VT_OK = typeof document.startViewTransition === 'function' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function onScreen(el) {
+    if (!el || !el.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  }
+  function bandEl(id) { return id ? $('main').querySelector(`.blk.res[data-id="${CSS.escape(id)}"]`) : null; }
+  /** from（いまの画面の要素）が、update したあとの getTo() の要素へ形を変えて移る。from が見えていなければ普通に切り替える */
+  function morph(from, update, getTo) {
+    if (!VT_OK || !onScreen(from)) { update(); return; }
+    let to = null;
+    from.style.viewTransitionName = 'morph';
+    document.body.classList.add('vt-morph');
+    document.documentElement.classList.toggle('vt-close', from.tagName === 'DIALOG'); // 小窓 → 帯の向き
+    const t = document.startViewTransition(() => {
+      from.style.viewTransitionName = '';
+      update();
+      to = getTo();
+      if (to && (to.tagName === 'DIALOG' ? to.open : onScreen(to))) to.style.viewTransitionName = 'morph';
+    });
+    t.ready.catch(() => {}); // 画面が隠れているときなどは動きだけ省かれる（切り替えそのものは行われる）
+    t.finished.finally(() => {
+      from.style.viewTransitionName = '';
+      if (to) to.style.viewTransitionName = '';
+      document.body.classList.remove('vt-morph');
+      document.documentElement.classList.remove('vt-close');
+    });
+  }
+  /** 予約の詳細を閉じる（その帯が見えていれば、帯へ縮んで戻る） */
+  function closeDetail() {
+    const dlg = $('detailDialog');
+    if (!dlg.open) return;
+    morph(dlg, () => dlg.close(), () => bandEl(state.detail && state.detail.id));
+  }
+
   // ---------------- 描画 ----------------
   function roomById(id) { return state.rooms.find((r) => r.id === id); }
   function isClosedWeekday(date) { return state.settings.closedWeekdays.indexOf(weekday(date)) >= 0; }
@@ -916,8 +954,10 @@
     const d = drag;
     drag = null;
     if (!d) return;
-    d.ghost.remove();
-    openBooking({ mode: 'create', roomId: d.row.roomId, date: d.row.date, start: d.start, end: d.end });
+    morph(d.ghost, () => {
+      d.ghost.remove();
+      openBooking({ mode: 'create', roomId: d.row.roomId, date: d.row.date, start: d.start, end: d.end });
+    }, () => $('bookDialog'));
   }
 
   function cancelDrag() { if (drag) { drag.ghost.remove(); drag = null; } }
@@ -1076,7 +1116,11 @@
     if (t.moved) return;
     e.preventDefault();
     if (t.scrolling || Date.now() - lastScrollAt < SCROLL_SETTLE_MS) return;
-    if (t.onPick && state.pick) { const slot = state.pick; clearPick(); openBooking(slot); return; }
+    if (t.onPick && state.pick) {
+      const slot = state.pick;
+      morph($('main').querySelector('.ghost.pick'), () => { clearPick(); openBooking(slot); }, () => $('bookDialog'));
+      return;
+    }
     pickSlot(t.track, t.x);
   }, { passive: false });
   document.addEventListener('touchcancel', () => { if (touch) clearTimeout(touch.timer); touch = null; cancelDrag(); });
@@ -1134,7 +1178,7 @@
 
   $('main').addEventListener('click', (e) => {
     const blk = e.target.closest('.blk.res');
-    if (blk) { openDetail(blk.dataset.id); return; }
+    if (blk) { morph(blk, () => openDetail(blk.dataset.id), () => $('detailDialog')); return; }
     const cell = e.target.closest('.mc');
     if (cell) { state.date = cell.dataset.date; setView('day'); return; }
     const dayLabel = e.target.closest('.tl-label[data-date]');
@@ -1636,9 +1680,11 @@
     delete temp.adminPassword;
     const entry = { r: temp, status: 'sending' };
     state.pending.push(entry);
-    $('bookDialog').close();
-    if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
-    else if (state.data) render();
+    morph($('bookDialog'), () => {
+      $('bookDialog').close();
+      if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
+      else if (state.data) render();
+    }, () => bandEl(temp.id));
     try {
       const res = await api('createReservation', payload);
       if (!res || !res.ok) {
@@ -1678,9 +1724,11 @@
     const entry = { r: temp, status: 'sending' };
     state.pending.push(entry);
     state.hidden.set(orig.id, orig.date);
-    $('bookDialog').close();
-    if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
-    else if (state.data) render();
+    morph($('bookDialog'), () => {
+      $('bookDialog').close();
+      if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
+      else if (state.data) render();
+    }, () => bandEl(temp.id));
     const restore = () => {
       state.pending = state.pending.filter((x) => x !== entry);
       state.hidden.delete(orig.id);
@@ -1932,6 +1980,8 @@
     load({ force: true });
   });
   $('loginDialog').addEventListener('cancel', (e) => e.preventDefault());
+  // Esc で予約の詳細を閉じるときも、帯へ縮んで戻る
+  $('detailDialog').addEventListener('cancel', (e) => { if (VT_OK) { e.preventDefault(); closeDetail(); } });
 
   // ---------------- 限定公開の部屋（演習室など） ----------------
   // 一般の利用者には存在を知らせないため、入口は …/yoyaku/?limited の URL だけ。パスワードを確かめてから端末に記憶する。
@@ -2112,7 +2162,9 @@
   }
   for (const dlg of dialogs) {
     dlg.addEventListener('click', (e) => {
-      if ((e.target === dlg && dlg.id !== 'loginDialog') || (e.target.hasAttribute && e.target.hasAttribute('data-close'))) dlg.close();
+      if ((e.target === dlg && dlg.id !== 'loginDialog') || (e.target.hasAttribute && e.target.hasAttribute('data-close'))) {
+        if (dlg.id === 'detailDialog') closeDetail(); else dlg.close();
+      }
     });
   }
 
