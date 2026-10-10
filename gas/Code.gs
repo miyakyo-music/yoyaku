@@ -822,8 +822,13 @@ function logAdmin_(ss, action, detail) {
 // 送れなかったときは CACHE_DIRTY を立て、5分ごとのトリガー（cacheRetry）が送り直す。
 // ---------------------------------------------------------------------------
 
+// 送り先と合言葉は、覚えておいた値（prop_ は10分間覚える）を使わず、毎回スクリプトプロパティから読む。
+// 合言葉を入れ替えたとき、すぐに新しい値で送れるようにするため
+function cacheProp_(key) {
+  return PropertiesService.getScriptProperties().getProperty(key) || '';
+}
 function cacheEnabled_() {
-  return !!(prop_('CACHE_PUSH_URL') && prop_('CACHE_PUSH_TOKEN'));
+  return !!(cacheProp_('CACHE_PUSH_URL') && cacheProp_('CACHE_PUSH_TOKEN'));
 }
 
 /** 今の予約表の写しを作って送る。成功すれば true（失敗の理由は CACHE_LAST_ERROR に残す） */
@@ -851,9 +856,9 @@ function pushCache_() {
       body.settings = publicSettings_(ctx.settings);
       body.closures = readClosures_(ctx.ss).filter(c => c.date >= windowFrom && c.date <= windowTo && visible(c));
     }
-    const res = UrlFetchApp.fetch(prop_('CACHE_PUSH_URL'), {
+    const res = UrlFetchApp.fetch(cacheProp_('CACHE_PUSH_URL').trim(), {
       method: 'post', contentType: 'application/json', payload: JSON.stringify(body),
-      headers: { Authorization: 'Bearer ' + prop_('CACHE_PUSH_TOKEN') }, muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + cacheProp_('CACHE_PUSH_TOKEN').trim() }, muteHttpExceptions: true,
     });
     const ok = res.getResponseCode() === 200;
     const detail = ok ? '' : '応答 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200);
