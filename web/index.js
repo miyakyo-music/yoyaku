@@ -615,13 +615,14 @@
       update();
       to = getTo();
       if (to && (to.tagName === 'DIALOG' ? to.open : onScreen(to))) to.style.viewTransitionName = 'morph';
+      else { to = null; document.documentElement.classList.add('vt-noto'); } // 行き先がないときは、その場で薄く消す（CSS）
     });
     t.ready.catch(() => {}); // 画面が隠れているときなどは動きだけ省かれる（切り替えそのものは行われる）
     t.finished.finally(() => {
       from.style.viewTransitionName = '';
       if (to) to.style.viewTransitionName = '';
       document.body.classList.remove('vt-morph');
-      document.documentElement.classList.remove('vt-close');
+      document.documentElement.classList.remove('vt-close', 'vt-noto');
     });
   }
   /** 予約の詳細を閉じる（その帯が見えていれば、帯へ縮んで戻る） */

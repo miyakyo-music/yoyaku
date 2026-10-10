@@ -910,8 +910,12 @@ html.vt-close::view-transition-image-pair(morph) { animation-name: vt-radius-clo
 ::view-transition-old(morph), html.vt-close::view-transition-new(morph) { object-position: left center; animation-duration: .12s; animation-timing-function: ease-out; }
 /* 小窓の写しは、上端・左右中央をそろえて少し遅れて出す（閉じるときは先に消す） */
 ::view-transition-new(morph) { object-position: center top; animation: .26s ease-out .08s both vt-fade-in; }
-html.vt-close::view-transition-old(morph) { object-position: center top; animation: .16s ease-in both vt-fade-out; }
-html.vt-close::view-transition-new(morph) { animation: .2s ease-out .22s both vt-fade-in; }
+/* 閉じるとき: 小窓の写しが消えきる前に帯の写しを出し始め、重ねて切り替える（すき間があると、中身のない
+   ぼかしの四角だけが一瞬残って見えた） */
+html.vt-close::view-transition-old(morph) { object-position: center top; animation: .22s ease-in .06s both vt-fade-out; }
+html.vt-close::view-transition-new(morph) { animation: .18s ease-out .16s both vt-fade-in; }
+/* 行き先（帯）が見えないとき（画面の外・別の日）: 四角ごと薄くして消す（ぼかしだけが残らないように） */
+html.vt-noto::view-transition-group(morph) { animation: .22s ease-in both vt-fade-out; }
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out { to { opacity: 0; } }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .26s; }
