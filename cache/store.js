@@ -116,7 +116,7 @@
       const p = (req && req.params && typeof req.params === 'object') ? req.params : {};
       this.memo = { admin: {} };
       this.device = String(p.adminDevice || '').slice(0, 64);
-      if (!this.isPrimary()) return MOVED;
+      if (!this.isPrimary()) return withVersion(Object.assign({}, MOVED));
       const fn = Object.prototype.hasOwnProperty.call(API, action) ? API[action] : null;
       if (!fn) return withVersion(fail('不明な操作です。', 'BAD_REQUEST'));
 
@@ -318,16 +318,19 @@
      */
     sync(op, body) {
       body = body || {};
+      const res = this.syncTxn(op, body);
+      // 受付を始めたら、開いている画面と GAS に知らせる（取引の外で。取引の中では通信を始めない）
+      if (op === 'finish' && res.ok && this.hooks.changed) { try { this.hooks.changed(); } catch (e) { /* 無視 */ } }
+      return res;
+    }
+
+    syncTxn(op, body) {
       return this.db.txn(() => {
         if (op === 'status') return this.status();
         if (op === 'changes') return this.mirrorChanges(Number(body.after) || 0);
         if (op === 'full') return this.mirrorFull();
         if (op === 'disable') { this.kput('primary', '0'); return { ok: true }; }
-        if (op === 'finish') {
-          this.kput('primary', '1');
-          if (this.hooks.changed) this.hooks.changed();
-          return this.status();
-        }
+        if (op === 'finish') { this.kput('primary', '1'); return this.status(); }
         if (this.isPrimary()) return fail('すでに Cloudflare が正本になっています。先に GAS へ戻してから移し直してください。', 'ALREADY');
         if (op === 'begin') {
           for (const t of ['reservations', 'rooms', 'closures', 'settings', 'bugs', 'changes']) this.db.exec(`DELETE FROM ${t}`);
