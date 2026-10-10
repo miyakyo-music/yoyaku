@@ -1023,10 +1023,10 @@ html.dark .c-purple { --res: rgba(191, 90, 242, .3); --res-border: #bf5af2; --re
 html.dark .c-green { --res: rgba(48, 209, 88, .28); --res-border: #30d158; --res-text: #b6f2c4; }
 html.dark body { background: var(--bg); }
 html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180deg, #000 0, #000 40%, rgba(0, 0, 0, .86) 70%, rgba(0, 0, 0, .72)); }
-/* 小窓を開いている間だけ、上部を不透明にする（後ろの画面を縮める・暗くすると、iPhone の Safari で上部のぼかしが効かず、
+/* 小窓を開いている間と、閉じて後ろの画面が元の大きさに戻りきるまで、上部を不透明にする（index.js の syncDepth。後ろの画面を縮める・暗くすると、iPhone の Safari で上部のぼかしが効かず、
    表がそのまま透けて見えたため。ふだんは半透明のまま、縁の屈折とぼかしで表を透かす） */
-html.dlg-open .topbar, html.dlg-open .refract .topbar { background: #fff; }
-html.dark.dlg-open .topbar, html.dark.dlg-open .refract .topbar { background: #000; }
+html.hdr-solid .topbar, html.hdr-solid .refract .topbar { background: #fff; }
+html.dark.hdr-solid .topbar, html.dark.hdr-solid .refract .topbar { background: #000; }
 html.dark .main, html.dark .tl-label, html.dark .tl-corner, html.dark .month .dow { background: var(--surface); }
 html.dark .tl-head { background: rgba(28, 28, 30, .9); }
 html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #222224; }

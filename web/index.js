@@ -2818,7 +2818,16 @@
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
   // 小窓が開いている間は、画面の本体を少し奥へ下げる（index.css の html.dlg-open .page）
-  const syncDepth = () => document.documentElement.classList.toggle('dlg-open', anyDialogOpen());
+  // 上部は、閉じたあと後ろの画面が元の大きさに戻りきるまで不透明のままにする（hdr-solid。戻る途中に半透明に戻すと、
+  // iPhone の Safari で上部のぼかしが効かず、表が透けて見えた）
+  let solidTimer = 0;
+  const syncDepth = () => {
+    const open = anyDialogOpen(), root = document.documentElement;
+    root.classList.toggle('dlg-open', open);
+    clearTimeout(solidTimer);
+    if (open) root.classList.add('hdr-solid');
+    else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 520); // 縮みが戻る 0.46秒＋少し
+  };
   const depthWatch = new MutationObserver(syncDepth);
   for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
   // ---------------- 自動更新（操作の邪魔をしない） ----------------
