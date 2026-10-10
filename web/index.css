@@ -452,9 +452,10 @@ dialog h2 { margin: 0; }
 .duration { font-size: 13px; font-weight: 600; margin: -4px 0 0; }
 .field input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* 編集用パスワードは password 型にせず伏字表示にする（ブラウザのパスワード提案・保存の対象にしないため） */
-.pin-input { -webkit-text-security: disc; text-security: disc; letter-spacing: .1em; }
-.pin-input::placeholder { letter-spacing: normal; }
-.pin-input.revealed { -webkit-text-security: none; text-security: none; }
+/* 編集用パスワード（4桁の数字）: 伏せ字にしない。伏せ字にすると Safari がパスワード欄とみなし、
+   上の「備考」をユーザー名と勘違いしてパスワード管理を出してしまうため */
+.pin-code { letter-spacing: .1em; }
+.pin-code::placeholder { letter-spacing: normal; }
 /* パスワード欄と「表示」ボタン */
 .pw-row { display: flex; gap: 6px; align-items: stretch; }
 .pw-row input { flex: 1; min-width: 0; }
