@@ -367,10 +367,14 @@ th, td { border-bottom: .5px solid var(--sep); }
 .info {
   /* macOS の「info.circle」に似せる: 細い線の丸に、立った細めの i。色は薄い灰色で控えめに。どこでも同じ大きさ（12px） */
   display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box;
-  width: 12px; height: 12px; margin: 0 0 0 4px; padding: 0 0 .5px; vertical-align: middle; position: relative; top: -1px;
+  width: 12px; height: 12px; margin: 0 0 0 4px; padding: 0; vertical-align: middle; position: relative; top: -1px;
   border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--muted); opacity: .65;
-  font: 500 8.5px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; cursor: help;
+  font-size: 0; cursor: help;
 }
+/* 中の「i」は文字ではなく点と棒で描く（文字だと端末のフォントによって上下左右にずれるため） */
+.info::before, .info::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); background: currentColor; }
+.info::before { top: 1.75px; width: 1.5px; height: 1.5px; border-radius: 50%; }
+.info::after { top: 4.25px; width: 1.25px; height: 4px; border-radius: .5px; }
 @media (hover: hover) { .info:hover { opacity: 1; } }
 .info[aria-expanded="true"] { opacity: 1; color: var(--accent); }
 /* 吹き出し: macOS の説明（ヘルプタグ）に似せた、小さく控えめな札。マウスの少し右下に出る */
