@@ -43,8 +43,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* 画面の本体（帯・上部・表・＋ボタン）。小窓を開くと、まとめて少し縮んで奥へ下がり、閉じると戻る（iPhone のシートと同じ考え方）。
    小窓が広がる動きと同じ速さ・弾み方にそろえる。縮める間だけ角を丸め、まわりに背景の色をのぞかせる */
 .page { flex: 1; min-height: 0; display: flex; flex-direction: column; transform-origin: 50% 40%;
-  transition: transform .46s cubic-bezier(.28, 1.12, .4, 1), border-radius .46s; }
-html.dlg-open .page { transform: scale(.965); border-radius: 16px; overflow: hidden; }
+  transition: transform .46s cubic-bezier(.28, 1.12, .4, 1), border-radius .46s, filter .3s ease; }
+/* 後ろを暗くするのも、幕（::backdrop）ではなく画面の本体で行う。幕は閉じた瞬間に消えるので、暗さがぱっと戻って見えたため */
+html.dlg-open .page { transform: scale(.965); border-radius: 16px; overflow: hidden; filter: brightness(.78); }
+html.dark.dlg-open .page { filter: brightness(.82); }
 @media (prefers-reduced-motion: reduce) { html.dlg-open .page { transform: none; border-radius: 0; } }
 
 /* ---------- ヘッダー ---------- */
@@ -912,7 +914,11 @@ html.dark {
 }
 /* Chrome など（屈折あり）の小窓は、縁の屈折を見せるためにぼかしを弱くしている（index.js の LENS.dialog の blur）。カードも同じにする */
 html.refract, html.dark.refract { --morph-blur: blur(5px) saturate(180%); }
-body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
+body.vt-morph dialog { transition: none !important; }
+/* 動きの間、後ろの画面（root）は「前の姿」と「後の姿」を重ねて切り替えず、後の姿をそのまま見せる。後ろの画面は
+   縮む・戻る動き（.page）と幕の濃さの変化を自分で行うので、重ねると2枚がずれて、上部の帯から下の表が二重に透けて見えた */
+html.vt-morph::view-transition-old(root) { animation: none; opacity: 0; }
+html.vt-morph::view-transition-new(root) { animation: none; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
   overflow: clip; border-radius: 22px;
@@ -1085,3 +1091,6 @@ html.dark .hovercard, html.dark .refract .hovercard {
 }
 html.dark .hovercard .summary { background: rgba(255, 255, 255, .07); }
 
+
+/* 小窓の幕は透明にする（後ろを暗くするのは画面の本体 .page。上の .page の説明）。ダークの幕の色より後ろに置く */
+html body:not(.dialog-fallback) dialog::backdrop { background: transparent; }

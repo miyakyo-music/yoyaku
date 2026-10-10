@@ -609,6 +609,7 @@
     let to = null;
     from.style.viewTransitionName = 'morph';
     document.body.classList.add('vt-morph');
+    document.documentElement.classList.add('vt-morph');
     document.documentElement.classList.toggle('vt-close', from.tagName === 'DIALOG'); // 小窓 → 帯の向き
     const t = document.startViewTransition(() => {
       from.style.viewTransitionName = '';
@@ -634,7 +635,7 @@
       from.style.viewTransitionName = '';
       if (to) to.style.viewTransitionName = '';
       document.body.classList.remove('vt-morph');
-      document.documentElement.classList.remove('vt-close', 'vt-noto');
+      document.documentElement.classList.remove('vt-close', 'vt-noto', 'vt-morph');
     });
   }
   /** 予約の詳細を閉じる（その帯が見えていれば、帯へ縮んで戻る） */
