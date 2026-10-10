@@ -870,13 +870,24 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
 
 /* 予約の帯と小窓のあいだを、形を変えながらつなぐ（View Transitions。JS の morph()）。
    動いている間は、小窓自身の広がる動きを止める（二重に動かさない）。
-   帯の写しは引き伸ばして（帯の色が広がって小窓になるように）、小窓の写しは上端をそろえて切り抜いて重ねる（閉じるときは逆。html.vt-close） */
+   広がるのは無地のカード（--morph-bg）で、中身は拡大・縮小しない: 帯の文字はすぐ消し、小窓の中身は本来の大きさのまま
+   カードが広がるにつれて見えてくる（写しを引き伸ばすと、文字まで大きくせり出して見えたため） */
+:root { --morph-bg: rgba(255, 255, 255, .94); }
+html.dark { --morph-bg: rgba(44, 44, 46, .96); }
 body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
-::view-transition-image-pair(morph) { overflow: clip; border-radius: 14px; }
-::view-transition-old(morph), ::view-transition-new(morph) { height: 100%; animation-duration: .26s; animation-timing-function: ease-out; }
-::view-transition-old(morph), html.vt-close::view-transition-new(morph) { object-fit: fill; }
-::view-transition-new(morph), html.vt-close::view-transition-old(morph) { object-fit: cover; object-position: top; }
+::view-transition-image-pair(morph) {
+  overflow: clip; border-radius: 16px; background: var(--morph-bg); box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+}
+::view-transition-old(morph), ::view-transition-new(morph) { width: 100%; height: 100%; object-fit: none; }
+/* 帯の写しは左端・上下中央のまま、すぐ消す */
+::view-transition-old(morph), html.vt-close::view-transition-new(morph) { object-position: left center; animation-duration: .12s; animation-timing-function: ease-out; }
+/* 小窓の写しは、上端・左右中央をそろえて少し遅れて出す（閉じるときは先に消す） */
+::view-transition-new(morph) { object-position: center top; animation: .26s ease-out .08s both vt-fade-in; }
+html.vt-close::view-transition-old(morph) { object-position: center top; animation: .16s ease-in both vt-fade-out; }
+html.vt-close::view-transition-new(morph) { animation: .2s ease-out .22s both vt-fade-in; }
+@keyframes vt-fade-in { from { opacity: 0; } }
+@keyframes vt-fade-out { to { opacity: 0; } }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .26s; }
 
 /* 小窓の中身: 上の入力欄だけをスクロールさせ、下端の「戻る」「予約確定」などは枠の一部として固定する。
