@@ -826,9 +826,10 @@ function cacheEnabled_() {
   return !!(prop_('CACHE_PUSH_URL') && prop_('CACHE_PUSH_TOKEN'));
 }
 
-/** 今の予約表の写しを作って送る。成功すれば true */
+/** 今の予約表の写しを作って送る。成功すれば true（失敗の理由は CACHE_LAST_ERROR に残す） */
 function pushCache_() {
   if (!cacheEnabled_()) return false;
+  const props = PropertiesService.getScriptProperties();
   try {
     const version = Date.now(); // 読み込む直前の時刻を版にする（新しい版ほど新しい内容）
     const ctx = context_({}); // 管理者でも限定公開でもない、一般の人の見え方
@@ -855,13 +856,15 @@ function pushCache_() {
       headers: { Authorization: 'Bearer ' + prop_('CACHE_PUSH_TOKEN') }, muteHttpExceptions: true,
     });
     const ok = res.getResponseCode() === 200;
-    if (!ok) console.error('高速キャッシュへの送信に失敗: ' + res.getResponseCode() + ' ' + res.getContentText().slice(0, 200));
-    PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', ok ? '' : '1');
-    if (ok) PropertiesService.getScriptProperties().setProperty('CACHE_PUSHED_DATE', today);
+    const detail = ok ? '' : '応答 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200);
+    if (!ok) console.error('高速キャッシュへの送信に失敗: ' + detail);
+    props.setProperty('CACHE_DIRTY', ok ? '' : '1');
+    props.setProperty('CACHE_LAST_ERROR', detail);
+    if (ok) props.setProperty('CACHE_PUSHED_DATE', today);
     return ok;
   } catch (e) {
     console.error(e);
-    try { PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', '1'); } catch (e2) { /* 何もしない */ }
+    try { props.setProperty('CACHE_DIRTY', '1'); props.setProperty('CACHE_LAST_ERROR', String(e && e.message || e).slice(0, 200)); } catch (e2) { /* 何もしない */ }
     return false;
   }
 }
@@ -878,7 +881,11 @@ function cacheRetry(e) {
   if (fromTrigger && !due) return;
   const ok = pushCache_();
   if (!fromTrigger) {
-    try { SpreadsheetApp.getUi().alert(ok ? '高速キャッシュに送りました。' : '高速キャッシュに送れませんでした。スクリプトプロパティの CACHE_PUSH_URL・CACHE_PUSH_TOKEN と、Cloudflare 側の設定を確かめてください。'); } catch (err) { /* 画面がない */ }
+    const why = props.getProperty('CACHE_LAST_ERROR') || '';
+    try {
+      SpreadsheetApp.getUi().alert(ok ? '高速キャッシュに送りました。'
+        : '高速キャッシュに送れませんでした。\n理由: ' + why + '\n\n「応答 401」なら合言葉が GAS と GitHub（Cloudflare）で違います。スクリプトプロパティの CACHE_PUSH_URL・CACHE_PUSH_TOKEN と、Cloudflare 側の設定を確かめてください。');
+    } catch (err) { /* 画面がない */ }
   }
 }
 
