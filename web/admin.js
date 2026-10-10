@@ -370,13 +370,17 @@
    * 部屋を複数選べる欄（何も選ばなければ全室）。選択欄と同じ見た目のボタンを押すと、部屋のチェックの一覧が下に開く。
    * 休館の「対象」と、予約履歴の「部屋」で使う
    */
-  function roomPicker(prefix) {
+  function roomPicker(prefix, opts) {
+    opts = opts || {};
     const pick = $(prefix + 'Pick'), btn = $(prefix + 'Btn'), pop = $(prefix + 'Pop');
     const chosen = new Set();
     function show() {
       pop.querySelectorAll('input').forEach((c) => { c.checked = c.value ? chosen.has(c.value) : !chosen.size; });
       const names = state.data.rooms.filter((r) => chosen.has(r.id)).map((r) => roomName(r.id));
-      btn.textContent = !names.length ? '全室' : names.length === 1 ? names[0] : `${names[0].replace(/（.*$/, '')} ほか${names.length - 1}室`;
+      const text = names.length === 1 ? names[0] : `${(names[0] || '').replace(/（.*$/, '')} ほか${names.length - 1}室`;
+      // 丸いボタン（opts.chip）のときは、何も選んでいなければ項目名だけを出し、選んでいれば青くする
+      btn.textContent = !names.length ? (opts.chip || '全室') : text;
+      btn.classList.toggle('on', !!names.length);
       btn.title = names.join('、');
     }
     function toggle(open) {
@@ -390,6 +394,7 @@
       else if (c.checked) chosen.add(c.value);
       else chosen.delete(c.value);
       show();
+      if (opts.onChange) opts.onChange();
     });
     document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !pick.contains(e.target)) toggle(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) { toggle(false); btn.focus(); } });
@@ -774,7 +779,7 @@
   // CSV・Excel（.xlsx）・PDF のファイルにする。ファイルづくりは外部の部品を使わず、この画面の中で行う
   const EXPORT_MAX_DAYS = 731; // 一度に書き出せる期間（2年）
   const EXPORT_HEAD = ['日付', '曜日', '開始', '終了', '部屋', '学籍番号/所属', '氏名・団体名', '備考'];
-  const exportPick = roomPicker('xRoom');
+  const exportPick = roomPicker('xRoom', { chip: '部屋', onChange: () => refilter() });
   const showExportFrom = dateField('xFrom');
   const showExportTo = dateField('xTo');
   function renderExportForm() {
@@ -784,11 +789,43 @@
     if (!$('xTo').value) { const [y, m] = t.split('-').map(Number); $('xTo').value = ymd(new Date(y, m, 0)); } // 今月の末日まで
     showExportFrom();
     showExportTo();
-    if (!$('xWeekdays').children.length) {
-      $('xWeekdays').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((i) =>
-        `<label class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}">${WD[i]}</label>`).join('');
+    if (!$('xWdPop').children.length) {
+      $('xWdPop').innerHTML = `<label class="check"><input type="checkbox" value="">すべての曜日</label>` + [1, 2, 3, 4, 5, 6, 0].map((i) =>
+        `<label class="check ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}">${WD[i]}曜日</label>`).join('');
+      showWeekdays();
     }
+    refilter(); // 一覧を出す（同じ期間は1分間読み直さない）
   }
+
+  // 曜日（丸いボタンを押すと一覧が開く。何も選ばなければすべて）
+  const exportWds = new Set();
+  function showWeekdays() {
+    $('xWdPop').querySelectorAll('input').forEach((c) => { c.checked = c.value ? exportWds.has(Number(c.value)) : !exportWds.size; });
+    const list = [1, 2, 3, 4, 5, 6, 0].filter((i) => exportWds.has(i));
+    $('xWdBtn').textContent = list.length ? list.map((i) => WD[i]).join('・') : '曜日';
+    $('xWdBtn').classList.toggle('on', !!list.length);
+  }
+  function toggleWd(open) {
+    $('xWdPop').hidden = !open;
+    $('xWdBtn').setAttribute('aria-expanded', String(open));
+  }
+  $('xWdBtn').addEventListener('click', () => toggleWd($('xWdPop').hidden));
+  $('xWdPop').addEventListener('change', (e) => {
+    const c = e.target;
+    if (!c.value) exportWds.clear();
+    else if (c.checked) exportWds.add(Number(c.value));
+    else exportWds.delete(Number(c.value));
+    showWeekdays();
+    refilter();
+  });
+  document.addEventListener('pointerdown', (e) => { if (!$('xWdPop').hidden && !$('xWdPick').contains(e.target)) toggleWd(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('xWdPop').hidden) { toggleWd(false); $('xWdBtn').focus(); } });
+  // 重要な予定（押すたびに入・切）
+  $('xColor').addEventListener('click', () => {
+    $('xColor').setAttribute('aria-pressed', String($('xColor').getAttribute('aria-pressed') !== 'true'));
+    $('xColor').classList.toggle('on', $('xColor').getAttribute('aria-pressed') === 'true');
+    refilter();
+  });
 
   // 検索は、全角・半角、大文字・小文字、ひらがな・カタカナ、空白の違いを区別しない（予約表の検索と同じ）
   const normText = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '')
@@ -796,8 +833,8 @@
   /** 検索・絞り込みの条件（何も指定がなければ null） */
   function exportFilter() {
     const q = normText($('xQuery').value);
-    const wds = [...$('xWeekdays').querySelectorAll('input:checked')].map((c) => Number(c.value));
-    const color = $('xColor').checked;
+    const wds = [1, 2, 3, 4, 5, 6, 0].filter((i) => exportWds.has(i));
+    const color = $('xColor').getAttribute('aria-pressed') === 'true';
     if (!q && !wds.length && !color) return null;
     const label = [q ? `検索「${$('xQuery').value.trim()}」` : '', wds.length ? `曜日: ${wds.map((i) => WD[i]).join('')}` : '', color ? '重要な予定だけ' : '']
       .filter(Boolean).join('・');
@@ -847,8 +884,9 @@
     err.textContent = '';
     exportPick.close();
     toggleFmt(false);
+    toggleWd(false);
     const label = btn.textContent;
-    $('xShowBtn').disabled = $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
+    $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
     btn.textContent = '読み込み中…';
     try {
       await fn(await exportRows());
@@ -856,7 +894,7 @@
       err.textContent = errMessage(e);
     } finally {
       btn.textContent = label;
-      $('xShowBtn').disabled = $('xPrintBtn').disabled = $('xFmtBtn').disabled = false;
+      $('xPrintBtn').disabled = $('xFmtBtn').disabled = false;
     }
   }
   function saveFile(blob, name) {
@@ -1110,25 +1148,39 @@
     return `<table class="list-table"><thead><tr><th>日付</th><th>時間</th><th>部屋</th><th>氏名・団体名</th><th>学籍番号/所属</th><th>備考</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
-  // 表示: この画面の、欄の下に表を出す
-  $('xShowBtn').addEventListener('click', () => withExport($('xShowBtn'), async (data) => {
-    const { from, to, list, rooms } = data;
-    $('xResultHead').textContent = `${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　${rooms}　${list.length}件` +
-      (list.length > SHOW_MAX ? `（先頭の${SHOW_MAX}件を表示。すべては印刷・エクスポートで）` : '');
+  // 一覧: 条件を変えるたびに、欄の下の表を出し直す（入力の途中は少し待つ。古い読み込みの結果は捨てる）
+  let historySeq = 0;
+  async function showHistory() {
+    const seq = ++historySeq;
+    const head = $('xResultHead');
+    $('exportError').textContent = '';
+    head.textContent = '読み込み中…';
+    let data;
+    try {
+      data = await exportRows();
+    } catch (e) {
+      if (seq !== historySeq) return;
+      head.textContent = '';
+      $('xResultBody').innerHTML = '';
+      $('exportError').textContent = errMessage(e);
+      return;
+    }
+    if (seq !== historySeq) return;
+    const { list } = data;
+    const cond = exportFilter();
+    head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span>${esc(cond.label)}</span>` : '') +
+      (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
     $('xResultBody').innerHTML = list.length ? listTable(data, SHOW_MAX) : '<p class="empty">条件に合う予約はありません。</p>';
-    $('xResult').hidden = false;
-  }));
-  // 一覧を出しているときは、検索・絞り込みを変えるとすぐ表示を変える（入力の途中は少し待つ）
-  let refilterTimer = 0;
-  function refilter() {
-    if ($('xResult').hidden) return;
-    clearTimeout(refilterTimer);
-    refilterTimer = setTimeout(() => $('xShowBtn').click(), 250);
   }
-  $('xQuery').addEventListener('input', refilter);
-  $('xWeekdays').addEventListener('change', refilter);
-  $('xColor').addEventListener('change', refilter);
-  $('xQuery').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(refilterTimer); $('xShowBtn').click(); } });
+  let refilterTimer = 0;
+  function refilter(wait) {
+    clearTimeout(refilterTimer);
+    refilterTimer = setTimeout(showHistory, wait == null ? 0 : wait);
+  }
+  $('xQuery').addEventListener('input', () => refilter(250));
+  $('xQuery').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); refilter(0); } });
+  $('xFrom').addEventListener('change', () => refilter(300));
+  $('xTo').addEventListener('change', () => refilter(300));
 
   // 印刷: 印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin.css の @media print）
   $('xPrintBtn').addEventListener('click', () => withExport($('xPrintBtn'), async (data) => {
