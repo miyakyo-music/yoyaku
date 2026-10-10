@@ -106,7 +106,17 @@
     setDirty('settings', false);
   }
 
+  // 「未保存の変更があります」は、保存した時点の内容と今の内容を比べて出す（変えて元に戻したら消える）
+  const savedSnap = { rooms: '', settings: '' };
+  function snapshot(key) {
+    if (key === 'rooms') return JSON.stringify(state.rooms.map((r) => Object.keys(r).sort().map((k) => [k, String(r[k] ?? '')])));
+    return JSON.stringify([...$('settingsForm').elements].map((el) => (el.type === 'checkbox' ? el.checked : el.value)));
+  }
+  function checkDirty(key) {
+    setDirty(key, snapshot(key) !== savedSnap[key]);
+  }
   function setDirty(key, value) {
+    if (!value) savedSnap[key] = snapshot(key);
     state.dirty[key] = value;
     const cap = key === 'rooms' ? 'Rooms' : 'Settings';
     $('dot' + cap).hidden = !value;
@@ -150,7 +160,7 @@
     const r = state.rooms[Number(row.dataset.i)];
     r[el.dataset.f] = el.value;
     row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
-    setDirty('rooms', true);
+    checkDirty('rooms');
   });
   $('roomList').addEventListener('change', (e) => {
     const el = e.target.closest('select[data-f]');
@@ -159,7 +169,7 @@
     const r = state.rooms[Number(row.dataset.i)];
     r[el.dataset.f] = el.value;
     row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
-    setDirty('rooms', true);
+    checkDirty('rooms');
   });
   $('roomList').addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
@@ -178,7 +188,7 @@
       if (rooms[i].id && !confirm(`「${rooms[i].name}」を削除します。\n（「保存」を押すまで反映されません）`)) return;
       rooms.splice(i, 1);
     } else return;
-    setDirty('rooms', true);
+    checkDirty('rooms');
     renderRooms();
   });
   // ドラッグで並べ替え（マウス・指の両方。左端の番号の列をつまんで上下に動かす）
@@ -227,7 +237,7 @@
     if (!moved) return;
     const order = [...$('roomList').querySelectorAll('.room')].map((el) => Number(el.dataset.i));
     state.rooms = order.map((i) => state.rooms[i]);
-    setDirty('rooms', true);
+    checkDirty('rooms');
     renderRooms();
   }
   $('roomList').addEventListener('pointerup', endSort);
@@ -236,7 +246,7 @@
   $('addRoomBtn').addEventListener('click', () => {
     state.rooms.push({ id: '', name: '', tags: '', equipment: '', restriction: '', note: '' });
     openRooms.add(state.rooms[state.rooms.length - 1]);
-    setDirty('rooms', true);
+    checkDirty('rooms');
     renderRooms();
     const inputs = $('roomList').querySelectorAll('[data-f="name"]');
     const last = inputs[inputs.length - 1];
@@ -288,8 +298,8 @@
     $('settingsError').textContent = '';
     $('settingsWarn').textContent = '';
   }
-  $('settingsForm').addEventListener('input', () => setDirty('settings', true));
-  $('settingsForm').addEventListener('change', () => setDirty('settings', true));
+  $('settingsForm').addEventListener('input', () => checkDirty('settings'));
+  $('settingsForm').addEventListener('change', () => checkDirty('settings'));
   $('settingsForm').addEventListener('submit', (e) => e.preventDefault());
   $('saveSettingsBtn').addEventListener('click', async () => {
     const err = $('settingsError');
