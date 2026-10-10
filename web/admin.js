@@ -816,7 +816,7 @@
     exportPick.close();
     toggleFmt(false);
     const label = btn.textContent;
-    $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
+    $('xShowBtn').disabled = $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
     btn.textContent = '読み込み中…';
     try {
       await fn(await exportRows());
@@ -824,7 +824,7 @@
       err.textContent = errMessage(e);
     } finally {
       btn.textContent = label;
-      $('xPrintBtn').disabled = $('xFmtBtn').disabled = false;
+      $('xShowBtn').disabled = $('xPrintBtn').disabled = $('xFmtBtn').disabled = false;
     }
   }
   function saveFile(blob, name) {
@@ -944,7 +944,7 @@
   // PDF: 印刷と同じ表を A4 縦で。文字は文字のまま入れ（小さく、検索・コピーもできる）、日本語の書体はファイルに入れず、
   // 開く端末のゴシック体を使う（PDF の決まりにある日本語の標準書体 HeiseiKakuGo-W5 を指定。Mac・iPhone・Windows・Chrome で表示できる）
   const PAGE = { w: 595.28, h: 841.89, m: 34 }; // A4（pt）と余白（12mm）
-  const PDF_COLS = [{ k: '日付', w: 60 }, { k: '時間', w: 86 }, { k: '部屋', w: 112 }, { k: '氏名・団体名', w: 108 }, { k: '学籍番号/所属', w: 72 }, { k: '備考', w: 0 }];
+  const PDF_COLS = [{ k: '日付', w: 60 }, { k: '時間', w: 86 }, { k: '部屋', w: 104 }, { k: '氏名・団体名', w: 100 }, { k: '学籍番号/所属', w: 72 }, { k: '備考', w: 0 }];
   /** 文字の幅（pt）。半角は文字の大きさの半分、全角は同じ（PDF の中の決まり /W と合わせる） */
   const halfWidth = (c) => c < 0x7f || (c >= 0xff61 && c <= 0xff9f);
   const textWidth = (t, size) => [...String(t)].reduce((a, ch) => a + (halfWidth(ch.codePointAt(0)) ? 0.5 : 1), 0) * size;
@@ -1063,23 +1063,38 @@
     return new Blob(chunks, { type: 'application/pdf' });
   }
 
-  // 印刷: 印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin.css の @media print）
-  $('xPrintBtn').addEventListener('click', () => withExport($('xPrintBtn'), async ({ from, to, list, rooms, stamp }) => {
-    const crossYear = from.slice(0, 4) !== to.slice(0, 4); // 年をまたぐ期間では、日付に年も出す
+  /** 一覧の表（画面の表示と印刷で共通）。日付は日ごとに最初の行だけ。年をまたぐ期間では年も出す */
+  const SHOW_MAX = 2000; // 画面に並べる上限（それより多いときは、印刷・エクスポートで全部を見てもらう）
+  function listTable({ from, to, list }, max) {
+    const crossYear = from.slice(0, 4) !== to.slice(0, 4);
     let prev = '';
-    const body = list.map((r) => {
+    const body = list.slice(0, max || list.length).map((r) => {
       const first = r.date !== prev;
       prev = r.date;
       const w = wdOf(r.date);
       return `<tr class="${first ? 'day' : ''}"><td class="d">${first ? `${crossYear ? slash(r.date) : slash(r.date).slice(5)}<span class="${w === '土' ? 'sat' : w === '日' ? 'sun' : ''}">(${w})</span>` : ''}</td>` +
         `<td class="t">${hm(r.start)}〜${hm(r.end)}</td><td>${esc(roomName(r.roomId))}</td><td>${esc(r.name)}</td><td>${esc(r.affiliation)}</td><td class="m">${esc(r.memo)}</td></tr>`;
     }).join('');
+    return `<table class="list-table"><thead><tr><th>日付</th><th>時間</th><th>部屋</th><th>氏名・団体名</th><th>学籍番号/所属</th><th>備考</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  // 表示: この画面の、欄の下に表を出す
+  $('xShowBtn').addEventListener('click', () => withExport($('xShowBtn'), async (data) => {
+    const { from, to, list, rooms } = data;
+    $('xResultHead').textContent = `${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　${rooms}　${list.length}件` +
+      (list.length > SHOW_MAX ? `（先頭の${SHOW_MAX}件を表示。すべては印刷・エクスポートで）` : '');
+    $('xResultBody').innerHTML = list.length ? listTable(data, SHOW_MAX) : '<p class="empty">この期間・部屋の予約はありません。</p>';
+    $('xResult').hidden = false;
+  }));
+
+  // 印刷: 印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin.css の @media print）
+  $('xPrintBtn').addEventListener('click', () => withExport($('xPrintBtn'), async (data) => {
+    const { from, to, list, rooms, stamp } = data;
     let area = $('printArea');
     if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
     area.innerHTML = `<h1>${esc(state.data.settings.title)} 予約一覧</h1>` +
       `<p class="meta">期間: ${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　部屋: ${esc(rooms)}　${list.length}件<span>出力: ${stamp}</span></p>` +
-      (list.length ? `<table><thead><tr><th>日付</th><th>時間</th><th>部屋</th><th>氏名・団体名</th><th>学籍番号/所属</th><th>備考</th></tr></thead><tbody>${body}</tbody></table>`
-        : '<p>この期間・部屋の予約はありません。</p>');
+      (list.length ? listTable(data) : '<p>この期間・部屋の予約はありません。</p>');
     window.print();
   }));
 

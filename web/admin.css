@@ -523,6 +523,12 @@ html.dark .field select, html.dark select.in, html.dark .bug-head select, html.d
   #printArea .sat { color: #1d4ed8; }
   #printArea .sun { color: #c62828; }
 }
+/* 画面に出す一覧の表（日の変わり目に線。備考は折り返す） */
+#xResult { margin-top: 14px; }
+#xResult .lead { margin: 0 0 6px; }
+#xResult .list-table td { font-variant-numeric: tabular-nums; }
+#xResult .list-table tr.day td { border-top: 1px solid var(--line-strong); }
+#xResult .list-table td.m { white-space: normal; min-width: 140px; }
 /* エクスポートの形式の一覧 */
 .fmt-pop { min-width: 220px; }
 .fmt-pop button {
@@ -531,3 +537,21 @@ html.dark .field select, html.dark select.in, html.dark .bug-head select, html.d
 }
 .fmt-pop button small { font-size: 12px; font-weight: 400; color: var(--muted); }
 @media (hover: hover) { .fmt-pop button:hover { background: var(--fill-field); } }
+/* スマホ: 一覧はカードにせず、日付の見出しの下に1件ずつ「時間｜部屋 ／ 名前・所属 ／ 備考」と詰めて並べる */
+@media (max-width: 600px) {
+  #xResult .table-wrap tbody { display: block; }
+  #xResult .table-wrap tr, html.dark #xResult .table-wrap tr {
+    grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "d d d" "t room room" "t name aff" "t memo memo";
+    gap: 1px 8px; padding: 7px 2px; border-radius: 0; background: none; border-bottom: .5px solid var(--sep);
+  }
+  #xResult .table-wrap tr.day td.d { padding-top: 10px; }
+  #xResult .table-wrap td.d { grid-area: d; font-weight: 600; }
+  #xResult .table-wrap td.d:empty { display: none; }
+  #xResult .table-wrap td:nth-child(2) { grid-area: t; color: var(--text); font-size: 14px; white-space: nowrap; min-width: 92px; }
+  #xResult .table-wrap td:nth-child(3) { grid-area: room; color: var(--text); font-size: 14px; }
+  #xResult .table-wrap td:nth-child(4) { grid-area: name; color: var(--muted); font-size: 13px; }
+  #xResult .table-wrap td:nth-child(5) { grid-area: aff; color: var(--muted); font-size: 13px; }
+  #xResult .table-wrap td.m { grid-area: memo; min-width: 0; color: var(--muted); font-size: 12px; }
+  #xResult .table-wrap td.m:empty { display: none; }
+  #xResult .list-table tr.day td { border-top: 0; }
+}
