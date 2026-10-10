@@ -122,22 +122,22 @@
 
       // 合言葉・パスワードの確認は時間のかかる計算（待ちが入る）なので、先に済ませておく。
       // このあとの処理は待たずに一気に行う（その間に別の書き込みが割り込まない）
+      await this.upgradePassword();
       await this.prepareAdmin(p.adminPassword);
       const pin = String(p.pin || '').trim();
       if (pin && !/^\d{4}$/.test(pin)) await this.prepareAdmin(pin);
-      if (action === 'adminChangePassword' && String(p.newPassword || '').length >= 6) {
+      // 新しいパスワードの計算（時間がかかる）は、管理者だと確かめてからにする（誰でも重い計算を起こせないように）
+      if (action === 'adminChangePassword' && this.memo.admin[String(p.adminPassword || '')] === null && String(p.newPassword || '').length >= 6) {
         this.memo.newHash = await hashPassword(String(p.newPassword));
       }
       if (action === 'adminPasskeyTicket' && this.passkeyKey()) {
         const exp = Math.floor(Date.now() / 1000) + 300;
         this.memo.ticket = 'pkt.' + exp + '.' + await hmac(this.passkeyKey(), 'pkt.' + exp);
       }
-      if (this.memo.upgradeHash) this.memo.upgradeHash = await hashPassword(this.memo.upgradeHash);
 
       let result;
       try {
         result = this.db.txn(() => {
-          if (this.memo.upgradeHash) this.kput('adminPw', this.memo.upgradeHash);
           this.memo.wrote = false;
           return fn.call(this, p);
         });
@@ -149,6 +149,17 @@
         try { this.hooks.changed(); } catch (e) { /* 合図の失敗で処理を失敗させない */ }
       }
       return withVersion(result || { ok: true });
+    }
+
+    /**
+     * スプレッドシートから移したときの管理用パスワード（plain$…。元の文字のまま）を、元に戻せない形（PBKDF2）に置き換える。
+     * 移す処理（sync）は待ちのない処理なのでそこでは計算できず、移したあと最初の呼び出しで行う（パスキーだけで入る人がいても残らない）
+     */
+    async upgradePassword() {
+      const stored = this.kget('adminPw') || '';
+      if (stored.indexOf('plain$') !== 0) return;
+      const hashed = await hashPassword(stored.slice(6));
+      if (this.kget('adminPw') === stored) this.kput('adminPw', hashed); // 計算の間に変わっていなければ
     }
 
     /** 管理用パスワード（またはパスキーでのログインの印）を確かめ、結果を覚えておく（verifyAdmin が使う） */
@@ -166,19 +177,22 @@
         this.memo.admin[k] = '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
         return;
       }
+      // 誤入力の回数は、確かめる「前」に1つ増やしておく。確かめる計算は待ちが入るので、後で増やすと、
+      // 同時に大量に送られたとき全部が同じ回数を読み、回数がほとんど増えずにいくらでも試せてしまう
+      this.kput(failKey, failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
       let ok;
       if (stored.indexOf('plain$') === 0) {
-        // スプレッドシートから移したばかりのとき。合っていたら、元に戻せない形に置き換える
-        ok = safeEqual(k, stored.slice(6));
-        if (ok) this.memo.upgradeHash = k;
+        ok = safeEqual(k, stored.slice(6)); // 古い形（元に戻せない形に置き換える前）。upgradePassword が置き換える
       } else {
         ok = await checkPassword(k, stored);
       }
       if (!ok) {
-        this.kput(failKey, failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
         this.memo.admin[k] = '管理用パスワードが一致しません。';
         return;
       }
+      // 合っていたら、先に増やした1回を取り消す
+      const now = Number(this.kget(failKey) || 0);
+      if (now > 1) this.kput(failKey, now - 1, SYSTEM.FAILURE_LOCK_SECONDS); else this.kdel(failKey);
       this.memo.admin[k] = null;
     }
 
@@ -498,6 +512,11 @@
     const ctx = this.context(p);
     const denied = checkView(ctx, p.viewKey);
     if (denied) return denied;
+    // 件数の上限は、一覧を作る前に確かめる（非常に長い一覧を送られても、重い処理をしないように）
+    const maxN = ctx.settings.maxBulkCount;
+    const roughN = Array.isArray(p.pairs) && p.pairs.length ? p.pairs.length
+      : (Array.isArray(p.dates) ? p.dates.length : 0) * (Array.isArray(p.roomIds) && p.roomIds.length ? p.roomIds.length : 1);
+    if (roughN > maxN * 3) return fail('まとめて予約できるのは最大' + maxN + '件です（今回: ' + roughN + '件）。');
     let combos;
     if (Array.isArray(p.pairs) && p.pairs.length) {
       const seen = {};

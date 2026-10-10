@@ -277,6 +277,11 @@ function createBulkReservations(p) {
   const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
+  // 件数の上限は、一覧を作る前に確かめる（非常に長い一覧を送られても、重い処理をしないように。cache/store.js と同じ）
+  const maxN = ctx.settings.maxBulkCount;
+  const roughN = Array.isArray(p.pairs) && p.pairs.length ? p.pairs.length
+    : (Array.isArray(p.dates) ? p.dates.length : 0) * (Array.isArray(p.roomIds) && p.roomIds.length ? p.roomIds.length : 1);
+  if (roughN > maxN * 3) return fail_('まとめて予約できるのは最大' + maxN + '件です（今回: ' + roughN + '件）。');
   let combos;
   if (Array.isArray(p.pairs) && p.pairs.length) {
     const seen = {};
