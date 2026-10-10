@@ -122,7 +122,7 @@
         <form id="limitedForm" class="form-grid" novalidate>
           <div class="field full">演習室などのパスワード（6文字以上）<div class="pw-row"><input id="sLimitedPw" class="in" type="password" maxlength="50" autocomplete="new-password" placeholder="空欄なら管理者以外は使えません"><button type="button" class="btn small" data-reveal="sLimitedPw">表示</button></div><span class="help">変更すると、記憶済みの端末でも表示されなくなります（新しいパスワードを伝え直してください）</span></div>
           <div class="field full">入口の URL<div class="copy-row"><input id="limitedUrl" class="in" readonly aria-label="限定公開の部屋の入口の URL"><button type="button" class="btn small" id="copyLimitedUrl">コピー</button></div></div>
-          <div class="full"><button type="submit" class="btn primary" id="limitedBtn">保存</button></div>
+          <div class="full submit-row"><button type="submit" class="btn primary" id="limitedBtn">保存</button></div>
         </form>
         <p class="msg error" id="limitedError"></p>
       </div>
@@ -132,7 +132,7 @@
           <summary><h2 style="display:inline">予約表全体の閲覧制限</h2> <button type="button" class="info" aria-label="説明" data-tip="通常は使いません。設定すると、利用者全員が予約表を開くときにこのパスワードを求められます（端末に記憶）。学外に見せたくない場合などに使い、全員に伝えてください。">i</button></summary>
           <form id="viewPwForm" class="form-grid" novalidate>
             <div class="field full">予約表全体のパスワード<div class="pw-row"><input id="sViewPw" class="in" type="password" maxlength="50" autocomplete="new-password" placeholder="空欄なら誰でも閲覧・予約できます"><button type="button" class="btn small" data-reveal="sViewPw">表示</button></div></div>
-            <div class="full"><button type="submit" class="btn primary" id="viewPwBtn">保存</button></div>
+            <div class="full submit-row"><button type="submit" class="btn primary" id="viewPwBtn">保存</button></div>
           </form>
           <p class="msg error" id="viewPwError"></p>
         </details>
@@ -143,7 +143,7 @@
         <form id="pwForm" class="form-grid" novalidate>
           <label class="field m-full">新しいパスワード（6文字以上）<input id="pwNew" type="password" autocomplete="new-password"></label>
           <label class="field m-full">新しいパスワード（確認）<input id="pwNew2" type="password" autocomplete="new-password"></label>
-          <div class="full"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
+          <div class="full submit-row"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
         </form>
         <p class="msg error" id="pwError"></p>
       </div>

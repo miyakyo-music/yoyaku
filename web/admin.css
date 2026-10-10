@@ -360,6 +360,9 @@ th, td { border-bottom: .5px solid var(--sep); }
 @media (prefers-reduced-transparency: reduce) {
   .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
 }
+/* パスワードの各カードの保存ボタンは、「一般」などの保存と同じく右下に置く */
+.submit-row { display: flex; justify-content: flex-end; }
+
 /* ---------- i ボタン（見ればわかることは書かず、どうしても要る説明だけをここに入れる） ---------- */
 .info {
   /* macOS の「info.circle」に似せる: 細い線の丸に、立った細めの i。色は薄い灰色で控えめに。どこでも同じ大きさ（12px） */
