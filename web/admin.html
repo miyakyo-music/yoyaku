@@ -52,7 +52,7 @@
         <button type="button" role="tab" data-tab="closures" aria-selected="true">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
         <button type="button" role="tab" data-tab="history" aria-selected="false"><span class="lg">予約</span>履歴</button>
-        <button type="button" role="tab" data-tab="stats" aria-selected="false">利用<span class="lg">状況</span></button>
+        <button type="button" role="tab" data-tab="stats" aria-selected="false">統計</button>
         <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotSetup" hidden>●</span></button>
       </nav>
 
@@ -184,10 +184,10 @@
         </div>
       </div>
 
-      <!-- 利用状況（admin.js の「利用状況」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
+      <!-- 統計（admin.js の「統計」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
       <div class="card" data-panel="stats" hidden>
         <div class="stats-head">
-          <h2 style="margin:0">利用状況</h2>
+          <h2 style="margin:0">統計</h2>
           <span class="spacer"></span>
           <div class="seg-mini" role="group" aria-label="期間">
             <button type="button" data-period="week" aria-pressed="false">今週</button>
