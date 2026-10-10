@@ -9,4 +9,4 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "yoyaku-cache"
-database_id = "ここに D1 の ID を入れる"
+database_id = "6cc35b07-83a0-4e3d-a9ef-ee0d77f951b0"
