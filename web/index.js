@@ -974,17 +974,16 @@
     const ghost = document.createElement('div');
     ghost.className = 'ghost';
     track.appendChild(ghost);
-    // press: 押した位置。右へ引けば開始（10分刻み）、左へ引けば終了（予約単位）になる
-    drag = { track, row, free, anchor, press: m, ghost, start: anchor, end: anchor + state.geo.unit };
+    drag = { track, row, free, anchor, ghost, start: anchor, end: anchor + state.geo.unit };
     updateDrag(clientX);
     return drag;
   }
 
   // ドラッグ中に表の端（左は部屋名の列の右端、右は画面の右端）へ近づいたら、その向きへ自動でスクロールする。
   // 端に近いほど速い。スクロールした分、指の下の時刻が変わるので、帯（影）も合わせて伸ばす
-  const edge = { timer: 0, x: 0, y: 0, update: null, vertical: false };
-  function edgeFollow(x, y, update, vertical) {
-    edge.x = x; edge.y = y; edge.update = update; edge.vertical = !!vertical;
+  const edge = { timer: 0, x: 0, y: 0, update: null, vertical: false, leftToo: false };
+  function edgeFollow(x, y, update, vertical, leftToo) {
+    edge.x = x; edge.y = y; edge.update = update; edge.vertical = !!vertical; edge.leftToo = !!leftToo;
     if (!edge.timer) edge.timer = setInterval(edgeStep, 30);
   }
   function edgeStop() { clearInterval(edge.timer); edge.timer = 0; edge.update = null; }
@@ -998,7 +997,7 @@
     const speed = (d) => Math.round(Math.min(MAX, 3 + (1 - Math.max(0, d) / ZONE) * (MAX - 3)));
     let dx = 0, dy = 0;
     if (edge.x > r.right - ZONE) dx = speed(r.right - edge.x);
-    else if (edge.x < left + ZONE) dx = -speed(edge.x - left);
+    else if (edge.leftToo && edge.x < left + ZONE) dx = -speed(edge.x - left);
     if (edge.vertical) {
       const head = main.querySelector('.tl-head');
       const top = head ? head.getBoundingClientRect().bottom : r.top;
@@ -1022,11 +1021,9 @@
     const unit = state.geo.unit;
     const m = minuteAt(drag.track, clientX);
     let s, e;
-    if (m >= drag.press) { s = drag.anchor; e = Math.max(drag.anchor + unit, ceilTo(m, unit)); }
-    else {
-      e = Math.min(drag.free[1], Math.max(drag.free[0] + unit, roundTo(drag.press, unit)));
-      s = Math.min(roundTo(m, dragStartStep()), e - unit);
-    }
+    // 右向きだけに伸ばす（左へ引くと開始と終了の決まり方が入れ替わってわかりにくいので、押した所より左へは伸ばさない）
+    s = drag.anchor;
+    e = Math.max(drag.anchor + unit, ceilTo(m, unit));
     drag.start = Math.max(s, drag.free[0]);
     drag.end = Math.min(e, drag.free[1]);
     drag.ghost.style.left = `${((drag.start - t0) / total * 100).toFixed(4)}%`;
@@ -1244,7 +1241,7 @@
     return true;
   }
   function updateMove(clientX, clientY) {
-    edgeFollow(clientX, clientY, (x, y) => { if (move) updateMoveAt(x, y); }, true);
+    edgeFollow(clientX, clientY, (x, y) => { if (move) updateMoveAt(x, y); }, true, true);
     updateMoveAt(clientX, clientY);
   }
   function updateMoveAt(clientX, clientY) {
