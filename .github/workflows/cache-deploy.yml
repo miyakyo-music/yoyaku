@@ -1,0 +1,43 @@
+# main に push すると、cache/ フォルダの中身（高速キャッシュ）を Cloudflare Workers に公開する。
+# 使う秘密の値（GitHub のリポジトリの Settings > Secrets and variables > Actions に登録）:
+#   CLOUDFLARE_API_TOKEN  … Cloudflare の API トークン（Workers と D1 だけを編集できる権限）
+#   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウント ID
+#   CACHE_PUSH_TOKEN      … GAS と共有する合言葉（GAS のスクリプトプロパティ CACHE_PUSH_TOKEN と同じ値）
+# 高速キャッシュを使わない場合は、これらを登録しなければ何もしない。
+name: 高速キャッシュを Cloudflare に公開
+
+on:
+  push:
+    branches: [main]
+    paths: ['cache/**', '.github/workflows/cache-deploy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cache-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - name: 設定の確認
+        if: env.HAS_TOKEN != 'true'
+        run: echo "CLOUDFLARE_API_TOKEN が登録されていないので、公開しません（高速キャッシュを使っていない）。"
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: cloudflare/wrangler-action@v3
+        if: env.HAS_TOKEN == 'true'
+        env:
+          PUSH_TOKEN: ${{ secrets.CACHE_PUSH_TOKEN }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cache
+          command: deploy
+          secrets: |
+            PUSH_TOKEN

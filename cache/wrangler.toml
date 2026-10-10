@@ -1,0 +1,12 @@
+# 練習室予約の高速キャッシュ（Cloudflare Workers）の設定。
+# main に push すると、GitHub Actions（.github/workflows/cache-deploy.yml）がこの設定で Cloudflare に公開する。
+name = "yoyaku-cache"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# 写しを置く D1 データベース。database_id は Cloudflare の画面（Storage & Databases > D1）で作ったものの ID。
+[[d1_databases]]
+binding = "DB"
+database_name = "yoyaku-cache"
+database_id = "6cc35b07-83a0-4e3d-a9ef-ee0d77f951b0"
