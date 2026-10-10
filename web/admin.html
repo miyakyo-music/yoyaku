@@ -82,17 +82,22 @@
       <!-- 利用時間・制限 -->
       <div class="card" data-panel="setup" hidden>
         <h2>一般 <button type="button" class="info" aria-label="説明" data-tip="保存すると、利用者の画面には最大1分後に反映されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
-        <form id="settingsForm" class="form-grid" novalidate>
-          <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
-          <div class="field full"><span>お知らせ <button type="button" class="info" aria-label="説明" data-tip="予約表の上部に表示します（空欄なら出しません）。「重要」は休館など予約に直結する連絡用で、赤で目立つ表示になります。">i</button></span><div class="notice-edit"><input id="sNotice" class="in" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません" aria-label="お知らせ"><select id="sNoticeLevel" class="in" aria-label="お知らせの種類"><option value="通常">通常（青）</option><option value="重要">重要（赤）</option></select></div></div>
-          <div class="field">利用開始時刻<div class="time"><select id="sOpenH" class="in"></select>:<select id="sOpenM" class="in"></select></div></div>
-          <div class="field">利用終了時刻<div class="time"><select id="sCloseH" class="in"></select>:<select id="sCloseM" class="in"></select></div></div>
-          <label class="field">予約単位<span class="suffix"><select id="sUnit" class="in"></select>分</span></label>
-          <label class="field"><span>1回の最大予約時間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span></label>
-          <label class="field m-full"><span>予約受付期間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix">今日から<input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span></label>
-          <label class="field m-full"><span>まとめて予約の最大件数 <button type="button" class="info" aria-label="説明" data-tip="くり返し予約・複数部屋の同時予約の合計（部屋数×日数）。">i</button></span><span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span></label>
-          <div class="field full">定休日<div class="weekdays" id="sWeekdays"></div></div>
-          <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約は管理者のみ<button type="button" class="info" aria-label="説明" data-tip="まとめて予約＝くり返し予約・複数部屋の同時予約。オンにすると、管理用パスワードを知っている人だけが使えます。">i</button></label></div>
+        <form id="settingsForm" class="set-form" novalidate>
+          <div class="set-top">
+          <label class="field">予約表のタイトル<input id="sTitle" maxlength="40"></label>
+          <div class="field"><span>お知らせ <button type="button" class="info" aria-label="説明" data-tip="予約表の上部に表示します（空欄なら出しません）。「重要」は休館など予約に直結する連絡用で、赤で目立つ表示になります。">i</button></span><div class="notice-edit"><input id="sNotice" class="in" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません" aria-label="お知らせ"><select id="sNoticeLevel" class="in" aria-label="お知らせの種類"><option value="通常">通常（青）</option><option value="重要">重要（赤）</option></select></div></div>
+          </div>
+          <!-- 数や時刻の設定: 左に項目名、右に値を1行ずつ（iPhone の設定アプリのような並び） -->
+          <div class="set-list">
+            <div class="set-row"><span class="set-k">利用開始時刻</span><div class="time"><select id="sOpenH" class="in" aria-label="利用開始（時）"></select>:<select id="sOpenM" class="in" aria-label="利用開始（分）"></select></div></div>
+            <div class="set-row"><span class="set-k">利用終了時刻</span><div class="time"><select id="sCloseH" class="in" aria-label="利用終了（時）"></select>:<select id="sCloseM" class="in" aria-label="利用終了（分）"></select></div></div>
+            <label class="set-row"><span class="set-k">予約単位</span><span class="suffix"><select id="sUnit" class="in"></select>分</span></label>
+            <label class="set-row"><span class="set-k">1回の最大予約時間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span></label>
+            <label class="set-row"><span class="set-k">予約受付期間 <button type="button" class="info" aria-label="説明" data-tip="今日から何日先まで予約できるか。0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span></label>
+            <label class="set-row"><span class="set-k">まとめて予約の最大件数 <button type="button" class="info" aria-label="説明" data-tip="くり返し予約・複数部屋の同時予約の合計（部屋数×日数）。">i</button></span><span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span></label>
+            <label class="set-row"><span class="set-k">まとめて予約は管理者のみ <button type="button" class="info" aria-label="説明" data-tip="まとめて予約＝くり返し予約・複数部屋の同時予約。オンにすると、管理用パスワードを知っている人だけが使えます。">i</button></span><input type="checkbox" id="sBulkAdmin" class="switch" role="switch"></label>
+            <div class="set-row set-col"><span class="set-k">定休日</span><div class="weekdays pills" id="sWeekdays"></div></div>
+          </div>
         </form>
         <div class="savebar">
           <span class="spacer"></span>

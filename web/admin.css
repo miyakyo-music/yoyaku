@@ -608,3 +608,52 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
   #xResult .table-wrap tr.open { border-bottom: 0; }
   #xResult .list-table tr.day td { border-top: 0; }
 }
+
+/* ---------- 設定の「一般」: 左に項目名、右に値を1行ずつ並べる ---------- */
+.set-form { display: flex; flex-direction: column; gap: 14px; }
+.set-top { display: flex; flex-direction: column; gap: 14px; }
+.set-list { display: flex; flex-direction: column; border-radius: 14px; background: var(--fill-field); padding: 0 14px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 7px 0; border-bottom: .5px solid var(--sep); color: var(--text); font-size: 15px; }
+.set-row:last-child { border-bottom: 0; }
+.set-k { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.set-row .time, .set-row .suffix { flex: none; margin-left: auto; }
+/* 一覧の中の入力欄は、灰色の地の上に乗るので、白（ダークでは一段明るい色）にする */
+.set-row select.in, .set-row input[type="number"] { background-color: var(--surface); }
+html.dark .set-row select.in, html.dark .set-row input[type="number"] { background-color: rgba(255, 255, 255, .1); }
+.set-row input[type="number"] {
+  width: 68px; height: 36px; padding: 0 6px; border: 0; border-radius: 9px; font: inherit; font-size: 16px; color: var(--text);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.set-row input[type="number"]:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
+.set-row select.in { height: 36px; border-radius: 9px; }
+/* 定休日: 項目名の下に、押すと色が付く丸いボタンを7つ */
+.set-row.set-col { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 0 14px; }
+.weekdays.pills { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.weekdays.pills label { position: relative; justify-content: center; height: 36px; padding: 0; border-radius: 18px; background: var(--surface); font-size: 15px; cursor: pointer; }
+html.dark .weekdays.pills label { background: rgba(255, 255, 255, .1); }
+.weekdays.pills input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.weekdays.pills label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 600; }
+.weekdays.pills label:has(input:focus-visible) { box-shadow: 0 0 0 2px var(--accent); }
+/* オン・オフのスイッチ */
+input.switch {
+  -webkit-appearance: none; appearance: none; flex: none; position: relative; width: 51px; height: 31px; margin: 0; border-radius: 16px;
+  background: rgba(120, 120, 128, .32); cursor: pointer; transition: background .2s;
+}
+input.switch::before {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .2); transition: transform .2s;
+}
+input.switch:checked { background: #34c759; }
+input.switch:checked::before { transform: translateX(20px); }
+input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* PC: タイトルとお知らせを横に並べ、設定の行は2列（開始｜終了、単位｜最大時間、受付期間｜最大件数、管理者限定｜定休日）にする。
+   1列のままだと、項目名と値が画面の端と端に離れてしまうため */
+@media (min-width: 760px) {
+  .set-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; }
+  .set-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; padding: 0 18px; }
+  .set-row:nth-last-child(2) { border-bottom: 0; } /* 2列の最後の段は、どちらも下線なし */
+  .set-row.set-col { flex-direction: row; align-items: center; padding: 7px 0; }
+  .set-row.set-col .set-k { flex: none; white-space: nowrap; }
+  .set-row.set-col .weekdays.pills { grid-template-columns: repeat(7, minmax(26px, 34px)); gap: 4px; }
+  .set-row.set-col .weekdays.pills label { height: 32px; font-size: 14px; }
+}
