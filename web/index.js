@@ -43,7 +43,6 @@
     geo: null,            // タイムラインの時間軸
     seq: 0,
     noCacheUntil: 0,      // この時刻までは高速キャッシュを使わない（自分が書き込んだ直後）
-    dataSource: '',       // 直近の予約表をどこから読んだか（cache / gas）
     viewKey: load_(LS.viewKey, ''),
     limitedKey: load_(LS.limitedKey, ''),
     booking: null,        // 予約ダイアログの状態
@@ -195,7 +194,6 @@
   }
   /** どちらから読んだかを、更新ボタンの説明（マウスを乗せると出る文字）に書いておく（不具合の切り分け用） */
   function setDataSource(src) {
-    state.dataSource = src;
     $('refreshBtn').title = '押すと最新の予約に更新します（読み込み元: ' + (src === 'cache' ? '高速キャッシュ' : 'サーバー') + '）';
   }
 
