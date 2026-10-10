@@ -102,7 +102,13 @@
   .status svg { flex: none; }
   @media (hover: hover) { .status:hover { background: #eef1f5; color: var(--text); } }
   .status:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  body.loading .status svg { animation: spin .8s linear infinite; }
+  /* 読み込み中は、↻ の代わりに iOS と同じ「くるくる」（8本の線が濃い順に並び、1本ずつ送るように回る）を出す。
+     回すのは大きさ 16px（偶数）の図形を中心で回すので、軸がぶれない */
+  .status .ic-spinner { display: none; }
+  body.loading .status .ic-refresh { display: none; }
+  body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; animation: ios-spin .8s steps(8) infinite; }
+  @keyframes ios-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { body.loading .status .ic-spinner { animation-duration: 1.6s; } }
   /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
   .notice {
     margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 8px;
@@ -295,7 +301,7 @@
   .now-line { position: absolute; top: 0; bottom: -1px; width: 2px; margin-left: -1px; background: #e5484d; opacity: .6; pointer-events: none; z-index: 2; }
   .tl-row.week-start .now-line { top: -2px; }
   .blk {
-    position: absolute; top: 3px; bottom: 3px; border-radius: 9px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
+    position: absolute; top: 1px; bottom: 1px; border-radius: 9px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
     overflow: hidden; overflow: clip; /* clip は中の文字の sticky を妨げない（未対応ブラウザは hidden） */
     padding: 0 6px 0 10px; font-size: 11px; line-height: 1.2; cursor: pointer; min-width: 3px;
     display: flex; flex-direction: column; justify-content: center; /* 名前と学番を帯の上下中央に */
@@ -329,7 +335,7 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(0, 122, 255, .3), 0 1px 2px rgba(0, 60, 150, .1);
   }
   .blk.res::before {
-    content: ""; position: absolute; left: 4px; top: 7px; bottom: 7px; width: 3px; border-radius: 2px; background: var(--res-border);
+    content: ""; position: absolute; left: 4px; top: 5px; bottom: 5px; width: 3px; border-radius: 2px; background: var(--res-border);
     z-index: 1;
   }
   .blk.res.mine::before { background: var(--mine-border); }
@@ -342,7 +348,7 @@
   .blk:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); } /* 角丸に沿う枠 */
   @media (hover: hover) { .blk.res:hover::after { filter: brightness(.96); } }
   .ghost {
-    position: absolute; top: 3px; bottom: 3px; z-index: 5; border-radius: 9px; pointer-events: none; /* 予約の帯と同じ位置・角丸 */
+    position: absolute; top: 1px; bottom: 1px; z-index: 5; border-radius: 9px; pointer-events: none; /* 予約の帯と同じ位置・角丸 */
     background: rgba(37, 99, 235, .18); border: 2px solid var(--accent); color: var(--accent);
     font-size: 11px; font-weight: 700; padding: 1px 6px; white-space: nowrap; overflow: visible;
     display: flex; align-items: center; /* 時間の表示を枠の上下中央に */
@@ -738,12 +744,14 @@
     -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
   }
-  .admin-link svg, .status svg { flex: none; width: 15px; height: 15px; }
+  .admin-link svg { flex: none; width: 15px; height: 15px; }
+  .status svg { flex: none; width: 16px; height: 16px; }
   .status #statusText { color: var(--muted); }
   @media (hover: hover) { .status:hover, .admin-link:hover { background-color: var(--glass-strong); color: var(--text); } }
   @media (max-width: 600px) {
     .admin-link, .brand .admin-link, .status { width: 32px; height: 32px; padding: 0; border-radius: 10px; }
-    .admin-link svg, .status svg { width: 17px; height: 17px; }
+    .admin-link svg { width: 17px; height: 17px; }
+    .status svg { width: 18px; height: 18px; }
     .brand { gap: 6px; }
   }
 
@@ -959,7 +967,7 @@
   </div>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><span id="statusText"></span></button><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg class="ic-refresh" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><svg class="ic-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 2.5v4.2" transform="rotate(0 12 12)" opacity="1.00"/><path d="M12 2.5v4.2" transform="rotate(-45 12 12)" opacity="0.89"/><path d="M12 2.5v4.2" transform="rotate(-90 12 12)" opacity="0.78"/><path d="M12 2.5v4.2" transform="rotate(-135 12 12)" opacity="0.67"/><path d="M12 2.5v4.2" transform="rotate(-180 12 12)" opacity="0.56"/><path d="M12 2.5v4.2" transform="rotate(-225 12 12)" opacity="0.45"/><path d="M12 2.5v4.2" transform="rotate(-270 12 12)" opacity="0.34"/><path d="M12 2.5v4.2" transform="rotate(-315 12 12)" opacity="0.23"/></svg><span id="statusText"></span></button><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button></div>
       <div class="notice-row" id="noticeRow" hidden>
         <form class="notice-editor" id="noticeEditor" hidden>
           <input id="noticeInput" maxlength="200" autocomplete="off" aria-label="お知らせ（空欄にすると非表示）" placeholder="空欄にするとお知らせを出さない">
