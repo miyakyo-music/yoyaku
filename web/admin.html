@@ -47,15 +47,16 @@
 
     <section id="adminView" hidden>
       <nav class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="rooms" aria-selected="true">練習室<span class="dot" id="dotRooms" hidden>●</span></button>
-        <button type="button" role="tab" data-tab="settings" aria-selected="false">利用時間<span class="lg">・制限</span><span class="dot" id="dotSettings" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="settings" aria-selected="true">一般<span class="dot" id="dotSettings" hidden>●</span></button>
         <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
-        <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
+        <button type="button" role="tab" data-tab="stats" aria-selected="false">利用<span class="lg">状況</span></button>
+        <button type="button" role="tab" data-tab="rooms" aria-selected="false">練習室<span class="dot" id="dotRooms" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
       </nav>
 
       <!-- 練習室 -->
-      <div class="card" data-panel="rooms">
+      <div class="card" data-panel="rooms" hidden>
         <h2>練習室の追加・削除・編集</h2>
         <details class="howto" id="roomsHowto"><summary>入力のしかた</summary><p class="lead">
           並び順は予約表の表示順です（左端の番号をつまんで上下にドラッグすると入れ替わります）。「特徴タグ」は部屋名の下にタグで表示されます（「・」区切りで複数可。例：大・GP）。<br>
@@ -76,8 +77,8 @@
       </div>
 
       <!-- 利用時間・制限 -->
-      <div class="card" data-panel="settings" hidden>
-        <h2>利用時間・予約の制限</h2>
+      <div class="card" data-panel="settings">
+        <h2>一般（利用時間・予約の制限・お知らせ）</h2>
         <p class="lead">保存すると、利用者の画面には次回の更新（最大1分後）から反映されます。既に入っている予約は自動では取り消されません。</p>
         <form id="settingsForm" class="form-grid" novalidate>
           <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
@@ -160,6 +161,37 @@
       </div>
 
       <!-- 不具合報告 -->
+      <!-- 利用状況（admin.js の「利用状況」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
+      <div class="card" data-panel="stats" hidden>
+        <div class="stats-head">
+          <h2 style="margin:0">利用状況</h2>
+          <span class="spacer"></span>
+          <div class="seg-mini" role="group" aria-label="期間">
+            <button type="button" data-period="month" aria-pressed="true">今月</button>
+            <button type="button" data-period="last" aria-pressed="false">先月</button>
+            <button type="button" data-period="fy" aria-pressed="false">今年度</button>
+          </div>
+        </div>
+        <p class="lead" id="statsRange" style="margin-top:6px"></p>
+        <p class="msg" id="statsMsg" hidden></p>
+        <div id="statsBody" hidden>
+          <div class="stat-tiles">
+            <div class="tile"><span class="k">予約</span><b id="stCount"></b></div>
+            <div class="tile"><span class="k">合計の時間</span><b id="stHours"></b></div>
+            <div class="tile"><span class="k">1件あたり</span><b id="stAvg"></b></div>
+            <div class="tile"><span class="k">いちばん混む</span><b id="stPeak"></b></div>
+          </div>
+          <h3>混む曜日と時間帯</h3>
+          <p class="help">色が濃いほど、その時間に使われていた部屋が多い（期間の平均）</p>
+          <div class="heat-wrap"><div class="heat" id="stHeat"></div></div>
+          <h3>設備ごと</h3>
+          <div class="bars" id="stEquip"></div>
+          <h3>部屋ごと</h3>
+          <p class="help">％は、利用時間のうち予約で埋まっていた割合（休館日を除く）</p>
+          <div class="bars" id="stRooms"></div>
+        </div>
+      </div>
+
       <div class="card" data-panel="bugs" hidden>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <h2 style="margin:0">不具合報告</h2>
