@@ -19,6 +19,7 @@
     limitedKey: 'prr.limitedKey',  // 限定公開の部屋（演習室など）のパスワード
     history: 'prr.myHistory',      // { [reservationId]: 'YYYY-MM-DD' } この端末で予約した記録（練習時間の集計用。約13か月残す）
     fav: 'prr.favRooms',           // [roomId] お気に入りの練習室
+    closeTime: 'prr.closeTime',    // 利用終了時刻（開いた直後、設定を読む前に「翌日を出すか」を決めるため）
   };
   const APP_VERSION = window.APP_VERSION; // web/api.js
   const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
@@ -40,9 +41,14 @@
   applyDark();
   if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', applyDark);
   $('betaBand').hidden = !/beta/i.test(APP_VERSION);
+  /** 開いたときに出す日: 利用終了時刻（前回読んだ設定。最初は 23:00）を過ぎていれば、終わった今日ではなく翌日 */
+  function homeDate() {
+    const t = todayStr();
+    return nowMin() >= toMin(load_(LS.closeTime, '23:00')) ? addDays(t, 1) : t;
+  }
   const state = {
     view: load_(LS.view, 'day'),
-    date: todayStr(),
+    date: homeDate(),
     roomId: load_(LS.room, ''),
     data: null,           // 直近の getSchedule 応答
     settings: null,
@@ -381,6 +387,7 @@
 
   function applySettings() {
     const s = state.settings;
+    save_(LS.closeTime, s.closeTime);
     $('title').textContent = s.title;
     document.title = s.title;
     // お知らせを書き換えている間は、裏の自動更新で入力中の内容を消さない
