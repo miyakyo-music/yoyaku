@@ -348,10 +348,21 @@
     return r ? (r.tags ? `${r.name}（${r.tags}）` : r.name) : id;
   }
 
+  // 日付の欄は曜日付きで見せる（本物の日付欄は透明にして上に重ね、押すと端末のカレンダーが開く）
+  function showClosureDate() {
+    const v = $('cDate').value;
+    if (!v) { $('cDateDisplay').textContent = '日付を選択'; return; }
+    const [y, m, d] = v.split('-').map(Number);
+    const w = new Date(y, m - 1, d).getDay();
+    $('cDateDisplay').innerHTML = `${y}/${pad(m)}/${pad(d)}<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">(${WEEKDAYS[w]})</span>`;
+  }
+  $('cDate').addEventListener('input', showClosureDate);
+  $('cDate').addEventListener('change', showClosureDate);
   function renderClosureForm() {
     const s = state.data.settings;
     $('cRoom').innerHTML = '<option value="">全室</option>' + state.data.rooms.map((r) => `<option value="${esc(r.id)}">${esc(roomName(r.id))}</option>`).join('');
     if (!$('cDate').value) $('cDate').value = state.data.today;
+    showClosureDate();
     timeSelects($('cStartH'), $('cStartM'), 24);
     timeSelects($('cEndH'), $('cEndM'), 24);
     setTime($('cStartH'), $('cStartM'), s.openTime);

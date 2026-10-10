@@ -96,9 +96,8 @@
       <!-- 休館・利用停止 -->
       <div class="card" data-panel="closures" hidden>
         <h2>休館・利用停止 <button type="button" class="info" aria-label="説明" data-tip="調律・入試・清掃などで予約を受け付けない日時。追加・削除はすぐ保存されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
-        <h3>追加</h3>
         <form id="closureForm" class="add-form" novalidate>
-          <label class="field f-date">日付<input id="cDate" type="date"></label>
+          <div class="field f-date">日付<label class="date-field"><span class="date-display" id="cDateDisplay" aria-hidden="true"></span><input id="cDate" type="date" aria-label="日付"></label></div>
           <label class="field f-room">対象<select id="cRoom"></select></label>
           <label class="check f-allday"><input type="checkbox" id="cAllDay" checked>終日</label>
           <div class="field f-time" id="cTimeField" hidden>時間帯<div class="time"><select id="cStartH" class="in"></select>:<select id="cStartM" class="in"></select>〜<select id="cEndH" class="in"></select>:<select id="cEndM" class="in"></select></div></div>

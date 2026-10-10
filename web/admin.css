@@ -172,13 +172,24 @@ tr.past td { color: #9aa3ad; }
 .empty { padding: 20px; text-align: center; color: var(--muted); }
 /* 時間帯の欄が出入りしても崩れないよう、各欄の幅を個別に決めて下端で揃える */
 .add-form { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
-.add-form .f-date { flex: 0 0 160px; min-width: 0; }
+.add-form .f-date { flex: 0 0 auto; min-width: 0; }
+/* 日付の欄: 曜日付きの表示の上に、透明な本物の日付欄を重ねる（予約表の予約画面と同じ作り） */
+.date-field { position: relative; display: flex; }
+.date-display {
+  display: flex; align-items: center; height: 38px; padding: 0 12px; border-radius: 11px; background: var(--fill-field);
+  color: var(--text); font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.date-field:focus-within .date-display { box-shadow: 0 0 0 2px var(--accent); }
 /* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
 input[type="date"].in, .field input[type="date"] {
   -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%;
   text-align: left; line-height: 36px;
 }
 input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.field .date-field input[type="date"] {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
+}
+.date-field input[type="date"]::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; opacity: 0; cursor: pointer; }
 /* 不具合報告 */
 .bug-list { display: flex; flex-direction: column; gap: 10px; }
 .bug { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
@@ -188,11 +199,11 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .bug-msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
 .bug-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .bug details pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 11px; margin: 6px 0 0; }
-.add-form .f-room { flex: 1 1 200px; } /* 部屋名（例: 練習室19（電子P.7））が切れない幅 */
+.add-form .f-room { flex: 1 1 140px; } /* スマホでは日付の右に並べる（長い部屋名は端が省略される） */
 .add-form .f-allday { flex: none; height: 38px; }
 .add-form .f-time { flex: 0 0 auto; }
 .add-form .f-time select { width: 64px; flex: none; }
-.add-form .f-reason { flex: 2 1 180px; }
+.add-form .f-reason { flex: 2 1 120px; }
 .add-form .f-submit { flex: none; height: 38px; }
 
 .login { max-width: 380px; margin: 40px auto; }
