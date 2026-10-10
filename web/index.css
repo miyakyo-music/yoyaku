@@ -899,7 +899,9 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
 :root { --morph-blur: blur(40px) saturate(180%); }
 html.dark { --morph-blur: blur(30px) saturate(190%); }
 /* カードの影: 帯の小さな影から小窓の影へ、形と一緒に育てる（小窓の写しの影はカードの外にはみ出して切り取られるため、
-   これがないと、動きが終わって本物の小窓になったときに影が遅れて出てきた）。影の数をそろえておくと滑らかにつながる */
+   これがないと、動きが終わって本物の小窓になったときに影が遅れて出てきた）。影の数をそろえておくと滑らかにつながる。
+   影はぼかしを持つカード（image-pair）ではなく、外側の枠（group）に付ける（同じ所に付けると、iPhone の Safari で
+   角が四角く見えた）。group の動きはブラウザが作るので、上書きせず index.js の morph() から足す */
 :root {
   --morph-shadow-band: 0 0 0 .5px rgba(0, 0, 0, 0), 0 1px 2px rgba(0, 0, 0, .12);
   --morph-shadow-dialog: 0 0 0 .5px rgba(0, 0, 0, .08), 0 24px 60px rgba(0, 0, 0, .22);
@@ -919,8 +921,8 @@ body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !importa
   animation: .46s cubic-bezier(.28, 1.12, .4, 1) both vt-radius-open;
 }
 html.vt-close::view-transition-image-pair(morph) { animation-name: vt-radius-close; }
-@keyframes vt-radius-open { from { border-radius: 9px; box-shadow: var(--morph-shadow-band); } to { border-radius: 22px; box-shadow: var(--morph-shadow-dialog); } }
-@keyframes vt-radius-close { from { border-radius: 22px; box-shadow: var(--morph-shadow-dialog); } to { border-radius: 9px; box-shadow: var(--morph-shadow-band); } }
+@keyframes vt-radius-open { from { border-radius: 9px; } to { border-radius: 22px; } }
+@keyframes vt-radius-close { from { border-radius: 22px; } to { border-radius: 9px; } }
 ::view-transition-old(morph), ::view-transition-new(morph) { width: 100%; height: 100%; object-fit: none; }
 /* 帯の写しは左端・上下中央のまま、すぐ消す */
 ::view-transition-old(morph), html.vt-close::view-transition-new(morph) { object-position: left center; animation-duration: .12s; animation-timing-function: ease-out; }
