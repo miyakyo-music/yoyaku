@@ -901,6 +901,9 @@
   html.dark .tl-head { background: rgba(28, 28, 30, .9); }
   html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #222224; }
   html.dark .tl-row.today .tl-label { background: #10243d; }
+  /* 部屋名の列の下の区切り線は、ダークでは半透明の色だと後ろの現在時刻の赤い線が透けるので、同じ見た目の不透明な色で引く */
+  html.dark .tl-label { box-shadow: 0 1px 0 #2b2b2d; }
+  html.dark .tl-row.week-start .tl-label { box-shadow: 0 1px 0 #2b2b2d, 0 -2px 0 #404043; }
   html.dark .tl-scale span.now { background: rgba(10, 132, 255, .16); }
   html.dark .blk.res::after { background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(255, 159, 10, .35), 0 1px 2px rgba(0, 0, 0, .5); }
   html.dark .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(10, 132, 255, .4), 0 1px 2px rgba(0, 0, 0, .5); }
