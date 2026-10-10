@@ -884,6 +884,7 @@
     err.textContent = '';
     exportPick.close();
     toggleFmt(false);
+    closeCols();
     toggleWd(false);
     const label = btn.textContent;
     $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
@@ -912,13 +913,68 @@
     $('xFmtPop').hidden = !open;
     $('xFmtBtn').setAttribute('aria-expanded', String(open));
   }
-  $('xFmtBtn').addEventListener('click', () => toggleFmt($('xFmtPop').hidden));
-  document.addEventListener('pointerdown', (e) => { if (!$('xFmtPop').hidden && !$('xFmtPick').contains(e.target)) toggleFmt(false); });
+  $('xFmtBtn').addEventListener('click', () => { closeCols(); toggleFmt($('xFmtPop').hidden); });
+
+  // 印刷・PDF に入れる項目（日付はいつも入れる）。選んだものは、この端末に覚えておく
+  const LIST_COLS = [
+    { k: 'date', label: '日付', w: 60 },
+    { k: 'time', label: '時間', w: 86 },
+    { k: 'room', label: '部屋', w: 104, grow: true },
+    { k: 'name', label: '氏名・団体名', w: 100, grow: true },
+    { k: 'aff', label: '学籍番号/所属', w: 72, grow: true },
+    { k: 'memo', label: '備考', w: 110, grow: true },
+  ];
+  const COLS_KEY = 'prr.listCols';
+  function savedCols() {
+    try { const v = JSON.parse(localStorage.getItem(COLS_KEY) || 'null'); if (Array.isArray(v)) return ['date', ...v.filter((k) => k !== 'date')]; } catch (e) { /* 覚えていなければ全部 */ }
+    return LIST_COLS.map((c) => c.k);
+  }
+  let colsMode = '';
+  function openCols(mode) {
+    colsMode = mode;
+    const on = new Set(savedCols());
+    $('xColsTitle').textContent = mode === 'pdf' ? 'PDF に入れる項目' : '印刷する項目';
+    $('xColsGo').textContent = mode === 'pdf' ? 'PDF を保存' : '印刷';
+    $('xColsList').innerHTML = LIST_COLS.filter((c) => c.k !== 'date').map((c) =>
+      `<label class="check"><input type="checkbox" value="${c.k}"${on.has(c.k) ? ' checked' : ''}>${c.label}</label>`).join('');
+    $('xColsPop').hidden = false;
+    $(mode === 'pdf' ? 'xFmtBtn' : 'xPrintBtn').setAttribute('aria-expanded', 'true');
+  }
+  function closeCols() {
+    $('xColsPop').hidden = true;
+    $('xPrintBtn').setAttribute('aria-expanded', 'false');
+  }
+  $('xPrintBtn').addEventListener('click', () => {
+    toggleFmt(false);
+    if (!$('xColsPop').hidden && colsMode === 'print') closeCols(); else openCols('print');
+  });
+  $('xColsGo').addEventListener('click', () => {
+    const picked = [...$('xColsList').querySelectorAll('input:checked')].map((c) => c.value);
+    try { localStorage.setItem(COLS_KEY, JSON.stringify(picked)); } catch (e) { /* 覚えられなくても続ける */ }
+    const cols = ['date', ...picked];
+    const mode = colsMode;
+    closeCols();
+    if (mode === 'pdf') {
+      withExport($('xFmtBtn'), async (data) => {
+        if (!data.list.length) throw new Error('条件に合う予約はありません。');
+        await exportPdf(data, cols);
+        toast(`${data.list.length}件を PDF に書き出しました`);
+      });
+    } else {
+      printList(cols);
+    }
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if ($('xFmtPick').contains(e.target)) return;
+    if (!$('xFmtPop').hidden) toggleFmt(false);
+    if (!$('xColsPop').hidden) closeCols();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('xFmtPop').hidden) { toggleFmt(false); $('xFmtBtn').focus(); } });
   const EXPORTERS = { csv: exportCsv, xlsx: exportXlsx, pdf: exportPdf };
   $('xFmtPop').addEventListener('click', (e) => {
     const b = e.target.closest('[data-fmt]');
     if (!b) return;
+    if (b.dataset.fmt === 'pdf') { toggleFmt(false); openCols('pdf'); return; } // PDF は、入れる項目を選んでから
     withExport($('xFmtBtn'), async (data) => {
       if (!data.list.length) throw new Error('条件に合う予約はありません。');
       const name = await EXPORTERS[b.dataset.fmt](data);
@@ -1014,7 +1070,6 @@
   // PDF: 印刷と同じ表を A4 縦で。文字は文字のまま入れ（小さく、検索・コピーもできる）、日本語の書体はファイルに入れず、
   // 開く端末のゴシック体を使う（PDF の決まりにある日本語の標準書体 HeiseiKakuGo-W5 を指定。Mac・iPhone・Windows・Chrome で表示できる）
   const PAGE = { w: 595.28, h: 841.89, m: 34 }; // A4（pt）と余白（12mm）
-  const PDF_COLS = [{ k: '日付', w: 60 }, { k: '時間', w: 86 }, { k: '部屋', w: 104 }, { k: '氏名・団体名', w: 100 }, { k: '学籍番号/所属', w: 72 }, { k: '備考', w: 0 }];
   /** 文字の幅（pt）。半角は文字の大きさの半分、全角は同じ（PDF の中の決まり /W と合わせる） */
   const halfWidth = (c) => c < 0x7f || (c >= 0xff61 && c <= 0xff9f);
   const textWidth = (t, size) => [...String(t)].reduce((a, ch) => a + (halfWidth(ch.codePointAt(0)) ? 0.5 : 1), 0) * size;
@@ -1029,9 +1084,13 @@
   const pdfHex = (t) => '<' + [...String(t)].map((ch) => { const c = ch.codePointAt(0); return (c > 0xffff ? 0x3013 : c).toString(16).padStart(4, '0'); }).join('') + '>';
 
   /** 各ページの描画の命令（PDF の content stream）を作る */
-  function pdfPages({ from, to, list, rooms, stamp }) {
+  function pdfPages({ from, to, list, rooms, stamp }, keys) {
     const usable = PAGE.w - PAGE.m * 2;
-    PDF_COLS[PDF_COLS.length - 1].w = usable - PDF_COLS.slice(0, -1).reduce((a, c) => a + c.w, 0);
+    // 選んだ項目だけを並べ、日付・時間以外の列で、余った幅を元の幅の割合で分け合う
+    const PDF_COLS = LIST_COLS.filter((c) => keys.includes(c.k)).map((c) => ({ ...c }));
+    const fixed = PDF_COLS.filter((c) => !c.grow).reduce((a, c) => a + c.w, 0);
+    const growSum = PDF_COLS.filter((c) => c.grow).reduce((a, c) => a + c.w, 0);
+    PDF_COLS.forEach((c) => { if (c.grow) c.w = c.w * (usable - fixed) / growSum; });
     const crossYear = from.slice(0, 4) !== to.slice(0, 4);
     const ROW = 16, HEAD_Y = PAGE.m + 44, FOOT = 20, FS = 9.5;
     const perPage = Math.floor((PAGE.h - HEAD_Y - ROW - PAGE.m - FOOT) / ROW);
@@ -1052,7 +1111,7 @@
       text(`期間: ${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　部屋: ${fit(rooms, usable - 220, 9)}　${list.length}件`, PAGE.m, PAGE.m + 30, 9);
       text(stampText, PAGE.w - PAGE.m - textWidth(stampText, 9), PAGE.m + 30, 9, { color: '.33 .33 .33' });
       let y = HEAD_Y, x = PAGE.m;
-      for (const c of PDF_COLS) { text(c.k, x + 4, y + 11, FS, { bold: true }); x += c.w; }
+      for (const c of PDF_COLS) { text(c.label, x + 4, y + 11, FS, { bold: true }); x += c.w; }
       rule(y + ROW, 1, 0);
       y += ROW;
       const rows = list.slice(p * perPage, (p + 1) * perPage);
@@ -1060,17 +1119,21 @@
         const first = !i || rows[i - 1].date !== r.date; // ページの最初の行にも日付を出す
         if (first && i) rule(y, 1, .47);
         const w = wdOf(r.date);
-        const cells = [null, `${hm(r.start)}〜${hm(r.end)}`, roomName(r.roomId), r.name, r.affiliation, r.memo];
         x = PAGE.m;
-        PDF_COLS.forEach((c, k) => {
-          if (k === 0) {
+        PDF_COLS.forEach((c) => {
+          if (c.k === 'date') {
             if (first) {
               const d = crossYear ? slash(r.date) : slash(r.date).slice(5);
               text(d, x + 4, y + 11, FS);
               text(`(${w})`, x + 4 + textWidth(d, FS), y + 11, FS, { color: w === '土' ? '.11 .31 .85' : w === '日' ? '.78 .16 .16' : '0 0 0' });
             }
+          } else if (c.k === 'time') {
+            // 開始を右揃えにして「〜」の位置をそろえる
+            const s0 = hm(r.start), sw = textWidth('00:00', FS);
+            text(s0, x + 4 + sw - textWidth(s0, FS), y + 11, FS);
+            text(`〜${hm(r.end)}`, x + 4 + sw, y + 11, FS);
           } else {
-            text(fit(cells[k], c.w - 8, FS), x + 4, y + 11, FS);
+            text(fit(cellOf(r, c.k), c.w - 8, FS), x + 4, y + 11, FS);
           }
           x += c.w;
         });
@@ -1085,8 +1148,8 @@
     return pages;
   }
 
-  async function exportPdf(data) {
-    const pages = pdfPages(data);
+  async function exportPdf(data, cols) {
+    const pages = pdfPages(data, cols || savedCols());
     const streams = [];
     for (const p of pages) streams.push(await deflate(new TextEncoder().encode(p)));
     saveFile(pdfFile(streams), `予約一覧_${data.from}_${data.to}.pdf`);
@@ -1133,20 +1196,78 @@
     return new Blob(chunks, { type: 'application/pdf' });
   }
 
-  /** 一覧の表（画面の表示と印刷で共通）。日付は日ごとに最初の行だけ。年をまたぐ期間では年も出す */
+  /**
+   * 画面の一覧に出す短い部屋名（特徴タグの（）は詳細で見せる）。ただし、同じ名前の部屋が複数あるとき
+   * （練習室6 の電子ピアノ5台など）は、見分けられるようにタグを残す
+   */
+  function shortRoom(id) {
+    const r = state.data.rooms.find((x) => x.id === id);
+    if (!r) return id;
+    return state.data.rooms.filter((x) => x.name === r.name).length > 1 ? roomName(id) : r.name;
+  }
+  /** 項目の中身（日付以外） */
+  function cellOf(r, k) {
+    return k === 'time' ? `${hm(r.start)}〜${hm(r.end)}` : k === 'room' ? roomName(r.roomId) : k === 'name' ? r.name : k === 'aff' ? r.affiliation : k === 'memo' ? r.memo : '';
+  }
+  /**
+   * 一覧の表（画面と印刷で共通）。cols は出す項目（LIST_COLS の k）。日付は日ごとに最初の行だけ。年をまたぐ期間では年も出す。
+   * clickable: 画面用。行を押すと、その予約の情報を全部その下に開く（data-i に list の番号）
+   */
   const SHOW_MAX = 2000; // 画面に並べる上限（それより多いときは、印刷・エクスポートで全部を見てもらう）
-  function listTable({ from, to, list }, max) {
+  function listTable({ from, to, list }, opt) {
+    opt = opt || {};
+    const cols = LIST_COLS.filter((c) => (opt.cols || LIST_COLS.map((x) => x.k)).includes(c.k));
     const crossYear = from.slice(0, 4) !== to.slice(0, 4);
     let prev = '';
-    const body = list.slice(0, max || list.length).map((r) => {
+    const body = list.slice(0, opt.max || list.length).map((r, i) => {
       const first = r.date !== prev;
       prev = r.date;
       const w = wdOf(r.date);
-      return `<tr class="${first ? 'day' : ''}"><td class="d">${first ? `${crossYear ? slash(r.date) : slash(r.date).slice(5)}<span class="${w === '土' ? 'sat' : w === '日' ? 'sun' : ''}">(${w})</span>` : ''}</td>` +
-        `<td class="t">${hm(r.start)}〜${hm(r.end)}</td><td>${esc(roomName(r.roomId))}</td><td>${esc(r.name)}</td><td>${esc(r.affiliation)}</td><td class="m">${esc(r.memo)}</td></tr>`;
+      const cells = cols.map((c) => (c.k === 'date'
+        ? `<td class="d">${first ? `${crossYear ? slash(r.date) : slash(r.date).slice(5)}<span class="${w === '土' ? 'sat' : w === '日' ? 'sun' : ''}">(${w})</span>` : ''}</td>`
+        : c.k === 'time'
+          // 開始を右揃えにして「〜」の位置をそろえる（「9:25」と「10:00」で桁数が違うため）
+          ? `<td class="c-time"><span class="t-s">${hm(r.start)}</span>〜${hm(r.end)}</td>`
+          : c.k === 'room' && opt.clickable
+            ? `<td class="c-room">${esc(shortRoom(r.roomId)).replace(/（.*$/, (t) => `<wbr><span class="tg">${t}</span>`)}</td>` // 長いときは「（」の前で折り返す
+            : `<td class="c-${c.k}">${esc(cellOf(r, c.k))}</td>`)).join('');
+      return `<tr class="${first ? 'day' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${cells}</tr>`;
     }).join('');
-    return `<table class="list-table"><thead><tr><th>日付</th><th>時間</th><th>部屋</th><th>氏名・団体名</th><th>学籍番号/所属</th><th>備考</th></tr></thead><tbody>${body}</tbody></table>`;
+    return `<table class="list-table${opt.clickable ? ' clickable' : ''}"><thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
   }
+  const COLOR_NAMES = { red: '赤', purple: '紫', green: '緑' };
+  /** 行を押したときに開く、その予約の情報（備考・まとめ予約・編集用パスワード・重要な予定） */
+  function detailHtml(r) {
+    const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+    return `<dl class="res-detail">` +
+      row('日時', `${esc(slash(r.date))}(${wdOf(r.date)}) ${hm(r.start)}〜${hm(r.end)}`) +
+      row('部屋', esc(roomName(r.roomId))) +
+      row('氏名・団体名', esc(r.name)) +
+      row('学籍番号/所属', esc(r.affiliation) || '<span class="none">なし</span>') +
+      row('備考', esc(r.memo) || '<span class="none">なし</span>') +
+      row('まとめ予約', r.groupId ? 'くり返し・複数部屋でまとめて作った予約の1件' : '<span class="none">いいえ</span>') +
+      row('編集用パスワード', r.hasPin ? '設定あり' : '<span class="none">なし</span>') +
+      row('重要な予定', r.color ? `<span class="swatch c-${r.color}"></span>${COLOR_NAMES[r.color] || r.color}` : '<span class="none">なし</span>') +
+      `</dl>`;
+  }
+  let shownList = [];
+  function toggleDetail(tr) {
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains('detail')) { next.remove(); tr.classList.remove('open'); tr.setAttribute('aria-expanded', 'false'); return; }
+    const r = shownList[Number(tr.dataset.i)];
+    if (!r) return;
+    tr.insertAdjacentHTML('afterend', `<tr class="detail"><td colspan="${tr.children.length}">${detailHtml(r)}</td></tr>`);
+    tr.classList.add('open');
+    tr.setAttribute('aria-expanded', 'true');
+  }
+  $('xResultBody').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-i]');
+    if (tr) toggleDetail(tr);
+  });
+  $('xResultBody').addEventListener('keydown', (e) => {
+    const tr = e.target.closest('tr[data-i]');
+    if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleDetail(tr); }
+  });
 
   // 一覧: 条件を変えるたびに、欄の下の表を出し直す（入力の途中は少し待つ。古い読み込みの結果は捨てる）
   let historySeq = 0;
@@ -1170,7 +1291,15 @@
     const cond = exportFilter();
     head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span>${esc(cond.label)}</span>` : '') +
       (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
-    $('xResultBody').innerHTML = list.length ? listTable(data, SHOW_MAX) : '<p class="empty">条件に合う予約はありません。</p>';
+    shownList = list;
+    // 画面では備考を出さない（行を押すと、その予約の情報を全部開く）
+    $('xResultBody').innerHTML = list.length ? listTable(data, { max: SHOW_MAX, cols: ['date', 'time', 'room', 'name', 'aff'], clickable: true })
+      : '<p class="empty">条件に合う予約はありません。</p>';
+    // スマホの1行表示: 部屋の列は、この一覧でいちばん長い部屋名の幅にして、氏名をできるだけ左に寄せる（8文字分まで）。
+    // タグ付きの部屋名（練習室6（電子P.2）など）は「（」の前で折り返すので、名前とタグの長い方で測る
+    const em = (t) => [...t].reduce((n, ch) => n + (ch.codePointAt(0) < 0x7f ? 0.55 : 1), 0);
+    const roomW = Math.min(8, Math.max(3, ...list.slice(0, SHOW_MAX).map((r) => Math.max(...shortRoom(r.roomId).split(/(?=（)/).map(em))))) + 0.4;
+    $('xResultBody').style.setProperty('--room-w', `${roomW.toFixed(2)}em`);
   }
   let refilterTimer = 0;
   function refilter(wait) {
@@ -1182,16 +1311,18 @@
   $('xFrom').addEventListener('change', () => refilter(300));
   $('xTo').addEventListener('change', () => refilter(300));
 
-  // 印刷: 印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin.css の @media print）
-  $('xPrintBtn').addEventListener('click', () => withExport($('xPrintBtn'), async (data) => {
-    const { from, to, list, rooms, stamp } = data;
-    let area = $('printArea');
-    if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
-    area.innerHTML = `<h1>${esc(state.data.settings.title)} 予約一覧</h1>` +
-      `<p class="meta">期間: ${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　部屋: ${esc(rooms)}　${list.length}件<span>出力: ${stamp}</span></p>` +
-      (list.length ? listTable(data) : '<p>条件に合う予約はありません。</p>');
-    window.print();
-  }));
+  // 印刷: 選んだ項目で印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin.css の @media print）
+  function printList(cols) {
+    withExport($('xPrintBtn'), async (data) => {
+      const { from, to, list, rooms, stamp } = data;
+      let area = $('printArea');
+      if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+      area.innerHTML = `<h1>${esc(state.data.settings.title)} 予約一覧</h1>` +
+        `<p class="meta">期間: ${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　部屋: ${esc(rooms)}　${list.length}件<span>出力: ${stamp}</span></p>` +
+        (list.length ? listTable(data, { cols }) : '<p>条件に合う予約はありません。</p>');
+      window.print();
+    });
+  }
 
   // ---------------- 不具合報告 ----------------
   let bugData = null;
