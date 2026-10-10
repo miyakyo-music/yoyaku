@@ -517,17 +517,20 @@
       el.style.setProperty('backdrop-filter', `url(#${L.id}) blur(${blur}px) saturate(180%)`);
     }
     const LENS = {
+      topbar: { radius: 0, bezel: 30, strength: 80, blur: 3 },
       dialog: { radius: 22, bezel: 34, strength: 90, blur: 5 },
       card: { radius: 14, bezel: 22, strength: 60, blur: 2 },
     };
-    // 上部（.topbar）は不透明にしたので屈折させない（index.css の .topbar）
+    const topbar = document.querySelector('.topbar');
     const refreshLenses = () => {
+      applyLens(topbar, LENS.topbar);
       for (const d of document.querySelectorAll('dialog[open]')) applyLens(d, LENS.dialog);
       const hc = $('hoverCard');
       if (!hc.hidden) applyLens(hc, LENS.card);
     };
     if (window.ResizeObserver) {
       const ro = new ResizeObserver(refreshLenses);
+      ro.observe(topbar);
       for (const d of document.querySelectorAll('dialog')) ro.observe(d);
       ro.observe($('hoverCard'));
     }
