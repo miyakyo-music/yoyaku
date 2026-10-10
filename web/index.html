@@ -285,7 +285,8 @@
   .rp-chip input:disabled + span { cursor: default; opacity: .85; }
   .rp-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
   .tl-track {
-    position: relative; flex: none; height: var(--row-h);
+    /* 高さは行に合わせて伸ばす（部屋名の欄が文字の大きさの都合で少し高くなっても、帯が行の上下中央からずれないように） */
+    position: relative; flex: none; align-self: stretch; min-height: var(--row-h);
     width: calc(var(--hour-w) * var(--hours));
     background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px);
     background-size: var(--hour-w) 100%, calc(var(--hour-w) / 2) 100%;
@@ -345,7 +346,11 @@
     color: var(--closed-text); cursor: default; border: 1px dashed var(--line-strong);
   }
   .blk.off { background: var(--closed); border: 0; border-radius: 0; top: 0; bottom: 0; cursor: default; }
-  .blk:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); } /* 角丸に沿う枠 */
+  /* 押した予約の青い枠: 帯の色の層（::after）の内側に描き、色の部分とぴったり重ねる。
+     帯の外側に描くと、左右の透明な 1px の余白のぶんだけ枠と色がずれ、上下では隣の行の線にかぶるため */
+  .blk:focus-visible { outline: none; }
+  .blk:not(.res):focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+  .blk.res:focus-visible::after { box-shadow: inset 0 0 0 2px var(--accent) !important; }
   @media (hover: hover) { .blk.res:hover::after { filter: brightness(.96); } }
   .ghost {
     position: absolute; top: 1px; bottom: 1px; z-index: 5; border-radius: 9px; pointer-events: none; /* 予約の帯と同じ位置・角丸 */
