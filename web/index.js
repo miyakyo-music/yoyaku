@@ -1810,6 +1810,7 @@
   }
 
   // ---------------- カレンダーに追加 ----------------
+  // iPhone はカレンダーのファイル（.ics）を開くと標準のカレンダーに入る。Android は標準が Google カレンダーなので、その追加画面を開く
   // 予約者の名前などは入れず、部屋と時間だけを書く（Google の URL に個人の情報を載せないため）
   function calTitle(r, room) { return `${room ? roomText(room) : r.roomId}の予約`; }
   const CAL_PLACE = '宮城教育大学 音楽棟';
@@ -1827,7 +1828,7 @@
     });
     return 'https://calendar.google.com/calendar/render?' + q.toString();
   }
-  /** iPhone・Mac・Outlook などのカレンダーに読み込めるファイル（.ics）を作って開く。開始15分前に知らせる */
+  /** iPhone のカレンダーに読み込めるファイル（.ics）を作って開く。開始15分前に知らせる */
   function downloadIcs(r, room) {
     const icsText = (t) => String(t).replace(/[\\;,]/g, (c) => '\\' + c);
     const ics = [
