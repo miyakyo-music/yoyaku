@@ -16,3 +16,13 @@ database_id = "6cc35b07-83a0-4e3d-a9ef-ee0d77f951b0"
 [vars]
 PASSKEY_RP_ID = "miyakyo-music.github.io"
 PASSKEY_ORIGIN = "https://miyakyo-music.github.io"
+
+# リアルタイム同期: 予約表を開いている画面とのつながりをまとめて持つ Durable Object（worker.js の Hub）。
+# 無料のプランで使えるのは SQLite を使う形だけなので new_sqlite_classes にする。
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]

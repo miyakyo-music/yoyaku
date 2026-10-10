@@ -15,6 +15,10 @@
  * - パスキーの登録・一覧・削除には、GAS が管理者に出した「許可証」（pkt.…、5分間有効）が要る。
  * - 置くのはパスキーの公開鍵（合い鍵にならない方）だけ。指紋や顔の情報は端末から出ない。
  *
+ * 3つ目の役目: リアルタイム同期。予約表を開いている画面と WebSocket（/live）でつながっておき、GAS から写しが
+ * 届いたら「表が変わった」という合図（版の番号だけ。名前などの中身は送らない）を全員に送る。画面はそれを受けて読み直す。
+ * つながりは Durable Objects（下の Hub。1つだけ）がまとめて持つ。待っている間は眠っていて、料金・回数を使わない。
+ *
  * 設定（wrangler.toml とリポジトリの Secrets）:
  *   DB             … D1 データベースのつなぎ（wrangler.toml）
  *   PUSH_TOKEN     … GAS と共有する合言葉（Cloudflare の秘密の設定。GitHub Actions が Secrets から登録する）。
@@ -26,14 +30,15 @@
 let tableReady = false;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
+    if (url.pathname === '/live') return live(request, env);
     try {
       await ensureTable(env);
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
       if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
-      if (url.pathname === '/push' && request.method === 'POST') return await push(request, env);
+      if (url.pathname === '/push' && request.method === 'POST') return await push(request, env, ctx);
       if (url.pathname.startsWith('/passkey/')) return passkeyCors(await passkey(url.pathname.slice(9), request, env), env);
       if (url.pathname === '/') return cors(json(await status(env)));
       return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
@@ -237,7 +242,7 @@ async function schedule(url, env) {
 }
 
 /** GAS からの写しの受け取り。版が今より古いもの（順番が入れ替わって届いたもの）は捨てる */
-async function push(request, env) {
+async function push(request, env, ctx) {
   const auth = (request.headers.get('Authorization') || '').trim();
   const token = String(env.PUSH_TOKEN || '').trim();
   if (!token || !safeEqual(auth, 'Bearer ' + token)) return json({ ok: false, code: 'UNAUTHORIZED', tokenHint: await tokenHint(token) }, 401);
@@ -262,6 +267,11 @@ async function push(request, env) {
     stmts.push(env.DB.prepare('INSERT OR REPLACE INTO cache (k, v) VALUES (?, ?)').bind('m:' + month, JSON.stringify(list || [])));
   }
   await env.DB.batch(stmts); // まとめて1回で書き換える（途中で失敗したら全部取り消される）
+  // 開いている画面に「表が変わった」と知らせる（失敗しても写しの更新には影響させない）
+  if (env.HUB) {
+    const notify = hub(env).fetch('https://hub/notify', { method: 'POST', body: JSON.stringify({ type: 'changed', version }) }).catch(() => {});
+    if (ctx && ctx.waitUntil) ctx.waitUntil(notify);
+  }
   return json({ ok: true, version });
 }
 
@@ -302,6 +312,45 @@ function icsResponse(url) {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+// ---------------- リアルタイム同期 ----------------
+
+function hub(env) { return env.HUB.get(env.HUB.idFromName('all')); }
+
+/** 予約表からのつながり（WebSocket）。予約表のサイトからだけ受け付ける */
+function live(request, env) {
+  if (!env.HUB) return json({ ok: false, code: 'DISABLED' }, 404);
+  if (request.headers.get('Upgrade') !== 'websocket') return json({ ok: false, code: 'BAD_REQUEST' }, 426);
+  const allowed = String(env.PASSKEY_ORIGIN || '').trim();
+  const origin = request.headers.get('Origin') || '';
+  if (allowed && origin !== allowed) return json({ ok: false, code: 'FORBIDDEN' }, 403);
+  return hub(env).fetch(request);
+}
+
+/**
+ * つながりをまとめて持つ Durable Object。眠っている間もつながりは保たれる（Hibernation API）。
+ * 画面からの「ping」には、起きずに「pong」と自動で返す（つながりが切れないように画面が45秒ごとに送る）
+ */
+export class Hub {
+  constructor(state) {
+    this.state = state;
+    state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+  }
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname === '/notify') {
+      const msg = await request.text();
+      for (const ws of this.state.getWebSockets()) { try { ws.send(msg); } catch (e) { /* 切れたつながりは無視 */ } }
+      return new Response('ok');
+    }
+    const pair = new WebSocketPair();
+    this.state.acceptWebSocket(pair[1]);
+    return new Response(null, { status: 101, webSocket: pair[0] });
+  }
+  webSocketMessage() { /* 画面からの中身は使わない */ }
+  webSocketClose(ws, code) { try { ws.close(code, 'closed'); } catch (e) { /* すでに閉じている */ } }
+  webSocketError() {}
 }
 
 // ---------------- 小物 ----------------
