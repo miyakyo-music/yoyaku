@@ -760,6 +760,9 @@ html.dark .field select, html.dark .field .time select { background-image: url("
 }
 
 /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
+/* ランプのある部屋名の欄: ランプを左の列に置いて上下中央に、部屋名とタグは右の列で左端をそろえる */
+.lbl-lamp { display: flex; align-items: center; min-width: 0; }
+.lbl-body { display: flex; flex-direction: column; min-width: 0; }
 /* 左に 2px あけて、ランプの周りの光の輪が部屋名の欄の左端で切れないようにする */
 .lamp { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
 /* ランプは小さな点に、輪郭のないごく弱いぼかしを添える（部屋の数だけ並ぶので、強く光ると画面がうるさくなる）。
