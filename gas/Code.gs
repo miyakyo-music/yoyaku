@@ -56,6 +56,7 @@ const SYSTEM = {
   // 練習室の予約で毎分30件を超えることは通常ないため、ふだんの利用には影響しない
   MAX_WRITES_PER_MINUTE: 30,
   MAX_ADMIN_DEVICES: 30, // 管理画面にログインしたことのある端末を覚えておく数（古いものから消える）
+  CACHE_MONTHS_AHEAD: 4, // 高速キャッシュに置く範囲: 先月の1日から、4か月先の月末まで（その外は予約表が GAS から読む）
 };
 
 /** この呼び出しの端末の印（管理画面にログインしたことのある端末なら adminDevice が付いてくる）。doPost で毎回入れ直す */
@@ -813,6 +814,107 @@ function logAdmin_(ss, action, detail) {
 }
 
 // ---------------------------------------------------------------------------
+// 高速キャッシュ（Cloudflare Workers ＋ D1。cache/worker.js）への写しの送信
+//
+// スクリプトプロパティ CACHE_PUSH_URL（例: https://yoyaku-cache.〇〇.workers.dev/push）と
+// CACHE_PUSH_TOKEN（Cloudflare 側と同じ合言葉）が両方あるときだけ動く。どちらかを消せば、送るのをやめる。
+// 送るのは予約表を開けば誰でも見られる内容だけ（限定公開の部屋・編集用パスワードは含めない）。
+// 送れなかったときは CACHE_DIRTY を立て、5分ごとのトリガー（cacheRetry）が送り直す。
+// ---------------------------------------------------------------------------
+
+// 送り先と合言葉は、覚えておいた値（prop_ は10分間覚える）を使わず、毎回スクリプトプロパティから読む。
+// 合言葉を入れ替えたとき、すぐに新しい値で送れるようにするため
+function cacheProp_(key) {
+  return PropertiesService.getScriptProperties().getProperty(key) || '';
+}
+function cacheEnabled_() {
+  return !!(cacheProp_('CACHE_PUSH_URL') && cacheProp_('CACHE_PUSH_TOKEN'));
+}
+
+/** 今の予約表の写しを作って送る。成功すれば true（失敗の理由は CACHE_LAST_ERROR に残す） */
+function pushCache_() {
+  if (!cacheEnabled_()) return false;
+  const props = PropertiesService.getScriptProperties();
+  try {
+    const version = Date.now(); // 読み込む直前の時刻を版にする（新しい版ほど新しい内容）
+    const ctx = context_({}); // 管理者でも限定公開でもない、一般の人の見え方
+    const today = nowStr_('yyyy-MM-dd');
+    const windowFrom = addMonths_(today, -1); // 先月の1日から
+    const windowTo = addDays_(addMonths_(today, SYSTEM.CACHE_MONTHS_AHEAD + 1), -1); // 4か月先の月末まで
+    const body = { version: version, apiVersion: API_VERSION, windowFrom: windowFrom, windowTo: windowTo };
+    if (ctx.settings.viewPassword) {
+      body.disabled = true; // 閲覧パスワードを使っている間は写しを置かない（予約表は GAS から読む）
+    } else {
+      const visible = visibleIn_(ctx);
+      const months = {};
+      for (let m = windowFrom.slice(0, 7); m <= windowTo.slice(0, 7); m = addMonths_(m + '-01', 1).slice(0, 7)) months[m] = [];
+      readReservations_(ctx.resSheet)
+        .filter(r => r.date >= windowFrom && r.date <= windowTo && visible(r))
+        .forEach(r => months[r.date.slice(0, 7)].push(toPublic_(r)));
+      body.months = months;
+      body.rooms = ctx.rooms;
+      body.settings = publicSettings_(ctx.settings);
+      body.closures = readClosures_(ctx.ss).filter(c => c.date >= windowFrom && c.date <= windowTo && visible(c));
+    }
+    const res = UrlFetchApp.fetch(cacheProp_('CACHE_PUSH_URL').trim(), {
+      method: 'post', contentType: 'application/json', payload: JSON.stringify(body),
+      headers: { Authorization: 'Bearer ' + cacheProp_('CACHE_PUSH_TOKEN').trim() }, muteHttpExceptions: true,
+    });
+    const ok = res.getResponseCode() === 200;
+    const detail = ok ? '' : '応答 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200);
+    if (!ok) console.error('高速キャッシュへの送信に失敗: ' + detail);
+    props.setProperty('CACHE_DIRTY', ok ? '' : '1');
+    props.setProperty('CACHE_LAST_ERROR', detail);
+    if (ok) props.setProperty('CACHE_PUSHED_DATE', today);
+    return ok;
+  } catch (e) {
+    console.error(e);
+    try { props.setProperty('CACHE_DIRTY', '1'); props.setProperty('CACHE_LAST_ERROR', String(e && e.message || e).slice(0, 200)); } catch (e2) { /* 何もしない */ }
+    return false;
+  }
+}
+
+/**
+ * トリガー（5分ごと）とメニューから呼ぶ。送れていない写しがあるとき、または日付が変わったとき（写しの範囲を進めるため）に送る。
+ * メニューから呼んだときは、必ず送る。
+ */
+function cacheRetry(e) {
+  if (!cacheEnabled_()) return;
+  const props = PropertiesService.getScriptProperties();
+  const fromTrigger = !!(e && e.triggerUid);
+  const due = props.getProperty('CACHE_DIRTY') === '1' || props.getProperty('CACHE_PUSHED_DATE') !== nowStr_('yyyy-MM-dd');
+  if (fromTrigger && !due) return;
+  const ok = pushCache_();
+  if (!fromTrigger) {
+    let why = props.getProperty('CACHE_LAST_ERROR') || '';
+    if (!ok) { // 合言葉の手がかり（長さとハッシュの先頭8文字）。Cloudflare 側の URL を開くと出る tokenHint と比べる
+      const t = cacheProp_('CACHE_PUSH_TOKEN').trim();
+      const hex = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, t, Utilities.Charset.UTF_8)
+        .map(b => ('0' + ((b + 256) % 256).toString(16)).slice(-2)).join('');
+      why += '\nGAS の合言葉の手がかり: 長さ ' + t.length + '、' + hex.slice(0, 8);
+    }
+    try {
+      SpreadsheetApp.getUi().alert(ok ? '高速キャッシュに送りました。'
+        : '高速キャッシュに送れませんでした。\n理由: ' + why + '\n\n「応答 401」なら合言葉が GAS と GitHub（Cloudflare）で違います。スクリプトプロパティの CACHE_PUSH_URL・CACHE_PUSH_TOKEN と、Cloudflare 側の設定を確かめてください。');
+    } catch (err) { /* 画面がない */ }
+  }
+}
+
+/** 5分ごとの送り直しトリガーを作る（何度実行しても1つだけ） */
+function setupCacheTrigger() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'cacheRetry').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('cacheRetry').timeBased().everyMinutes(5).create();
+  try { SpreadsheetApp.getUi().alert('5分ごとに、送れていない写しを送り直す設定をしました。'); } catch (err) { /* 画面がない */ }
+}
+
+/** n か月後（前）の月の1日 */
+function addMonths_(dateStr, n) {
+  const p = dateStr.split('-').map(Number);
+  const d = new Date(p[0], p[1] - 1 + n, 1);
+  return d.getFullYear() + '-' + pad2_(d.getMonth() + 1) + '-01';
+}
+
+// ---------------------------------------------------------------------------
 // 管理者用メニュー（スプレッドシート上で使用）
 // ---------------------------------------------------------------------------
 
@@ -823,6 +925,9 @@ function onOpen() {
     .addItem('前年度の予約をアーカイブ', 'archivePreviousFiscalYear')
     .addSeparator()
     .addItem('管理用パスワードを設定', 'setAdminPassword')
+    .addSeparator()
+    .addItem('高速キャッシュに今すぐ送る', 'cacheRetry')
+    .addItem('高速キャッシュの自動送り直しを設定', 'setupCacheTrigger')
     .addToUi();
 }
 
@@ -1355,13 +1460,16 @@ function withLock_(fn) {
   if (!lock.tryLock(SYSTEM.LOCK_WAIT_MS)) {
     return fail_('アクセスが集中しています。少し待ってから再度お試しください。', 'BUSY');
   }
+  let result;
   try {
-    const result = fn();
+    result = fn();
     if (result && result.ok) bumpScheduleVersion_(); // 予約・設定が変わったので、覚えていた予約表を使わないようにする
-    return result;
   } finally {
     lock.releaseLock();
   }
+  // 高速キャッシュ（Cloudflare）を使っているときは、変わった予約表の写しを送る（ロックを外してから。失敗しても予約は成功のまま）
+  if (result && result.ok) pushCache_();
+  return result;
 }
 
 /** 覚えておいた予約表の版（予約・設定が変わるたびに新しくなる） */
