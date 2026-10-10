@@ -1211,6 +1211,8 @@
     rows: [],             // タイムラインの各行（空き判定に使う）
     geo: null,            // タイムラインの時間軸
     seq: 0,
+    noCacheUntil: 0,      // この時刻までは高速キャッシュを使わない（自分が書き込んだ直後）
+    dataSource: '',       // 直近の予約表をどこから読んだか（cache / gas）
     viewKey: load_(LS.viewKey, ''),
     limitedKey: load_(LS.limitedKey, ''),
     booking: null,        // 予約ダイアログの状態
@@ -1318,6 +1320,8 @@
     const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation', 'adminSetNotice'];
     if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
     const res = await callApi(fn, body); // web/api.js
+    // 予約・変更・取消などの書き込みが通ったら、しばらくは高速キャッシュを使わずサーバーから読む
+    if (res && res.ok && fn !== 'getSchedule' && fn !== 'getReservationsByIds') state.noCacheUntil = Date.now() + 2 * 60 * 1000;
     if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); throw new AuthError(res.message); }
     if (res && !res.ok && state.adminPw && /管理用パスワード/.test(res.message || '')) {
       exitAdminMode('管理者モードを終了しました（管理用パスワードが変更された可能性があります）。');
@@ -1343,12 +1347,33 @@
   // ---------------- 予約データの取得とキャッシュ ----------------
   function rangeKey(r) { return `${r.from}|${r.to}`; }
 
+  /**
+   * 予約表のデータを読む。高速キャッシュ（Cloudflare）が使えるときはそこから、使えないときは GAS から。
+   * 管理者モード・限定公開、そして自分が予約・変更した直後（2分間）は、必ず GAS から読む
+   * （写しの更新が遅れていても、自分の変更が消えて見えないように）
+   */
+  async function getScheduleFast(range) {
+    const usable = window.CACHE_API_URL && !state.adminPw && !state.limitedKey && Date.now() > state.noCacheUntil;
+    if (usable) {
+      const res = await fetchCacheSchedule(range); // web/api.js
+      if (res) { setDataSource('cache'); return res; }
+    }
+    const res = await api('getSchedule', range);
+    if (res && res.ok) setDataSource('gas');
+    return res;
+  }
+  /** どちらから読んだかを、更新ボタンの説明（マウスを乗せると出る文字）に書いておく（不具合の切り分け用） */
+  function setDataSource(src) {
+    state.dataSource = src;
+    $('refreshBtn').title = '押すと最新の予約に更新します（読み込み元: ' + (src === 'cache' ? '高速キャッシュ' : 'サーバー') + '）';
+  }
+
   /** GAS から期間の予約データを取得してキャッシュに入れる（同じ期間を取得中なら、その結果を共用する） */
   function fetchRange(range, force) {
     const key = rangeKey(range);
     if (!force && state.inflight.has(key)) return state.inflight.get(key);
     const gen = state.cacheGen;
-    const p = api('getSchedule', range).then((res) => {
+    const p = getScheduleFast(range).then((res) => {
       if (!res || !res.ok) throw new Error(res && res.message);
       if (gen === state.cacheGen) state.cache.set(key, { res, at: Date.now() });
       return res;

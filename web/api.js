@@ -79,6 +79,32 @@
     return data;
   };
 
+  /**
+   * 高速キャッシュ（Cloudflare。cache/worker.js）から予約表を読む。web/config.js の CACHE_API_URL が空なら使わない。
+   * 写しがない・範囲外・通信できない・遅い（2.5秒）ときは null を返すので、呼び出し側は GAS から読み直す。
+   * @returns {Promise<object|null>} GAS の getSchedule と同じ形の応答、または null
+   */
+  const CACHE_TIMEOUT_MS = 2500;
+  window.fetchCacheSchedule = async function (range) {
+    const base = window.CACHE_API_URL;
+    if (!base) return null;
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctrl && setTimeout(() => ctrl.abort(), CACHE_TIMEOUT_MS);
+    try {
+      const url = `${base.replace(/\/$/, '')}/schedule?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`;
+      const res = await fetch(url, { credentials: 'omit', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data || !data.ok) return null;
+      if (data.apiVersion !== API_VERSION) return null; // 写しの形が画面と合わないときは使わない
+      return data;
+    } catch (e) {
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
   // ---------------- パスワード欄の「表示」ボタン（予約表・管理画面で共通） ----------------
   /** 欄の中身を見せる／伏せる */
   window.setSecretShown = function (input, shown) {
