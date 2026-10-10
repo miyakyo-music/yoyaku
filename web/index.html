@@ -40,6 +40,8 @@
 <link rel="stylesheet" href="index.css">
 </head>
 <body>
+  <!-- 画面の本体（小窓を開くと、まとめて少し奥へ下がる。index.css の .page） -->
+  <div class="page" id="page">
   <!-- 試験運用中の帯（版の名前に beta が含まれる間だけ出す。正式版では自動で消え、「不具合を報告」はフッタだけになる） -->
   <div class="beta-band" id="betaBand" hidden>
     <span class="beta-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 15h9"/></svg><span class="wide-text">試験運用中。不具合や新たに欲しい機能があればお知らせください。</span><span class="narrow-text">試験運用中</span></span>
@@ -96,6 +98,7 @@
   <main class="main" id="main"></main>
   <!-- スマホ: 右下に浮かぶ新規予約ボタン -->
   <button type="button" class="fab" id="fabBtn" aria-label="新規予約"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
 
   <!-- 予約・変更ダイアログ -->
   <dialog id="bookDialog">

@@ -40,6 +40,12 @@ body {
   min-width: 360px; /* これより狭い画面では縮めずに画面全体を横スクロール */
 }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* 画面の本体（帯・上部・表・＋ボタン）。小窓を開くと、まとめて少し縮んで奥へ下がり、閉じると戻る（iPhone のシートと同じ考え方）。
+   小窓が広がる動きと同じ速さ・弾み方にそろえる。縮める間だけ角を丸め、まわりに背景の色をのぞかせる */
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; transform-origin: 50% 40%;
+  transition: transform .46s cubic-bezier(.28, 1.12, .4, 1), border-radius .46s; }
+html.dlg-open .page { transform: scale(.965); border-radius: 16px; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { html.dlg-open .page { transform: none; border-radius: 0; } }
 
 /* ---------- ヘッダー ---------- */
 .topbar {

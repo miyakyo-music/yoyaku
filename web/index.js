@@ -2804,6 +2804,10 @@
   for (const dlg of dialogs) dlg.addEventListener('close', () => hideSecrets(dlg));
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
+  // 小窓が開いている間は、画面の本体を少し奥へ下げる（index.css の html.dlg-open .page）
+  const syncDepth = () => document.documentElement.classList.toggle('dlg-open', anyDialogOpen());
+  const depthWatch = new MutationObserver(syncDepth);
+  for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
   // ---------------- 自動更新（操作の邪魔をしない） ----------------
   const IDLE_MS = 3000; // 最後の操作からこの時間が過ぎるまでは、画面を描き直さない
   let lastActive = 0;
