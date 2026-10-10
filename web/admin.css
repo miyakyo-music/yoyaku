@@ -217,6 +217,8 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   box-shadow: 0 0 0 .5px rgba(0, 0, 0, .12), 0 8px 24px rgba(0, 0, 0, .16);
 }
 .multi-pop[hidden] { display: none; }
+/* カードはぼかし（backdrop-filter）でそれぞれ独立した重なりになるので、一覧を開いている間はそのカードごと手前に出す（下のカードに潜らないように） */
+.card:has(.multi-pop:not([hidden])) { position: relative; z-index: 5; }
 .multi-pop .check { padding: 7px 8px; border-radius: 8px; color: var(--text); font-size: 15px; cursor: pointer; }
 @media (hover: hover) { .multi-pop .check:hover { background: var(--fill-field); } }
 .multi-pop .check:first-child { border-bottom: .5px solid var(--sep); border-radius: 8px 8px 0 0; margin-bottom: 2px; }
@@ -495,4 +497,61 @@ html.dark .msg.error { background: rgba(255, 69, 58, .16); }
 html.dark .toast { background: rgba(58, 58, 60, .9); }
 html.dark .field select, html.dark select.in, html.dark .bug-head select, html.dark .notice-edit select, html.dark .time select, html.dark .suffix select, html.dark .multi-btn {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
+/* ---------- 予約の一覧（CSV・印刷） ---------- */
+#exportForm .f-room { flex: 1 1 160px; }
+#exportForm .f-actions { display: flex; gap: 8px; margin-left: auto; }
+/* 印刷用の表（admin.js が作る）。ふだんは隠し、印刷のときはこれだけを出す。色は画面の明暗にかかわらず白地に黒 */
+#printArea { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  html, body { background: #fff !important; color: #000 !important; }
+  body::before, body::after { display: none !important; }
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block; color: #000; font-size: 10pt; }
+  #printArea h1 { margin: 0 0 4pt; font-size: 14pt; }
+  #printArea .meta { display: flex; flex-wrap: wrap; gap: 2pt 12pt; margin: 0 0 8pt; font-size: 9pt; }
+  #printArea .meta span { margin-left: auto; color: #555; }
+  #printArea table { width: 100%; min-width: 0; border-collapse: collapse; }
+  #printArea thead { display: table-header-group; } /* ページが変わっても見出しをくり返す */
+  #printArea th, #printArea td { padding: 3pt 5pt; border-bottom: .5pt solid #c8c8c8; color: #000; font-size: 9.5pt; text-align: left; vertical-align: top; white-space: normal; }
+  #printArea th { border-bottom: 1pt solid #000; font-weight: 700; }
+  #printArea tr { break-inside: avoid; }
+  #printArea tr.day td { border-top: 1pt solid #777; }
+  #printArea td.d, #printArea td.t { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #printArea .sat { color: #1d4ed8; }
+  #printArea .sun { color: #c62828; }
+}
+/* 画面に出す一覧の表（日の変わり目に線。備考は折り返す） */
+#xResult { margin-top: 14px; }
+#xResult .lead { margin: 0 0 6px; }
+#xResult .list-table td { font-variant-numeric: tabular-nums; }
+#xResult .list-table tr.day td { border-top: 1px solid var(--line-strong); }
+#xResult .list-table td.m { white-space: normal; min-width: 140px; }
+/* エクスポートの形式の一覧 */
+.fmt-pop { min-width: 220px; }
+.fmt-pop button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: none; font: inherit; font-size: 15px; font-weight: 600; color: var(--text); text-align: left; cursor: pointer;
+}
+.fmt-pop button small { font-size: 12px; font-weight: 400; color: var(--muted); }
+@media (hover: hover) { .fmt-pop button:hover { background: var(--fill-field); } }
+/* スマホ: 一覧はカードにせず、日付の見出しの下に1件ずつ「時間｜部屋 ／ 名前・所属 ／ 備考」と詰めて並べる */
+@media (max-width: 600px) {
+  #xResult .table-wrap tbody { display: block; }
+  #xResult .table-wrap tr, html.dark #xResult .table-wrap tr {
+    grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "d d d" "t room room" "t name aff" "t memo memo";
+    gap: 1px 8px; padding: 7px 2px; border-radius: 0; background: none; border-bottom: .5px solid var(--sep);
+  }
+  #xResult .table-wrap tr.day td.d { padding-top: 10px; }
+  #xResult .table-wrap td.d { grid-area: d; font-weight: 600; }
+  #xResult .table-wrap td.d:empty { display: none; }
+  #xResult .table-wrap td:nth-child(2) { grid-area: t; color: var(--text); font-size: 14px; white-space: nowrap; min-width: 92px; }
+  #xResult .table-wrap td:nth-child(3) { grid-area: room; color: var(--text); font-size: 14px; }
+  #xResult .table-wrap td:nth-child(4) { grid-area: name; color: var(--muted); font-size: 13px; }
+  #xResult .table-wrap td:nth-child(5) { grid-area: aff; color: var(--muted); font-size: 13px; }
+  #xResult .table-wrap td.m { grid-area: memo; min-width: 0; color: var(--muted); font-size: 12px; }
+  #xResult .table-wrap td.m:empty { display: none; }
+  #xResult .list-table tr.day td { border-top: 0; }
 }

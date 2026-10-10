@@ -49,36 +49,12 @@
 
     <section id="adminView" hidden>
       <nav class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="settings" aria-selected="true">一般<span class="dot" id="dotSettings" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="history" aria-selected="true"><span class="lg">予約</span>履歴</button>
+        <button type="button" role="tab" data-tab="stats" aria-selected="false">統計</button>
         <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
+        <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotSetup" hidden>●</span></button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
-        <button type="button" role="tab" data-tab="stats" aria-selected="false">利用<span class="lg">状況</span></button>
-        <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotRooms" hidden>●</span></button>
       </nav>
-
-      <!-- 利用時間・制限 -->
-      <div class="card" data-panel="settings">
-        <h2>一般 <button type="button" class="info" aria-label="説明" data-tip="保存すると、利用者の画面には最大1分後に反映されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
-        <form id="settingsForm" class="form-grid" novalidate>
-          <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
-          <div class="field full"><span>お知らせ <button type="button" class="info" aria-label="説明" data-tip="予約表の上部に表示します（空欄なら出しません）。「重要」は休館など予約に直結する連絡用で、赤で目立つ表示になります。">i</button></span><div class="notice-edit"><input id="sNotice" class="in" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません" aria-label="お知らせ"><select id="sNoticeLevel" class="in" aria-label="お知らせの種類"><option value="通常">通常（青）</option><option value="重要">重要（赤）</option></select></div></div>
-          <div class="field">利用開始時刻<div class="time"><select id="sOpenH" class="in"></select>:<select id="sOpenM" class="in"></select></div></div>
-          <div class="field">利用終了時刻<div class="time"><select id="sCloseH" class="in"></select>:<select id="sCloseM" class="in"></select></div></div>
-          <label class="field">予約単位<span class="suffix"><select id="sUnit" class="in"></select>分</span></label>
-          <label class="field"><span>1回の最大予約時間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span></label>
-          <label class="field m-full"><span>予約受付期間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix">今日から<input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span></label>
-          <label class="field m-full"><span>まとめて予約の最大件数 <button type="button" class="info" aria-label="説明" data-tip="くり返し予約・複数部屋の同時予約の合計（部屋数×日数）。">i</button></span><span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span></label>
-          <div class="field full">定休日<div class="weekdays" id="sWeekdays"></div></div>
-          <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約は管理者のみ<button type="button" class="info" aria-label="説明" data-tip="まとめて予約＝くり返し予約・複数部屋の同時予約。オンにすると、管理用パスワードを知っている人だけが使えます。">i</button></label></div>
-        </form>
-        <div class="savebar">
-          <span class="spacer"></span>
-          <span class="dirty" id="settingsDirty" hidden>未保存の変更があります</span>
-          <button type="button" class="btn primary" id="saveSettingsBtn">保存</button>
-        </div>
-        <p class="msg error" id="settingsError"></p>
-        <p class="msg warn" id="settingsWarn"></p>
-      </div>
 
       <!-- 休館・利用停止 -->
       <div class="card" data-panel="closures" hidden>
@@ -103,6 +79,30 @@
       </div>
 
       <!-- 設定（パスワード・パスキー・練習室。練習室の構成はまず変えないので一番下） -->
+      <!-- 利用時間・制限 -->
+      <div class="card" data-panel="setup" hidden>
+        <h2>一般 <button type="button" class="info" aria-label="説明" data-tip="保存すると、利用者の画面には最大1分後に反映されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
+        <form id="settingsForm" class="form-grid" novalidate>
+          <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
+          <div class="field full"><span>お知らせ <button type="button" class="info" aria-label="説明" data-tip="予約表の上部に表示します（空欄なら出しません）。「重要」は休館など予約に直結する連絡用で、赤で目立つ表示になります。">i</button></span><div class="notice-edit"><input id="sNotice" class="in" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません" aria-label="お知らせ"><select id="sNoticeLevel" class="in" aria-label="お知らせの種類"><option value="通常">通常（青）</option><option value="重要">重要（赤）</option></select></div></div>
+          <div class="field">利用開始時刻<div class="time"><select id="sOpenH" class="in"></select>:<select id="sOpenM" class="in"></select></div></div>
+          <div class="field">利用終了時刻<div class="time"><select id="sCloseH" class="in"></select>:<select id="sCloseM" class="in"></select></div></div>
+          <label class="field">予約単位<span class="suffix"><select id="sUnit" class="in"></select>分</span></label>
+          <label class="field"><span>1回の最大予約時間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span></label>
+          <label class="field m-full"><span>予約受付期間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix">今日から<input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span></label>
+          <label class="field m-full"><span>まとめて予約の最大件数 <button type="button" class="info" aria-label="説明" data-tip="くり返し予約・複数部屋の同時予約の合計（部屋数×日数）。">i</button></span><span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span></label>
+          <div class="field full">定休日<div class="weekdays" id="sWeekdays"></div></div>
+          <div class="field full"><label class="check"><input type="checkbox" id="sBulkAdmin">まとめて予約は管理者のみ<button type="button" class="info" aria-label="説明" data-tip="まとめて予約＝くり返し予約・複数部屋の同時予約。オンにすると、管理用パスワードを知っている人だけが使えます。">i</button></label></div>
+        </form>
+        <div class="savebar">
+          <span class="spacer"></span>
+          <span class="dirty" id="settingsDirty" hidden>未保存の変更があります</span>
+          <button type="button" class="btn primary" id="saveSettingsBtn">保存</button>
+        </div>
+        <p class="msg error" id="settingsError"></p>
+        <p class="msg warn" id="settingsWarn"></p>
+      </div>
+
       <div class="card" data-panel="setup" hidden>
         <h2>限定公開の部屋 <button type="button" class="info" aria-label="説明" data-tip="予約制限が「限定公開」の部屋を使う人にだけ、このパスワードと入口の URL を伝えてください。管理用パスワードとは別物で、知っていても設定の変更や他人の予約の取消はできません。">i</button></h2>
         <form id="limitedForm" class="form-grid" novalidate>
@@ -157,10 +157,37 @@
       </div>
 
       <!-- 不具合報告 -->
-      <!-- 利用状況（admin.js の「利用状況」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
+      <!-- 予約履歴（admin.js の「予約の一覧」。期間・部屋を選んで表示・印刷・エクスポートする） -->
+      <div class="card" data-panel="history">
+        <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="選んだ期間・部屋の予約を、印刷したり、CSV・Excel・PDF のファイルに書き出したりできます。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
+        <form id="exportForm" class="add-form" novalidate>
+          <div class="field f-date">開始日<label class="date-field"><span class="date-display" id="xFromDisplay" aria-hidden="true"></span><input id="xFrom" type="date" aria-label="開始日"></label></div>
+          <div class="field f-date">終了日<label class="date-field"><span class="date-display" id="xToDisplay" aria-hidden="true"></span><input id="xTo" type="date" aria-label="終了日"></label></div>
+          <div class="field f-room">部屋<div class="multi" id="xRoomPick"><button type="button" class="multi-btn" id="xRoomBtn" aria-haspopup="true" aria-expanded="false" aria-label="部屋">全室</button><div class="multi-pop" id="xRoomPop" hidden></div></div></div>
+          <div class="f-actions">
+            <button type="button" class="btn" id="xShowBtn">表示</button>
+            <button type="button" class="btn" id="xPrintBtn">印刷</button>
+            <div class="multi" id="xFmtPick">
+              <button type="button" class="btn primary" id="xFmtBtn" aria-haspopup="true" aria-expanded="false">エクスポート</button>
+              <div class="multi-pop fmt-pop" id="xFmtPop" hidden>
+                <button type="button" data-fmt="csv">CSV<small>Excel・Numbers などで開ける表</small></button>
+                <button type="button" data-fmt="xlsx">Excel<small>.xlsx</small></button>
+                <button type="button" data-fmt="pdf">PDF<small>印刷と同じ表を A4 で</small></button>
+              </div>
+            </div>
+          </div>
+        </form>
+        <p class="msg error" id="exportError"></p>
+        <div id="xResult" hidden>
+          <p class="lead" id="xResultHead"></p>
+          <div class="table-wrap" id="xResultBody"></div>
+        </div>
+      </div>
+
+      <!-- 統計（admin.js の「統計」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
       <div class="card" data-panel="stats" hidden>
         <div class="stats-head">
-          <h2 style="margin:0">利用状況</h2>
+          <h2 style="margin:0">統計</h2>
           <span class="spacer"></span>
           <div class="seg-mini" role="group" aria-label="期間">
             <button type="button" data-period="week" aria-pressed="false">今週</button>
