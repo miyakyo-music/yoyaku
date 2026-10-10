@@ -1228,7 +1228,9 @@
         : c.k === 'time'
           // 開始を右揃えにして「〜」の位置をそろえる（「9:25」と「10:00」で桁数が違うため）
           ? `<td class="c-time"><span class="t-s">${hm(r.start)}</span>〜${hm(r.end)}</td>`
-          : `<td class="c-${c.k}">${esc(c.k === 'room' && opt.clickable ? shortRoom(r.roomId) : cellOf(r, c.k))}</td>`)).join('');
+          : c.k === 'room' && opt.clickable
+            ? `<td class="c-room">${esc(shortRoom(r.roomId)).replace(/（.*$/, (t) => `<wbr><span class="tg">${t}</span>`)}</td>` // 長いときは「（」の前で折り返す
+            : `<td class="c-${c.k}">${esc(cellOf(r, c.k))}</td>`)).join('');
       return `<tr class="${first ? 'day' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${cells}</tr>`;
     }).join('');
     return `<table class="list-table${opt.clickable ? ' clickable' : ''}"><thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
@@ -1293,6 +1295,11 @@
     // 画面では備考を出さない（行を押すと、その予約の情報を全部開く）
     $('xResultBody').innerHTML = list.length ? listTable(data, { max: SHOW_MAX, cols: ['date', 'time', 'room', 'name', 'aff'], clickable: true })
       : '<p class="empty">条件に合う予約はありません。</p>';
+    // スマホの1行表示: 部屋の列は、この一覧でいちばん長い部屋名の幅にして、氏名をできるだけ左に寄せる（8文字分まで）。
+    // タグ付きの部屋名（練習室6（電子P.2）など）は「（」の前で折り返すので、名前とタグの長い方で測る
+    const em = (t) => [...t].reduce((n, ch) => n + (ch.codePointAt(0) < 0x7f ? 0.55 : 1), 0);
+    const roomW = Math.min(8, Math.max(3, ...list.slice(0, SHOW_MAX).map((r) => Math.max(...shortRoom(r.roomId).split(/(?=（)/).map(em))))) + 0.4;
+    $('xResultBody').style.setProperty('--room-w', `${roomW.toFixed(2)}em`);
   }
   let refilterTimer = 0;
   function refilter(wait) {
