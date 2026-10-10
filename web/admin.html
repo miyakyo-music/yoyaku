@@ -157,29 +157,38 @@
       </div>
 
       <!-- 不具合報告 -->
-      <!-- 予約履歴（admin.js の「予約の一覧」。期間・部屋を選んで表示・印刷・エクスポートする） -->
+      <!-- 予約履歴（admin.js の「予約履歴」。期間・部屋・検索で絞って一覧を出し、印刷・エクスポートする） -->
       <div class="card" data-panel="history">
-        <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="選んだ期間・部屋の予約を、印刷したり、CSV・Excel・PDF のファイルに書き出したりできます。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
-        <form id="exportForm" class="add-form" novalidate>
-          <div class="field f-date">開始日<label class="date-field"><span class="date-display" id="xFromDisplay" aria-hidden="true"></span><input id="xFrom" type="date" aria-label="開始日"></label></div>
-          <div class="field f-date">終了日<label class="date-field"><span class="date-display" id="xToDisplay" aria-hidden="true"></span><input id="xTo" type="date" aria-label="終了日"></label></div>
-          <div class="field f-room">部屋<div class="multi" id="xRoomPick"><button type="button" class="multi-btn" id="xRoomBtn" aria-haspopup="true" aria-expanded="false" aria-label="部屋">全室</button><div class="multi-pop" id="xRoomPop" hidden></div></div></div>
-          <div class="f-actions">
-            <button type="button" class="btn" id="xShowBtn">表示</button>
-            <button type="button" class="btn" id="xPrintBtn">印刷</button>
-            <div class="multi" id="xFmtPick">
-              <button type="button" class="btn primary" id="xFmtBtn" aria-haspopup="true" aria-expanded="false">エクスポート</button>
-              <div class="multi-pop fmt-pop" id="xFmtPop" hidden>
-                <button type="button" data-fmt="csv">CSV<small>Excel・Numbers などで開ける表</small></button>
-                <button type="button" data-fmt="xlsx">Excel<small>.xlsx</small></button>
-                <button type="button" data-fmt="pdf">PDF<small>印刷と同じ表を A4 で</small></button>
-              </div>
+        <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="期間・部屋・曜日・検索で絞った予約の一覧です。条件を変えるとすぐ一覧が変わります。印刷や、CSV・Excel・PDF への書き出しも、この一覧と同じ条件で行います。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
+        <form id="exportForm" class="hx-form" novalidate>
+          <div class="hx-top">
+            <div class="hx-range">
+              <label class="date-field"><span class="date-display" id="xFromDisplay" aria-hidden="true"></span><input id="xFrom" type="date" aria-label="開始日"></label>
+              <span class="hx-tilde" aria-hidden="true">〜</span>
+              <label class="date-field"><span class="date-display" id="xToDisplay" aria-hidden="true"></span><input id="xTo" type="date" aria-label="終了日"></label>
             </div>
+            <input id="xQuery" class="hx-search" type="search" placeholder="氏名・学籍番号・備考・部屋で検索" aria-label="検索" autocomplete="off" enterkeyhint="search">
+          </div>
+          <div class="hx-chips">
+            <div class="multi" id="xRoomPick"><button type="button" class="chip-btn" id="xRoomBtn" aria-haspopup="true" aria-expanded="false" aria-label="部屋">部屋</button><div class="multi-pop" id="xRoomPop" hidden></div></div>
+            <div class="multi" id="xWdPick"><button type="button" class="chip-btn" id="xWdBtn" aria-haspopup="true" aria-expanded="false" aria-label="曜日">曜日</button><div class="multi-pop" id="xWdPop" hidden></div></div>
+            <button type="button" class="chip-btn toggle" id="xColor" aria-pressed="false">重要な予定</button>
           </div>
         </form>
+        <div class="hx-bar">
+          <p id="xResultHead" aria-live="polite"></p>
+          <button type="button" class="btn" id="xPrintBtn">印刷</button>
+          <div class="multi" id="xFmtPick">
+            <button type="button" class="btn primary" id="xFmtBtn" aria-haspopup="true" aria-expanded="false">エクスポート</button>
+            <div class="multi-pop fmt-pop" id="xFmtPop" hidden>
+              <button type="button" data-fmt="csv">CSV<small>Excel・Numbers などで開ける表</small></button>
+              <button type="button" data-fmt="xlsx">Excel<small>.xlsx</small></button>
+              <button type="button" data-fmt="pdf">PDF<small>印刷と同じ表を A4 で</small></button>
+            </div>
+          </div>
+        </div>
         <p class="msg error" id="exportError"></p>
-        <div id="xResult" hidden>
-          <p class="lead" id="xResultHead"></p>
+        <div id="xResult">
           <div class="table-wrap" id="xResultBody"></div>
         </div>
       </div>

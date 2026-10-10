@@ -370,13 +370,17 @@
    * 部屋を複数選べる欄（何も選ばなければ全室）。選択欄と同じ見た目のボタンを押すと、部屋のチェックの一覧が下に開く。
    * 休館の「対象」と、予約履歴の「部屋」で使う
    */
-  function roomPicker(prefix) {
+  function roomPicker(prefix, opts) {
+    opts = opts || {};
     const pick = $(prefix + 'Pick'), btn = $(prefix + 'Btn'), pop = $(prefix + 'Pop');
     const chosen = new Set();
     function show() {
       pop.querySelectorAll('input').forEach((c) => { c.checked = c.value ? chosen.has(c.value) : !chosen.size; });
       const names = state.data.rooms.filter((r) => chosen.has(r.id)).map((r) => roomName(r.id));
-      btn.textContent = !names.length ? '全室' : names.length === 1 ? names[0] : `${names[0].replace(/（.*$/, '')} ほか${names.length - 1}室`;
+      const text = names.length === 1 ? names[0] : `${(names[0] || '').replace(/（.*$/, '')} ほか${names.length - 1}室`;
+      // 丸いボタン（opts.chip）のときは、何も選んでいなければ項目名だけを出し、選んでいれば青くする
+      btn.textContent = !names.length ? (opts.chip || '全室') : text;
+      btn.classList.toggle('on', !!names.length);
       btn.title = names.join('、');
     }
     function toggle(open) {
@@ -390,6 +394,7 @@
       else if (c.checked) chosen.add(c.value);
       else chosen.delete(c.value);
       show();
+      if (opts.onChange) opts.onChange();
     });
     document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !pick.contains(e.target)) toggle(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) { toggle(false); btn.focus(); } });
@@ -774,7 +779,7 @@
   // CSV・Excel（.xlsx）・PDF のファイルにする。ファイルづくりは外部の部品を使わず、この画面の中で行う
   const EXPORT_MAX_DAYS = 731; // 一度に書き出せる期間（2年）
   const EXPORT_HEAD = ['日付', '曜日', '開始', '終了', '部屋', '学籍番号/所属', '氏名・団体名', '備考'];
-  const exportPick = roomPicker('xRoom');
+  const exportPick = roomPicker('xRoom', { chip: '部屋', onChange: () => refilter() });
   const showExportFrom = dateField('xFrom');
   const showExportTo = dateField('xTo');
   function renderExportForm() {
@@ -784,6 +789,69 @@
     if (!$('xTo').value) { const [y, m] = t.split('-').map(Number); $('xTo').value = ymd(new Date(y, m, 0)); } // 今月の末日まで
     showExportFrom();
     showExportTo();
+    if (!$('xWdPop').children.length) {
+      $('xWdPop').innerHTML = `<label class="check"><input type="checkbox" value="">すべての曜日</label>` + [1, 2, 3, 4, 5, 6, 0].map((i) =>
+        `<label class="check ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}">${WD[i]}曜日</label>`).join('');
+      showWeekdays();
+    }
+    refilter(); // 一覧を出す（同じ期間は1分間読み直さない）
+  }
+
+  // 曜日（丸いボタンを押すと一覧が開く。何も選ばなければすべて）
+  const exportWds = new Set();
+  function showWeekdays() {
+    $('xWdPop').querySelectorAll('input').forEach((c) => { c.checked = c.value ? exportWds.has(Number(c.value)) : !exportWds.size; });
+    const list = [1, 2, 3, 4, 5, 6, 0].filter((i) => exportWds.has(i));
+    $('xWdBtn').textContent = list.length ? list.map((i) => WD[i]).join('・') : '曜日';
+    $('xWdBtn').classList.toggle('on', !!list.length);
+  }
+  function toggleWd(open) {
+    $('xWdPop').hidden = !open;
+    $('xWdBtn').setAttribute('aria-expanded', String(open));
+  }
+  $('xWdBtn').addEventListener('click', () => toggleWd($('xWdPop').hidden));
+  $('xWdPop').addEventListener('change', (e) => {
+    const c = e.target;
+    if (!c.value) exportWds.clear();
+    else if (c.checked) exportWds.add(Number(c.value));
+    else exportWds.delete(Number(c.value));
+    showWeekdays();
+    refilter();
+  });
+  document.addEventListener('pointerdown', (e) => { if (!$('xWdPop').hidden && !$('xWdPick').contains(e.target)) toggleWd(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('xWdPop').hidden) { toggleWd(false); $('xWdBtn').focus(); } });
+  // 重要な予定（押すたびに入・切）
+  $('xColor').addEventListener('click', () => {
+    $('xColor').setAttribute('aria-pressed', String($('xColor').getAttribute('aria-pressed') !== 'true'));
+    $('xColor').classList.toggle('on', $('xColor').getAttribute('aria-pressed') === 'true');
+    refilter();
+  });
+
+  // 検索は、全角・半角、大文字・小文字、ひらがな・カタカナ、空白の違いを区別しない（予約表の検索と同じ）
+  const normText = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '')
+    .replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  /** 検索・絞り込みの条件（何も指定がなければ null） */
+  function exportFilter() {
+    const q = normText($('xQuery').value);
+    const wds = [1, 2, 3, 4, 5, 6, 0].filter((i) => exportWds.has(i));
+    const color = $('xColor').getAttribute('aria-pressed') === 'true';
+    if (!q && !wds.length && !color) return null;
+    const label = [q ? `検索「${$('xQuery').value.trim()}」` : '', wds.length ? `曜日: ${wds.map((i) => WD[i]).join('')}` : '', color ? '重要な予定だけ' : '']
+      .filter(Boolean).join('・');
+    return {
+      label,
+      test: (r) => (!wds.length || wds.includes(new Date(r.date + 'T00:00').getDay())) && (!color || !!r.color) &&
+        (!q || normText([r.name, r.affiliation, r.memo, roomName(r.roomId)].join(' ')).includes(q)),
+    };
+  }
+  // 同じ期間を続けて読むときは、1分間は読み直さない（検索・絞り込みを変えるたびに待たせない）
+  let exportCache = null;
+  async function fetchForExport(from, to) {
+    const key = from + '|' + to;
+    if (exportCache && exportCache.key === key && Date.now() - exportCache.at < 60 * 1000) return exportCache.list;
+    const list = await fetchReservations(from, to);
+    exportCache = { key, list, at: Date.now() };
+    return list;
   }
 
   /** 選んだ期間・部屋の予約（日付・開始・部屋の並び順）。期間がおかしいときは例外 */
@@ -795,12 +863,13 @@
     const ids = exportPick.ids();
     const want = ids.length ? new Set(ids) : null;
     const order = new Map(state.data.rooms.map((r, i) => [r.id, i]));
-    const list = (await fetchReservations(from, to)).filter((r) => !want || want.has(r.roomId));
+    const filter = exportFilter();
+    const list = (await fetchForExport(from, to)).filter((r) => (!want || want.has(r.roomId)) && (!filter || filter.test(r)));
     list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start) || (order.get(a.roomId) ?? 999) - (order.get(b.roomId) ?? 999));
     const now = new Date();
     return {
       from, to, ids, list,
-      rooms: ids.length ? ids.map(roomName).join('、') : '全室',
+      rooms: (ids.length ? ids.map(roomName).join('、') : '全室') + (filter ? `　${filter.label}` : ''),
       stamp: `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
     };
   }
@@ -815,8 +884,9 @@
     err.textContent = '';
     exportPick.close();
     toggleFmt(false);
+    toggleWd(false);
     const label = btn.textContent;
-    $('xShowBtn').disabled = $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
+    $('xPrintBtn').disabled = $('xFmtBtn').disabled = true;
     btn.textContent = '読み込み中…';
     try {
       await fn(await exportRows());
@@ -824,7 +894,7 @@
       err.textContent = errMessage(e);
     } finally {
       btn.textContent = label;
-      $('xShowBtn').disabled = $('xPrintBtn').disabled = $('xFmtBtn').disabled = false;
+      $('xPrintBtn').disabled = $('xFmtBtn').disabled = false;
     }
   }
   function saveFile(blob, name) {
@@ -850,7 +920,7 @@
     const b = e.target.closest('[data-fmt]');
     if (!b) return;
     withExport($('xFmtBtn'), async (data) => {
-      if (!data.list.length) throw new Error('この期間・部屋の予約はありません。');
+      if (!data.list.length) throw new Error('条件に合う予約はありません。');
       const name = await EXPORTERS[b.dataset.fmt](data);
       toast(`${data.list.length}件を ${name} に書き出しました`);
     });
@@ -1007,7 +1077,7 @@
         y += ROW;
         rule(y, .5, .78);
       });
-      if (!list.length) text('この期間・部屋の予約はありません。', PAGE.m, y + 14, FS);
+      if (!list.length) text('条件に合う予約はありません。', PAGE.m, y + 14, FS);
       const no = `${p + 1} / ${pageCount}`;
       text(no, (PAGE.w - textWidth(no, 8)) / 2, PAGE.h - PAGE.m + 6, 8, { color: '.33 .33 .33' });
       pages.push(ops.join('\n'));
@@ -1078,14 +1148,39 @@
     return `<table class="list-table"><thead><tr><th>日付</th><th>時間</th><th>部屋</th><th>氏名・団体名</th><th>学籍番号/所属</th><th>備考</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
-  // 表示: この画面の、欄の下に表を出す
-  $('xShowBtn').addEventListener('click', () => withExport($('xShowBtn'), async (data) => {
-    const { from, to, list, rooms } = data;
-    $('xResultHead').textContent = `${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　${rooms}　${list.length}件` +
-      (list.length > SHOW_MAX ? `（先頭の${SHOW_MAX}件を表示。すべては印刷・エクスポートで）` : '');
-    $('xResultBody').innerHTML = list.length ? listTable(data, SHOW_MAX) : '<p class="empty">この期間・部屋の予約はありません。</p>';
-    $('xResult').hidden = false;
-  }));
+  // 一覧: 条件を変えるたびに、欄の下の表を出し直す（入力の途中は少し待つ。古い読み込みの結果は捨てる）
+  let historySeq = 0;
+  async function showHistory() {
+    const seq = ++historySeq;
+    const head = $('xResultHead');
+    $('exportError').textContent = '';
+    head.textContent = '読み込み中…';
+    let data;
+    try {
+      data = await exportRows();
+    } catch (e) {
+      if (seq !== historySeq) return;
+      head.textContent = '';
+      $('xResultBody').innerHTML = '';
+      $('exportError').textContent = errMessage(e);
+      return;
+    }
+    if (seq !== historySeq) return;
+    const { list } = data;
+    const cond = exportFilter();
+    head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span>${esc(cond.label)}</span>` : '') +
+      (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
+    $('xResultBody').innerHTML = list.length ? listTable(data, SHOW_MAX) : '<p class="empty">条件に合う予約はありません。</p>';
+  }
+  let refilterTimer = 0;
+  function refilter(wait) {
+    clearTimeout(refilterTimer);
+    refilterTimer = setTimeout(showHistory, wait == null ? 0 : wait);
+  }
+  $('xQuery').addEventListener('input', () => refilter(250));
+  $('xQuery').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); refilter(0); } });
+  $('xFrom').addEventListener('change', () => refilter(300));
+  $('xTo').addEventListener('change', () => refilter(300));
 
   // 印刷: 印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin.css の @media print）
   $('xPrintBtn').addEventListener('click', () => withExport($('xPrintBtn'), async (data) => {
@@ -1094,7 +1189,7 @@
     if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
     area.innerHTML = `<h1>${esc(state.data.settings.title)} 予約一覧</h1>` +
       `<p class="meta">期間: ${slash(from)}(${wdOf(from)}) 〜 ${slash(to)}(${wdOf(to)})　部屋: ${esc(rooms)}　${list.length}件<span>出力: ${stamp}</span></p>` +
-      (list.length ? listTable(data) : '<p>この期間・部屋の予約はありません。</p>');
+      (list.length ? listTable(data) : '<p>条件に合う予約はありません。</p>');
     window.print();
   }));
 
