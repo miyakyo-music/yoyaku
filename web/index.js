@@ -17,11 +17,14 @@
     room: 'prr.room',
     viewKey: 'prr.viewKey',
     limitedKey: 'prr.limitedKey',  // 限定公開の部屋（演習室など）のパスワード
+    history: 'prr.myHistory',      // { [reservationId]: 'YYYY-MM-DD' } この端末で予約した記録（練習時間の集計用。約13か月残す）
+    fav: 'prr.favRooms',           // [roomId] お気に入りの練習室
   };
   const APP_VERSION = window.APP_VERSION; // web/api.js
   const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
   const ADMIN_SESSION_KEY = 'prr.adminPw'; // 管理画面と共通（このタブで管理画面にログインしている間は管理者モード）
   const ADMIN_ONLY = '管理者のみ';
+  const FAV = '★fav', FAV_EDIT = '★edit'; // 絞り込みの欄の「★ お気に入り」「★ お気に入りを選ぶ…」
   const STOPPED = '使用停止';
   const LIMITED = '限定公開';
   const WEEKDAYS = '日月火水木金土';
@@ -143,8 +146,20 @@
     for (const k of Object.keys(mine)) if (mine[k] < limit) delete mine[k];
     for (const r of list) mine[r.id] = r.date;
     save_(LS.mine, mine);
+    addHistory(list);
   }
   function removeMine(ids) { const mine = getMine(); ids.forEach((id) => delete mine[id]); save_(LS.mine, mine); }
+  // 練習時間の集計用の記録。「自分の予約」は終わって7日で消すが、こちらは約13か月残す
+  // （取り消しは、集計のときにサーバーから読み直して除く）
+  function addHistory(list) {
+    const h = load_(LS.history, {});
+    const limit = addDays(todayStr(), -400);
+    for (const k of Object.keys(h)) if (h[k] < limit) delete h[k];
+    for (const r of list) h[r.id] = r.date;
+    save_(LS.history, h);
+  }
+  addHistory(Object.entries(getMine()).map(([id, date]) => ({ id, date }))); // この記録を作る前の予約も入れておく
+  const getFavs = () => new Set(load_(LS.fav, []));
 
   // ---------------- API呼び出し ----------------
   class AuthError extends Error {}
@@ -373,8 +388,10 @@
     if (curEq && limitedOnly(curEq)) { curEq = ''; save_(LS.filter, ''); }
     if (state.equipOnce) curEq = state.equipOnce;
     const allLabel = window.matchMedia && matchMedia('(max-width: 600px)').matches ? '全設備' : 'すべての設備'; // スマホでは欄が狭いので短く
-    eq.innerHTML = `<option value="">${allLabel}</option>` + kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
-    eq.value = kinds.includes(curEq) ? curEq : '';
+    // お気に入り（端末に保存）で絞り込む。「★ お気に入りを選ぶ…」で部屋を選ぶ
+    eq.innerHTML = `<option value="">${allLabel}</option><option value="${FAV}">★ お気に入り</option>` +
+      kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('') + `<option value="${FAV_EDIT}">★ お気に入りを選ぶ…</option>`;
+    eq.value = kinds.includes(curEq) || curEq === FAV ? curEq : '';
 
     const rs = $('roomSelect');
     const allOpt = state.view === 'month' ? '<option value="">すべての部屋</option>' : '';
@@ -668,7 +685,7 @@
     let corner;
     if (state.view === 'day') {
       const filter = $('equipFilter').value;
-      rows = state.rooms.filter((r) => !filter || r.equipment === filter)
+      rows = state.rooms.filter((r) => roomInFilter(r, filter))
         .map((room) => ({ date: state.data.from, room, label: roomLabelHtml(room), cls: '' }));
       if (state.freeNow) {
         // 「空室」: 今から30分以上（閉館が近ければ閉館まで）空いている部屋だけにし、いつまで空いているかを添える
@@ -1344,7 +1361,7 @@
     // 一覧で設備を絞り込んでいるときは、新規予約の部屋の選択肢も同じ設備に絞る（変更時は今の部屋を必ず含める）
     const eqFilter = state.view === 'day' ? $('equipFilter').value : '';
     roomSel.innerHTML = state.rooms.filter((x) => x.restriction !== STOPPED)
-      .filter((x) => !eqFilter || x.equipment === eqFilter || (edit && x.id === r.roomId))
+      .filter((x) => roomInFilter(x, eqFilter) || (edit && x.id === r.roomId))
       .map((x) => `<option value="${esc(x.id)}">${esc(roomText(x))}${x.restriction === ADMIN_ONLY ? '［管理者のみ］' : ''}</option>`).join('');
     const firstRoom = roomSel.options[0] ? roomSel.options[0].value : '';
     // 部屋の初期値: 指定があればその部屋、部屋別・カレンダー表示中は選んでいる部屋、一覧からは先頭の部屋
@@ -1607,6 +1624,13 @@
       dates.push(d);
     }
     return dates;
+  }
+
+  /** 一覧の絞り込み（設備区分、または「★ お気に入り」）に当てはまる部屋か */
+  function roomInFilter(room, filter) {
+    if (!filter || filter === FAV_EDIT) return true;
+    if (filter === FAV) return getFavs().has(room.id);
+    return room.equipment === filter;
   }
 
   /** 予約する日と部屋の組み合わせ（コピーでは、元の予約と同じ日・部屋を除く） */
@@ -2051,7 +2075,91 @@
   }
 
   // ---------------- この端末の予約一覧 ----------------
+  // ---------------- 練習時間（この端末で予約した分の集計） ----------------
+  // 「自分の予約」の小窓の「練習時間」。端末の記録（LS.history）の予約をサーバーから読み直して数える
+  // （取り消された予約はサーバーに無いので数えない）。終わった分を「練習した時間」、これからの分を「予定」とする
+  function setMyTab(tab) {
+    for (const b of $('myTabs').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.my === tab));
+    $('myListPane').hidden = tab !== 'list';
+    $('myStatsPane').hidden = tab !== 'stats';
+    if (tab === 'stats') loadMyStats();
+  }
+  $('myTabs').addEventListener('click', (e) => { const b = e.target.closest('button[data-my]'); if (b) setMyTab(b.dataset.my); });
+  $('myPeriod').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-p]');
+    if (!b) return;
+    for (const x of $('myPeriod').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+    renderMyStats();
+  });
+  /** 期間（今週＝月〜日、今月、今年度＝4月1日〜3月31日） */
+  function myPeriodRange(p) {
+    const t = todayStr();
+    const d = parseDate(t);
+    if (p === 'week') { const from = addDays(t, -((d.getDay() + 6) % 7)); return { from, to: addDays(from, 6) }; }
+    if (p === 'month') { const from = t.slice(0, 8) + '01'; return { from, to: addDays(addMonths(from, 1), -1) }; }
+    const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+    return { from: `${fy}-04-01`, to: `${fy + 1}-03-31` };
+  }
+  async function loadMyStats() {
+    const body = $('myStatsBody');
+    const h = load_(LS.history, {});
+    const ids = Object.keys(h);
+    if (!ids.length) { state.myStats = []; renderMyStats(); return; }
+    body.innerHTML = '<p class="ms-empty">読み込み中…</p>';
+    try {
+      const list = [];
+      for (let i = 0; i < ids.length; i += 300) { // サーバーは1回300件まで
+        const res = await api('getReservationsByIds', { ids: ids.slice(i, i + 300) });
+        if (!res.ok) throw new Error(res.message);
+        list.push(...res.reservations);
+        state.myStatsRooms = res.rooms;
+      }
+      state.myStats = list;
+      renderMyStats();
+    } catch (e) {
+      if (!(e instanceof AuthError)) body.innerHTML = `<p class="ms-empty">${esc(errMessage(e))}</p>`;
+    }
+  }
+  function renderMyStats() {
+    const body = $('myStatsBody');
+    const list = state.myStats;
+    if (!list) return;
+    const p = ($('myPeriod').querySelector('[aria-pressed="true"]') || {}).dataset.p || 'month';
+    const { from, to } = myPeriodRange(p);
+    const today = todayStr(), now = nowMin();
+    const inRange = list.filter((r) => r.date >= from && r.date <= to);
+    const ended = (r) => r.date < today || (r.date === today && toMin(r.end) <= now);
+    const dur = (r) => toMin(r.end) - toMin(r.start);
+    const done = inRange.filter(ended);
+    const planned = inRange.filter((r) => !ended(r));
+    const total = done.reduce((a, r) => a + dur(r), 0);
+    const plan = planned.reduce((a, r) => a + dur(r), 0);
+    if (!done.length && !planned.length) { body.innerHTML = '<p class="ms-empty">この期間の、この端末からの予約はありません。</p>'; return; }
+    const hh = (m) => (m ? durationLabel(m) : '0分');
+    // 部屋ごと（多い順、上位6つ）と曜日ごと（終わった分）
+    const rooms = state.myStatsRooms || state.rooms;
+    const byRoom = {};
+    for (const r of done) byRoom[r.roomId] = (byRoom[r.roomId] || 0) + dur(r);
+    const roomRows = Object.entries(byRoom).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const maxRoom = roomRows.length ? roomRows[0][1] : 1;
+    const byDow = [0, 0, 0, 0, 0, 0, 0];
+    for (const r of done) byDow[weekday(r.date)] += dur(r);
+    const maxDow = Math.max(1, ...byDow);
+    const order = [1, 2, 3, 4, 5, 6, 0]; // 月曜はじまり
+    body.innerHTML =
+      `<div class="ms-total"><b>${hh(total)}</b><span>${done.length}回${plan ? `・このあと予定 ${hh(plan)}` : ''}</span></div>` +
+      (roomRows.length ? `<p class="ms-h">部屋ごと</p><div class="ms-bars">` + roomRows.map(([id, m]) => {
+        const rm = rooms.find((x) => x.id === id);
+        return `<div class="ms-bar"><span>${esc(rm ? roomText(rm) : id)}</span><i style="width:${(m / maxRoom * 100).toFixed(1)}%"></i><em>${hh(m)}</em></div>`;
+      }).join('') + '</div>' : '') +
+      (done.length ? `<p class="ms-h">曜日ごと</p><div class="ms-week">` + order.map((w) =>
+        `<div class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}" title="${WEEKDAYS[w]}曜 ${hh(byDow[w])}"><i style="height:${(byDow[w] / maxDow * 70).toFixed(1)}px"></i>${WEEKDAYS[w]}</div>`).join('') + '</div>' : '') +
+      '<p class="hint">この端末から予約した分です（取り消した予約は数えません）。</p>';
+  }
+
   async function openMyList() {
+    setMyTab('list');
+    state.myStats = null;
     const mine = getMine();
     const today = todayStr();
     const ids = Object.keys(mine).filter((id) => mine[id] >= today);
@@ -2172,7 +2280,113 @@
     location.reload(); // 管理者モードでだけ見えていた部屋（限定公開など）が画面に残らないよう、読み込み直す
   });
   for (const b of document.querySelectorAll('.tabs .btn')) b.addEventListener('click', () => setView(b.dataset.view));
-  $('equipFilter').addEventListener('change', (e) => { state.equipOnce = null; save_(LS.filter, e.target.value); if (state.data) render(); });
+  $('equipFilter').addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v === FAV_EDIT || (v === FAV && !getFavs().size)) {
+      // 選ぶ画面を開く。選び終わったら「★ お気に入り」で絞り込む（1つも選ばなければ元に戻す）
+      e.target.value = load_(LS.filter, '');
+      openFavs();
+      return;
+    }
+    state.equipOnce = null; save_(LS.filter, v); if (state.data) render();
+  });
+
+  // ---------------- 予約の検索 ----------------
+  // 今日から予約を受け付けている先まで（30〜180日）の予約を、予約表と同じ読み方（高速キャッシュ → GAS）で42日ずつ読み、
+  // 画面の中で探す。全角・半角、大文字・小文字、ひらがな・カタカナ、空白の違いは区別しない
+  const normText = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '')
+    .replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  async function openSearch() {
+    $('searchDialog').showModal();
+    $('searchInput').focus();
+    const s = state.settings;
+    const days = Math.min(180, Math.max(30, Number(s && s.maxDaysAhead) || 60));
+    const from = todayStr(), to = addDays(from, days);
+    if (state.search && state.search.from === from && Date.now() - state.search.at < 60 * 1000) { runSearch(); return; }
+    state.search = null;
+    $('searchInfo').textContent = '読み込み中…';
+    try {
+      const ranges = [];
+      for (let d = from; d <= to; d = addDays(d, 42)) ranges.push({ from: d, to: addDays(d, 41) < to ? addDays(d, 41) : to });
+      const results = await Promise.all(ranges.map((r) => fetchRange(r)));
+      const seen = new Set();
+      const list = [];
+      for (const res of results) for (const r of res.reservations) if (!seen.has(r.id)) { seen.add(r.id); list.push(r); }
+      list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+      state.search = { from, to, at: Date.now(), list, rooms: results[0] ? results[0].rooms : state.rooms };
+      runSearch();
+    } catch (e) {
+      if (!(e instanceof AuthError)) $('searchInfo').textContent = errMessage(e);
+    }
+  }
+  function runSearch() {
+    const sr = state.search;
+    if (!sr) return;
+    const q = normText($('searchInput').value);
+    const range = `${mdLabel(sr.from)}〜${mdLabel(sr.to)}`;
+    if (!q) { $('searchInfo').textContent = `${range}の予約から探します`; $('searchList').innerHTML = ''; return; }
+    const now = nowMin(), today = todayStr();
+    const roomOf = (id) => sr.rooms.find((x) => x.id === id) || roomById(id);
+    const hits = sr.list.filter((r) => {
+      if (r.date === today && toMin(r.end) <= now) return false; // 今日の終わった予約は出さない
+      const rm = roomOf(r.roomId);
+      return normText([r.name, r.affiliation, r.memo, rm ? roomText(rm) : ''].join(' ')).includes(q);
+    });
+    $('searchInfo').textContent = hits.length ? `${hits.length}件（${range}）` : `見つかりません（${range}）`;
+    const mark = (t) => {
+      // 一致した所に印を付ける（文字の並びが同じときだけ。表記ゆれで一致したときは印なし）
+      const raw = String(t || '');
+      const i = raw.toLowerCase().indexOf($('searchInput').value.trim().toLowerCase());
+      const n = $('searchInput').value.trim().length;
+      return i >= 0 && n ? esc(raw.slice(0, i)) + `<mark>${esc(raw.slice(i, i + n))}</mark>` + esc(raw.slice(i + n)) : esc(raw);
+    };
+    $('searchList').innerHTML = hits.slice(0, 200).map((r) => {
+      const rm = roomOf(r.roomId);
+      return `<li><button type="button" data-date="${r.date}" data-id="${esc(r.id)}">` +
+        `<b>${esc(mdLabel(r.date))} ${esc(hm(r.start))}〜${esc(hm(r.end))}　${esc(rm ? roomText(rm) : r.roomId)}</b>` +
+        `<span>${mark(r.name)}${r.affiliation ? `（${mark(r.affiliation)}）` : ''}${r.memo ? `　${mark(r.memo)}` : ''}</span></button></li>`;
+    }).join('');
+  }
+  let searchTimer = 0;
+  $('searchInput').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 120); });
+  $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+  $('searchBtn').addEventListener('click', openSearch);
+  $('searchList').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-id]');
+    if (!b) return;
+    $('searchDialog').close();
+    state.view = 'day';
+    save_(LS.view, 'day');
+    state.date = b.dataset.date;
+    if (state.data) applySettings();
+    updateChrome();
+    load({ then: () => openDetail(b.dataset.id) });
+  });
+
+  // ---------------- お気に入りの練習室 ----------------
+  function openFavs() {
+    state.favDraft = getFavs();
+    $('favRooms').innerHTML = roomGridHtml(state.favDraft, '', '');
+    $('favDialog').showModal();
+  }
+  $('favRooms').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-id], button[data-group]');
+    if (!b) return;
+    const set = state.favDraft;
+    const ids = b.dataset.group ? state.rooms.filter((r) => r.name === b.dataset.group && r.restriction !== STOPPED).map((r) => r.id) : [b.dataset.id];
+    const allOn = ids.every((id) => set.has(id));
+    ids.forEach((id) => (allOn ? set.delete(id) : set.add(id)));
+    $('favRooms').innerHTML = roomGridHtml(set, '', '');
+  });
+  $('favDialog').addEventListener('close', () => {
+    const favs = [...(state.favDraft || [])];
+    save_(LS.fav, favs);
+    const next = favs.length ? FAV : (load_(LS.filter, '') === FAV ? '' : load_(LS.filter, ''));
+    save_(LS.filter, next);
+    $('equipFilter').value = next;
+    state.equipOnce = null;
+    if (state.data) render();
+  });
   $('freeBtn').addEventListener('click', () => {
     state.freeNow = !state.freeNow;
     $('freeBtn').setAttribute('aria-pressed', String(state.freeNow));

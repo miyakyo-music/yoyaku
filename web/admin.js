@@ -553,7 +553,7 @@
       for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== t.dataset.tab || p.dataset.unsupported === '1';
       placeTabThumb();
       if (t.dataset.tab === 'bugs') loadBugs();
-      if (t.dataset.tab === 'password') pkRefresh();
+      if (t.dataset.tab === 'setup') pkRefresh();
       if (t.dataset.tab === 'stats') loadStats();
     });
   }

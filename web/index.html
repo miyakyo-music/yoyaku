@@ -47,7 +47,7 @@
   </div>
   <header class="topbar">
     <div class="row">
-      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg class="ic-refresh" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><svg class="ic-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 2.5v4.2" transform="rotate(0 12 12)" opacity="1.00"/><path d="M12 2.5v4.2" transform="rotate(-45 12 12)" opacity="0.89"/><path d="M12 2.5v4.2" transform="rotate(-90 12 12)" opacity="0.78"/><path d="M12 2.5v4.2" transform="rotate(-135 12 12)" opacity="0.67"/><path d="M12 2.5v4.2" transform="rotate(-180 12 12)" opacity="0.56"/><path d="M12 2.5v4.2" transform="rotate(-225 12 12)" opacity="0.45"/><path d="M12 2.5v4.2" transform="rotate(-270 12 12)" opacity="0.34"/><path d="M12 2.5v4.2" transform="rotate(-315 12 12)" opacity="0.23"/></svg><span id="statusText"></span></button><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button></div>
+      <div class="brand"><h1 id="title">練習室予約</h1><a class="admin-link" id="adminLink" href="admin.html" aria-label="管理画面"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lg">管理</span><span class="badge" id="bugBadge" hidden></span></a><button type="button" class="status" id="refreshBtn" aria-label="最新の予約に更新" title="押すと最新の予約に更新します"><svg class="ic-refresh" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg><svg class="ic-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 2.5v4.2" transform="rotate(0 12 12)" opacity="1.00"/><path d="M12 2.5v4.2" transform="rotate(-45 12 12)" opacity="0.89"/><path d="M12 2.5v4.2" transform="rotate(-90 12 12)" opacity="0.78"/><path d="M12 2.5v4.2" transform="rotate(-135 12 12)" opacity="0.67"/><path d="M12 2.5v4.2" transform="rotate(-180 12 12)" opacity="0.56"/><path d="M12 2.5v4.2" transform="rotate(-225 12 12)" opacity="0.45"/><path d="M12 2.5v4.2" transform="rotate(-270 12 12)" opacity="0.34"/><path d="M12 2.5v4.2" transform="rotate(-315 12 12)" opacity="0.23"/></svg><span id="statusText"></span></button><button type="button" class="status search-btn" id="searchBtn" aria-label="予約を検索" title="予約を検索"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button></div>
       <div class="notice-row" id="noticeRow" hidden>
         <form class="notice-editor" id="noticeEditor" hidden>
           <input id="noticeInput" maxlength="200" autocomplete="off" aria-label="お知らせ（空欄にすると非表示）" placeholder="空欄にするとお知らせを出さない">
@@ -214,9 +214,43 @@
   <dialog id="myDialog">
     <div class="body">
       <h2 tabindex="-1" autofocus>この端末で作成した予約</h2>
-      <p class="hint">今日以降の予約を表示しています。タップすると予約表の該当日に移動します。</p>
-      <ul class="mylist" id="myList"></ul>
+      <div class="pill-tabs" id="myTabs" role="tablist">
+        <button type="button" data-my="list" aria-pressed="true">予約</button>
+        <button type="button" data-my="stats" aria-pressed="false">練習時間</button>
+      </div>
+      <div id="myListPane">
+        <p class="hint">今日以降の予約を表示しています。タップすると予約表の該当日に移動します。</p>
+        <ul class="mylist" id="myList"></ul>
+      </div>
+      <div id="myStatsPane" class="my-stats" hidden>
+        <div class="pill-tabs" id="myPeriod">
+          <button type="button" data-p="week" aria-pressed="false">今週</button>
+          <button type="button" data-p="month" aria-pressed="true">今月</button>
+          <button type="button" data-p="fy" aria-pressed="false">今年度</button>
+        </div>
+        <div id="myStatsBody"></div>
+      </div>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
+    </div>
+  </dialog>
+
+  <!-- 予約の検索（氏名・団体名・学籍番号・備考・部屋名。今日から予約を受け付けている先まで） -->
+  <dialog id="searchDialog">
+    <div class="body">
+      <h2 tabindex="-1">予約を検索</h2>
+      <input id="searchInput" type="search" class="search-input" placeholder="氏名・団体名・授業名など" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="検索する言葉">
+      <p class="hint" id="searchInfo"></p>
+      <ul class="mylist search-list" id="searchList"></ul>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
+    </div>
+  </dialog>
+
+  <!-- お気に入りの練習室（端末に保存。一覧の絞り込みで「★ お気に入り」を選ぶと、ここで選んだ部屋だけになる） -->
+  <dialog id="favDialog">
+    <div class="body">
+      <h2 tabindex="-1" autofocus>お気に入りの練習室</h2>
+      <div class="room-quick room-grid fav-grid" id="favRooms"></div>
+      <div class="actions"><button type="button" class="btn primary" data-close>完了</button></div>
     </div>
   </dialog>
 

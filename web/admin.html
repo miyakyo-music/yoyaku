@@ -53,24 +53,8 @@
         <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
         <button type="button" role="tab" data-tab="stats" aria-selected="false">利用<span class="lg">状況</span></button>
-        <button type="button" role="tab" data-tab="rooms" aria-selected="false">練習室<span class="dot" id="dotRooms" hidden>●</span></button>
-        <button type="button" role="tab" data-tab="password" aria-selected="false">パスワード</button>
+        <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotRooms" hidden>●</span></button>
       </nav>
-
-      <!-- 練習室 -->
-      <div class="card" data-panel="rooms" hidden>
-        <h2>練習室 <button type="button" class="info" aria-label="説明" data-tip="並び順は予約表の表示順（左端の番号をつまんでドラッグで入れ替え）。特徴タグは「・」区切りで複数可（例：大・GP）。同じ部屋名の部屋は、予約時にまとめて選べます。設備区分は予約表の絞り込みに使います。予約制限: 管理者のみ＝予約・変更に管理用パスワードが必要／限定公開＝パスワードを入れた人だけに表示・予約可／使用停止＝予約不可。今日以降の予約が残る部屋は削除できないので、使用停止にしてください。">i</button></h2>
-        <div class="rooms-head"><span></span><span>部屋名</span><span>特徴タグ</span><span>設備区分（絞り込み用）</span><span>予約制限</span><span>備考</span><span></span></div>
-        <div class="rooms" id="roomList"></div>
-        <datalist id="equipList"></datalist>
-        <div class="savebar">
-          <button type="button" class="btn" id="addRoomBtn">＋ 部屋を追加</button>
-          <span class="spacer"></span>
-          <span class="dirty" id="roomsDirty" hidden>未保存の変更があります</span>
-          <button type="button" class="btn primary" id="saveRoomsBtn">保存</button>
-        </div>
-        <p class="msg error" id="roomsError"></p>
-      </div>
 
       <!-- 利用時間・制限 -->
       <div class="card" data-panel="settings">
@@ -118,8 +102,8 @@
         </div>
       </div>
 
-      <!-- パスワード -->
-      <div class="card" data-panel="password" hidden>
+      <!-- 設定（パスワード・パスキー・練習室。練習室の構成はまず変えないので一番下） -->
+      <div class="card" data-panel="setup" hidden>
         <h2>限定公開の部屋 <button type="button" class="info" aria-label="説明" data-tip="予約制限が「限定公開」の部屋を使う人にだけ、このパスワードと入口の URL を伝えてください。管理用パスワードとは別物で、知っていても設定の変更や他人の予約の取消はできません。">i</button></h2>
         <form id="limitedForm" class="form-grid" novalidate>
           <div class="field full">演習室などのパスワード（6文字以上）<div class="pw-row"><input id="sLimitedPw" class="in" type="password" maxlength="50" autocomplete="new-password" placeholder="空欄なら管理者以外は使えません"><button type="button" class="btn small" data-reveal="sLimitedPw">表示</button></div><span class="help">変更すると、記憶済みの端末でも表示されなくなります（新しいパスワードを伝え直してください）</span></div>
@@ -129,7 +113,7 @@
         <p class="msg error" id="limitedError"></p>
       </div>
 
-      <div class="card" data-panel="password" hidden>
+      <div class="card" data-panel="setup" hidden>
         <details id="viewPwBox">
           <summary><h2 style="display:inline">予約表全体の閲覧制限</h2> <button type="button" class="info" aria-label="説明" data-tip="通常は使いません。設定すると、利用者全員が予約表を開くときにこのパスワードを求められます（端末に記憶）。学外に見せたくない場合などに使い、全員に伝えてください。">i</button></summary>
           <form id="viewPwForm" class="form-grid" novalidate>
@@ -140,14 +124,14 @@
         </details>
       </div>
 
-      <div class="card" data-panel="password" id="pkCard" hidden>
+      <div class="card" data-panel="setup" id="pkCard" hidden>
         <h2>パスキー <button type="button" class="info" aria-label="説明" data-tip="管理用パスワードの代わりに、Face ID・Touch ID・端末のロック解除で管理画面に入れます。使う端末で「この端末を登録」を押してください（iCloud キーチェーンなどで同期される場合は、同じアカウントのほかの端末でも使えます）。指紋や顔の情報は端末から出ず、サーバーには合い鍵にならない公開鍵だけを置きます。管理者が替わったら、前の人のパスキーを削除してください。">i</button></h2>
         <ul class="pk-list" id="pkList"></ul>
         <p class="msg error" id="pkError"></p>
         <div class="submit-row"><button type="button" class="btn primary" id="pkAddBtn">この端末を登録</button></div>
       </div>
 
-      <div class="card" data-panel="password" hidden>
+      <div class="card" data-panel="setup" hidden>
         <h2>管理用パスワードの変更</h2>
         <form id="pwForm" class="form-grid" novalidate>
           <label class="field m-full">新しいパスワード（6文字以上）<input id="pwNew" type="password" autocomplete="new-password"></label>
@@ -155,6 +139,21 @@
           <div class="full submit-row"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
         </form>
         <p class="msg error" id="pwError"></p>
+      </div>
+
+      <!-- 練習室 -->
+      <div class="card" data-panel="setup" hidden>
+        <h2>練習室 <button type="button" class="info" aria-label="説明" data-tip="並び順は予約表の表示順（左端の番号をつまんでドラッグで入れ替え）。特徴タグは「・」区切りで複数可（例：大・GP）。同じ部屋名の部屋は、予約時にまとめて選べます。設備区分は予約表の絞り込みに使います。予約制限: 管理者のみ＝予約・変更に管理用パスワードが必要／限定公開＝パスワードを入れた人だけに表示・予約可／使用停止＝予約不可。今日以降の予約が残る部屋は削除できないので、使用停止にしてください。">i</button></h2>
+        <div class="rooms-head"><span></span><span>部屋名</span><span>特徴タグ</span><span>設備区分（絞り込み用）</span><span>予約制限</span><span>備考</span><span></span></div>
+        <div class="rooms" id="roomList"></div>
+        <datalist id="equipList"></datalist>
+        <div class="savebar">
+          <button type="button" class="btn" id="addRoomBtn">＋ 部屋を追加</button>
+          <span class="spacer"></span>
+          <span class="dirty" id="roomsDirty" hidden>未保存の変更があります</span>
+          <button type="button" class="btn primary" id="saveRoomsBtn">保存</button>
+        </div>
+        <p class="msg error" id="roomsError"></p>
       </div>
 
       <!-- 不具合報告 -->
