@@ -863,7 +863,12 @@ body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !importa
 ::view-transition-image-pair(morph) {
   overflow: clip; border-radius: 22px;
   -webkit-backdrop-filter: var(--morph-blur); backdrop-filter: var(--morph-blur);
+  /* 角丸も帯（9px）と小窓（22px）のあいだで変える（固定だと、閉じた直後の帯が丸く切り抜かれて枠が欠けて見えた） */
+  animation: .46s cubic-bezier(.28, 1.12, .4, 1) both vt-radius-open;
 }
+html.vt-close::view-transition-image-pair(morph) { animation-name: vt-radius-close; }
+@keyframes vt-radius-open { from { border-radius: 9px; } to { border-radius: 22px; } }
+@keyframes vt-radius-close { from { border-radius: 22px; } to { border-radius: 9px; } }
 ::view-transition-old(morph), ::view-transition-new(morph) { width: 100%; height: 100%; object-fit: none; }
 /* 帯の写しは左端・上下中央のまま、すぐ消す */
 ::view-transition-old(morph), html.vt-close::view-transition-new(morph) { object-position: left center; animation-duration: .12s; animation-timing-function: ease-out; }
