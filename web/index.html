@@ -321,8 +321,9 @@
   /* 送信中の点線は帯の色の層（::after）の枠として描き、角丸に沿わせる（outline は Safari で角丸に沿わない） */
   .blk.res.pending::after { border: 1px dashed var(--mine-border); }
   /* iOS のカレンダー風: 枠線なしの薄い塗り＋左端の丸い縦線 */
-  /* 左右に透明な 1px の余白を取り、時刻の縦の罫線に帯がかぶらないようにする */
-  .blk.res { color: var(--res-text); border: 0 solid transparent; border-width: 0 1px; }
+  /* 左に透明な 1px の余白を取り、時刻の縦の罫線（各時刻のすぐ右に 1px で引かれる）に帯がかぶらないようにする。
+     右には余白を取らない（取ると、終わりの時刻の線との間にだけ 1px のすき間ができ、始まりと終わりで見え方がそろわないため） */
+  .blk.res { color: var(--res-text); border: 0 solid transparent; border-width: 0 0 0 1px; }
   .blk.res.mine { color: var(--mine-text); }
   /* 帯の色（控えめなガラス風）: 上ほど明るい白をほぼ不透明に重ね、その上に半透明の色を敷く。
      上端の光の筋・細い縁・ごく薄い影でガラスの板のように見せる（ぼかしは使わない） */
