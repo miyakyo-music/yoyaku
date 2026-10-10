@@ -25,4 +25,5 @@
 - `web/index.html` は CSS・JS を1ファイルに同梱（外部ライブラリなし）。末尾近くの「Liquid Glass 風デザイン」の層が見た目を上書きしている。
 - 画面と GAS の約束の版 `API_VERSION` は `web/api.js` と `gas/Code.gs` の両方で同じにする。
 - スプレッドシートの列の順番は変えない（列の位置で読み書きしている）。
+- 予約表の読み込みは、高速キャッシュ（Cloudflare Workers ＋ D1、`cache/`）が使えればそこから、だめなら GAS から（仕様書 4.5）。`web/config.js` の `CACHE_API_URL` を空にすれば GAS だけに戻る。`cache/` を変えて `main` に push すると GitHub Actions が Cloudflare に公開する。GAS が写しに入れる項目を増やすときは、予約表で誰でも見られる内容だけにする。
 - 元のデザイン（デザイン統一の前）はタグ `v0.3.3-beta`。
