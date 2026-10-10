@@ -1817,7 +1817,9 @@
   // ---------------- カレンダーに追加 ----------------
   // ボタンは1つ。iPhone はカレンダーのファイル（.ics）の URL を開くと標準のカレンダーに入る。Android は標準が Google カレンダーなので、その追加画面を開く
   // 予約者の名前などは入れず、部屋と時間だけを書く（Google の URL に個人の情報を載せないため）
-  function calTitle(r, room) { return `${room ? roomText(room) : r.roomId}の予約`; }
+  // 題名は部屋の名前だけ（設備のかっこ書きは付けない）。例: 練習室1の予約
+  const calRoom = (r, room) => (room ? room.name : r.roomId);
+  function calTitle(r, room) { return `${calRoom(r, room)}の予約`; }
   const CAL_PLACE = '宮城教育大学 音楽棟';
   /** 日本時間の日付と時刻を、カレンダーの書式（世界標準時 YYYYMMDDTHHMMSSZ）にする */
   function calStamp(date, hhmm) {
@@ -1839,7 +1841,7 @@
    */
   function icsUrl(r, room) {
     if (!window.CACHE_API_URL) return '';
-    const q = new URLSearchParams({ id: r.id, room: room ? roomText(room) : r.roomId, date: r.date, start: r.start, end: r.end, site: location.origin + location.pathname });
+    const q = new URLSearchParams({ id: r.id, room: calRoom(r, room), date: r.date, start: r.start, end: r.end, site: location.origin + location.pathname });
     return window.CACHE_API_URL.replace(/\/$/, '') + '/ics?' + q.toString();
   }
   /** iPhone のカレンダーに読み込めるファイル（.ics）を作って開く（高速キャッシュがないときの予備）。開始15分前に知らせる */
