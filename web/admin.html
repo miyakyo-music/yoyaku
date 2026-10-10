@@ -83,8 +83,10 @@
       <div class="card" data-panel="setup" hidden>
         <h2>一般 <button type="button" class="info" aria-label="説明" data-tip="保存すると、利用者の画面には最大1分後に反映されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
         <form id="settingsForm" class="set-form" novalidate>
+          <div class="set-top">
           <label class="field">予約表のタイトル<input id="sTitle" maxlength="40"></label>
           <div class="field"><span>お知らせ <button type="button" class="info" aria-label="説明" data-tip="予約表の上部に表示します（空欄なら出しません）。「重要」は休館など予約に直結する連絡用で、赤で目立つ表示になります。">i</button></span><div class="notice-edit"><input id="sNotice" class="in" maxlength="200" placeholder="例：10/22 は入試のため全室利用できません" aria-label="お知らせ"><select id="sNoticeLevel" class="in" aria-label="お知らせの種類"><option value="通常">通常（青）</option><option value="重要">重要（赤）</option></select></div></div>
+          </div>
           <!-- 数や時刻の設定: 左に項目名、右に値を1行ずつ（iPhone の設定アプリのような並び） -->
           <div class="set-list">
             <div class="set-row"><span class="set-k">利用開始時刻</span><div class="time"><select id="sOpenH" class="in" aria-label="利用開始（時）"></select>:<select id="sOpenM" class="in" aria-label="利用開始（分）"></select></div></div>
