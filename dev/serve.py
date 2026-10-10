@@ -19,11 +19,12 @@ HOST = "0.0.0.0" if "--lan" in sys.argv else "127.0.0.1"
 # web/config.js の代わりに読み込ませる（本物の接続先には通信しない）
 DEV_CONFIG = b"window.GAS_API_URL = 'https://script.google.com/macros/s/dev-stub/exec';\n"
 INJECT = (
+    '<script src="/dev/fixed-time.js"></script>\n'
     '<script src="/dev/gas-stub.js"></script>\n'
     '<script src="/gas/Code.gs"></script>\n'
     '<script src="/dev/seed.js"></script>\n'
 )
-TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".gs": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}
+TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".gs": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -33,7 +34,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             path = "/index.html"
         if path == "/config.js":
             body = DEV_CONFIG
-        elif path in ("/gas/Code.gs", "/dev/gas-stub.js", "/dev/seed.js"):
+        elif path in ("/gas/Code.gs", "/dev/gas-stub.js", "/dev/seed.js", "/dev/fixed-time.js", "/dev/fingerprint.js"):
             body = (ROOT / path.lstrip("/")).read_bytes()
         else:
             file = (WEB / path.lstrip("/")).resolve()
