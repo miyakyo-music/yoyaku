@@ -1,0 +1,416 @@
+/* 管理画面（admin.html）の見た目。HTML から <link> で読み込む */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --text: #1f2933;
+  --muted: #66727f;
+  --line: #e3e7ec;
+  --line-strong: #b8c1cb;
+  --accent: #2563eb;
+  --accent-weak: #e8f0ff;
+  --danger: #cf3f3f;
+  --warn-bg: #fff7e0;
+  --warn-text: #6b4e00;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { overflow-x: auto; }
+body {
+  margin: 0; min-width: 320px; /* これより狭い画面では画面全体を横スクロール */
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  font-size: 14px; -webkit-text-size-adjust: 100%;
+}
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
+
+.topbar {
+  position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+h1 { font-size: 17px; margin: 0; }
+.app-name { color: var(--muted); font-size: 13px; }
+.spacer { flex: 1; }
+#sheetLink { margin-left: auto; } /* 折り返したときも右端に寄せ、左の「予約表に戻る」と離す */
+.wrap { max-width: 1080px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 80px; }
+
+.btn {
+  height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px;
+  background: var(--surface); cursor: pointer; white-space: nowrap; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+@media (hover: hover) { .btn:hover { background: #f3f5f8; } .btn.primary:hover { background: #1d4fd0; } }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.small { height: 30px; padding: 0 10px; font-size: 13px; }
+.btn.icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+.btn.danger-text { color: var(--danger); }
+
+/* フッタ: 版・不具合を報告・プライバシーポリシー（中央に小さく1行） */
+.site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 0; font-size: 12px; color: var(--muted); }
+.site-foot > * + *::before { content: "・"; margin: 0 6px; color: var(--muted); text-decoration: none; display: inline-block; }
+.site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
+.admin-foot { margin-top: 24px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.card + .card { margin-top: 16px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+h3 { font-size: 14px; margin: 0 0 8px; }
+.lead { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+/* タブの列: 下線は内側に描いて縦にはみ出さないようにし、狭い画面では横方向だけスクロールさせる */
+.tabs {
+  display: flex; gap: 4px; margin-bottom: 16px; box-shadow: inset 0 -1px 0 var(--line-strong);
+  overflow-x: auto; overflow-y: hidden; touch-action: pan-x; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button {
+  flex: none; border: 0; background: none; padding: 10px 14px; cursor: pointer; white-space: nowrap; color: var(--muted); font-weight: 600;
+}
+.tabs button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+.tabs .dot { color: var(--danger); margin-left: 4px; }
+/* 未対応の不具合報告の件数 */
+.badge {
+  display: inline-block; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 5px; border-radius: 9px;
+  background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; vertical-align: 1px;
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.field input, .field select, input.in, select.in {
+  height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+  font-size: 16px; /* 16px未満だとiOS Safariでフォーカス時に画面が拡大される */
+  color: var(--text); background: var(--surface); width: 100%; min-width: 0;
+}
+input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.help { font-size: 12px; color: var(--muted); }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.form-grid .full { grid-column: 1 / -1; }
+/* 時刻・数値の欄は内容に合った固定幅にし、単位（分・回など）はすぐ横に置く */
+.time { display: flex; align-items: center; gap: 4px; color: var(--text); }
+/* 時刻は数字を中央に寄せ、数字に合った幅にする（予約画面と同じ見た目） */
+.time select, .suffix select {
+  flex: none; width: 64px; padding: 0 18px 0 6px; text-align: center; text-align-last: center;
+  -webkit-appearance: none; appearance: none;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 7px center;
+}
+.suffix { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; font-size: 14px; }
+/* 数値の欄も数字を中央に寄せ、4桁が入る程度の幅にする（増減の矢印は出さない） */
+.suffix input { flex: none; width: 76px; padding: 0 6px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+.suffix input::-webkit-inner-spin-button, .suffix input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.weekdays { display: flex; flex-wrap: wrap; gap: 6px; }
+.weekdays label, .check {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer;
+}
+.weekdays label { border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; }
+.weekdays input, .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+
+.savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
+.notice-edit { display: flex; gap: 6px; }
+.notice-edit input { flex: 1; min-width: 0; }
+.notice-edit select { flex: none; width: auto; }
+.copy-row, .pw-row { display: flex; gap: 6px; align-items: center; }
+.pw-row input { flex: 1; min-width: 0; }
+.pw-reveal { flex: none; height: auto; padding: 0 10px; font-size: 13px; min-width: 56px; }
+.pw-row .btn { height: 38px; flex: none; min-width: 56px; }
+#viewPwBox summary { cursor: pointer; }
+.copy-row input { flex: 1; min-width: 0; color: var(--text); background: #f6f8fa; }
+.copy-row .btn { height: 38px; flex: none; }
+.msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-line; }
+.msg.error { background: #fff0f0; color: var(--danger); font-weight: 600; }
+.msg.warn { background: var(--warn-bg); color: var(--warn-text); }
+.msg:empty { display: none; }
+
+/* 部屋: 1部屋 = 1行（狭い画面では2段に折り返す） */
+.rooms { display: flex; flex-direction: column; gap: 8px; }
+/* 見出し行と各行は同じ列幅定義を使い、列位置を一致させる（すべて上端揃え） */
+.room, .rooms-head {
+  display: grid; gap: 8px;
+  grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.3fr) 132px minmax(0, 1fr) 64px;
+}
+.room { align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.room.new { border-color: #9cc0f5; background: #f7faff; }
+/* 左端の番号の列をつまむと、ドラッグで並べ替えられる（指でも操作できるよう、列全体をつかめる） */
+.room .no {
+  color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 0;
+  align-self: stretch; min-height: 38px; justify-content: center; border-radius: 6px;
+  cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.room .no .grip { font-size: 14px; line-height: 1; letter-spacing: -1px; color: #9aa3ad; }
+@media (hover: hover) { .room .no:hover { background: var(--bg); color: var(--text); } }
+.room.dragging { box-shadow: 0 8px 24px rgba(15, 23, 42, .18); border-color: var(--accent); position: relative; z-index: 2; }
+.room.dragging .no { cursor: grabbing; background: var(--accent-weak, #e8f0ff); color: var(--accent); }
+body.sorting, body.sorting * { cursor: grabbing !important; }
+.room .ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 3px; }
+.rooms-head { padding: 0 9px 4px; font-size: 12px; color: var(--muted); }
+/* 1行に並べると欄が狭くなる幅では2段、スマホ幅では4段にする */
+.room .lbl { display: none; }
+@media (max-width: 900px) {
+  .rooms-head { display: none; }
+  .room {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "no name tags eq" "no restr note ops";
+  }
+  .room .no { grid-area: no; }
+  .room .c-name { grid-area: name; }
+  .room .c-tags { grid-area: tags; }
+  .room .c-eq { grid-area: eq; }
+  .room .c-restr { grid-area: restr; }
+  .room .c-note { grid-area: note; }
+  .room .ops { grid-area: ops; padding-top: 19px; }
+  .room .lbl { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+}
+@media (max-width: 600px) {
+  .room {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "no sum sum" "no name name" "no tags tags" "no eq restr" "no note note" "no ops ops";
+  }
+  .room .ops { padding-top: 0; }
+}
+
+/* 休館・利用停止の一覧（狭い画面では表を横スクロール） */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
+th { background: #f7f8fa; color: var(--muted); font-weight: 600; font-size: 12px; }
+td.reason { white-space: normal; min-width: 140px; }
+tr.past td { color: #9aa3ad; }
+.sat { color: #2563eb; }
+.sun { color: var(--danger); }
+.empty { padding: 20px; text-align: center; color: var(--muted); }
+/* 時間帯の欄が出入りしても崩れないよう、各欄の幅を個別に決めて下端で揃える */
+.add-form { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.add-form .f-date { flex: 0 0 160px; min-width: 0; }
+/* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
+input[type="date"].in, .field input[type="date"] {
+  -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%;
+  text-align: left; line-height: 36px;
+}
+input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+/* 不具合報告 */
+.bug-list { display: flex; flex-direction: column; gap: 10px; }
+.bug { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.bug.done { opacity: .6; }
+.bug-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.bug-head select { height: 30px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; font-size: 13px; margin-left: auto; }
+.bug-msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.bug-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.bug details pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 11px; margin: 6px 0 0; }
+.add-form .f-room { flex: 1 1 200px; } /* 部屋名（例: 練習室19（電子P.7））が切れない幅 */
+.add-form .f-allday { flex: none; height: 38px; }
+.add-form .f-time { flex: 0 0 auto; }
+.add-form .f-time select { width: 64px; flex: none; }
+.add-form .f-reason { flex: 2 1 180px; }
+.add-form .f-submit { flex: none; height: 38px; }
+
+.login { max-width: 380px; margin: 40px auto; }
+.login form { display: flex; flex-direction: column; gap: 14px; }
+.login .btn.primary { align-self: flex-end; min-width: 120px; height: 40px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+  background: #1f2933; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 100;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+/* 説明文は折りたためるようにする（PC では最初から開く） */
+.howto { margin: -6px 0 12px; }
+.howto summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 0; }
+.howto .lead { margin: 6px 0 0; }
+.room-sum { display: none; }
+@media (max-width: 600px) {
+  /* 短い欄（時刻・数値）は2つずつ並べ、長い欄だけ1行を使う */
+  .form-grid { gap: 12px 10px; }
+  .form-grid .m-full { grid-column: 1 / -1; }
+  .weekdays { gap: 4px; flex-wrap: nowrap; }
+  .weekdays label { flex: 1; justify-content: center; gap: 3px; padding-left: 0; padding-right: 0; }
+  .topbar { gap: 8px; padding-top: 8px; padding-bottom: 8px; flex-wrap: nowrap; }
+  .topbar h1 { font-size: 16px; white-space: nowrap; }
+  .topbar .app-name, .topbar .lg, .tabs .lg { display: none; }
+  /* タブは短い名前にして、5つとも横スクロールなしで見えるようにする */
+  .tabs { gap: 0; justify-content: space-between; }
+  .tabs button { padding: 10px 8px; font-size: 14px; }
+  .topbar .btn.small { padding: 0 8px; }
+  /* 部屋は1行に畳み、押した部屋だけ開いて編集する */
+  .rooms { gap: 6px; }
+  .room { padding: 6px 8px; row-gap: 0; }
+  .room.open { row-gap: 8px; border-color: var(--accent); }
+  .room:not(.open) > :not(.no):not(.room-sum) { display: none; }
+  .room-sum {
+    grid-area: sum; display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%;
+    border: 0; background: none; padding: 6px 0; text-align: left; cursor: pointer; font-size: 15px;
+  }
+  .room-sum .s-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-sum .chip { flex: none; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #eef2f7; color: var(--muted); }
+  .room-sum .chip.warn { background: #fff4e5; color: #9a5b00; }
+  .room-sum .s-eq { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .room-sum .chev { flex: none; color: var(--muted); transition: transform .15s; }
+  .room.open .room-sum .chev { transform: rotate(180deg); }
+  .room .no { min-height: 0; }
+  /* 休館・利用停止の一覧は、表を横にスクロールさせず、1件ずつのカードにする */
+  .table-wrap { border: 0; overflow: visible; }
+  .table-wrap table { min-width: 0; display: block; }
+  .table-wrap thead { display: none; }
+  .table-wrap tbody { display: flex; flex-direction: column; gap: 6px; }
+  .table-wrap tr {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px;
+    grid-template-areas: "date time del" "room reason del";
+    padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+  }
+  .table-wrap td { padding: 0; border: 0; white-space: normal; min-width: 0; font-size: 14px; }
+  .table-wrap td:nth-child(1) { grid-area: date; font-weight: 600; }
+  .table-wrap td:nth-child(2) { grid-area: room; color: var(--muted); font-size: 13px; }
+  .table-wrap td:nth-child(3) { grid-area: time; }
+  .table-wrap td:nth-child(4) { grid-area: reason; color: var(--muted); font-size: 13px; }
+  .table-wrap td:nth-child(5) { grid-area: del; }
+  .table-wrap td.empty { grid-column: 1 / -1; }
+  .card { padding: 14px; }
+  .wrap { padding: 12px 12px 80px; }
+}
+
+/* ================= Liquid Glass 風デザイン（design-unify で調整中・予約表と同じ値） ================= */
+:root {
+  --accent: #007aff; --accent-weak: rgba(0, 122, 255, .1); --danger: #ff3b30;
+  --bg: #f2f2f7; --text: #1c1c1e; --muted: #6e6e73; --sep: rgba(60, 60, 67, .16);
+  --glass: rgba(255, 255, 255, .7); --glass-strong: rgba(255, 255, 255, .8);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 40%);
+  --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .9), inset 0 0 0 .5px rgba(255, 255, 255, .35);
+  --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .1);
+  --glass-lift: 0 1px 2px rgba(0, 0, 0, .05), 0 2px 8px rgba(0, 0, 0, .04);
+  --fill-field: rgba(118, 118, 128, .1);
+}
+/* 背景にごく淡い色のにじみを置き、ガラスの帯・カードの奥行きが見えるようにする */
+body {
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(0, 122, 255, .08), transparent 60%),
+              radial-gradient(900px 500px at 110% 10%, rgba(255, 149, 0, .07), transparent 60%), var(--bg);
+  background-attachment: fixed;
+}
+.topbar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .8), rgba(255, 255, 255, .6));
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
+}
+.btn {
+  border: 0; border-radius: 11px; font-weight: 500;
+  background-color: var(--glass); background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), background-color .18s;
+}
+.btn:active { transform: scale(1.03); }
+@media (hover: hover) { .btn:hover { background-color: var(--glass-strong); } .btn.primary:hover { background-color: rgba(0, 110, 235, .95); } }
+.btn.primary {
+  color: #fff; background-color: rgba(0, 122, 255, .96);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 50%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 0 0 .5px rgba(0, 60, 160, .25), 0 1px 3px rgba(0, 60, 160, .2);
+}
+.btn:focus-visible { outline: 0; box-shadow: var(--glass-rim), 0 0 0 2px var(--accent); }
+/* カード: 白い厚めのガラス */
+.card {
+  border: 0; border-radius: 18px; background: rgba(255, 255, 255, .8);
+  -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 0 0 .5px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .05);
+}
+/* タブ: ガラスの溝の中の白いつまみ */
+.tabs {
+  box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), inset 0 -1px 0 rgba(255, 255, 255, .6);
+  background: rgba(118, 118, 128, .1); border-radius: 11px; padding: 2px; gap: 0;
+}
+.tabs button { flex: 1; padding: 7px 12px; border-radius: 9px; color: var(--text); font-weight: 500; transition: background-color .25s, box-shadow .25s; }
+.tabs button[aria-selected="true"] {
+  color: var(--text); font-weight: 600; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+  box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
+}
+/* 予約表の表示の切り替えと同じく、白いつまみが選んだタブへ滑る（JS が位置を入れたら .has-thumb） */
+.tabs { position: relative; }
+.tabs.has-thumb::before {
+  content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x); width: var(--thumb-w); border-radius: 9px;
+  background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+  box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
+  transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
+}
+.tabs.no-anim::before { transition: none; }
+.tabs.has-thumb button { position: relative; z-index: 1; }
+.tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
+.field input, .field select, input.in, select.in, .bug-head select { border: 0; border-radius: 11px; background-color: var(--fill-field); }
+.time select, .suffix select { background-color: var(--fill-field); }
+input:focus, select:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); background-color: #fff; }
+.copy-row input { background: var(--fill-field); }
+.weekdays label { border: 0; background: var(--fill-field); border-radius: 9px; }
+.savebar { border-top: .5px solid var(--sep); }
+.msg { border-radius: 14px; }
+.msg.error { background: rgba(255, 59, 48, .08); }
+.room { border: 0; background: rgba(118, 118, 128, .07); border-radius: 14px; }
+.room.new { background: rgba(0, 122, 255, .08); }
+.room input, .room select { background-color: rgba(255, 255, 255, .95); }
+.room.open { background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 1.5px var(--accent), 0 8px 20px rgba(0, 0, 0, .06); }
+.room.open input, .room.open select { background-color: var(--fill-field); }
+.room.dragging { background: #fff; }
+/* 選択欄の矢印: 標準の矢印は欄が広いと右端に寄りすぎるので、予約表と同じく右から 12px の位置に描く */
+.field select, select.in, .bug-head select, .notice-edit select {
+  -webkit-appearance: none; appearance: none; padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.bug-head select { padding: 0 28px 0 10px; background-position: right 10px center; }
+/* 時刻・数値の欄は幅が狭いので、数字を中央に置いたまま矢印を詰める */
+.time select, .suffix select { padding: 0 18px 0 6px; background-position: right 7px center; }
+.room-sum .chip { background: rgba(255, 255, 255, .9); }
+.table-wrap { border: 0; box-shadow: 0 0 0 .5px var(--sep); border-radius: 18px; }
+th { background: rgba(118, 118, 128, .08); }
+th, td { border-bottom: .5px solid var(--sep); }
+.bug { border: 0; background: rgba(118, 118, 128, .07); border-radius: 18px; }
+.toast { background: rgba(40, 40, 44, .78); border-radius: 999px; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+@media (max-width: 600px) {
+  .tabs button { padding: 7px 4px; font-size: 13px; }
+  .table-wrap { box-shadow: none; }
+  .table-wrap tr { border: 0; background: rgba(118, 118, 128, .07); border-radius: 18px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
+}
+/* ================= ダークモード（予約表と同じ色） =================
+   端末がダークモードのとき（または URL に ?dark を付けたとき）、html に .dark を付けて色を差し替える */
+html.dark {
+  color-scheme: dark;
+  --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93;
+  --line: rgba(255, 255, 255, .07); --line-strong: rgba(84, 84, 88, .65); --sep: rgba(84, 84, 88, .6);
+  --accent: #0a84ff; --accent-weak: rgba(10, 132, 255, .18); --danger: #ff453a;
+  --warn-bg: rgba(255, 159, 10, .16); --warn-text: #ffc66b;
+  --glass: #262628; --glass-strong: #303033; --glass-sheen: none;
+  --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .14);
+  --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent;
+  --fill-field: rgba(118, 118, 128, .24);
+}
+html.dark body { background: var(--bg); }
+html.dark .topbar { background: rgba(0, 0, 0, .82); box-shadow: 0 .5px 0 var(--sep); }
+html.dark .card { background: var(--surface); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .06); }
+@media (hover: hover) { html.dark .btn:hover { background-color: var(--glass-strong); } }
+html.dark .btn.primary {
+  background-color: #3b8ff5;
+  background-image: radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 60%);
+  box-shadow: inset 0 0 0 1px rgba(130, 195, 255, .45), inset 0 -1.5px 2px rgba(150, 210, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+@media (hover: hover) { html.dark .btn.primary:hover { background-color: #4a99f7; } }
+html.dark .btn.danger { background-color: #f2473d; color: #fff; }
+html.dark .tabs { background: #1c1c1e; box-shadow: none; }
+html.dark .tabs.has-thumb::before, html.dark .tabs button[aria-selected="true"] { background: #3a3a3c; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
+html.dark .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
+html.dark input:focus, html.dark select:focus { background-color: rgba(118, 118, 128, .32); }
+html.dark .room, html.dark .bug, html.dark .table-wrap tr { background: rgba(255, 255, 255, .05); }
+html.dark .room.new { background: rgba(10, 132, 255, .14); }
+html.dark .room input, html.dark .room select { background-color: rgba(118, 118, 128, .3); }
+html.dark .room.open { background: #2c2c2e; box-shadow: 0 0 0 1.5px var(--accent), 0 8px 20px rgba(0, 0, 0, .4); }
+html.dark .room.open input, html.dark .room.open select { background-color: rgba(118, 118, 128, .3); }
+html.dark .room.dragging { background: #2c2c2e; }
+html.dark .room-sum .chip { background: rgba(255, 255, 255, .1); color: #d1d1d6; }
+html.dark .room-sum .chip.warn { background: rgba(255, 159, 10, .2); color: #ffc66b; }
+html.dark th { background: rgba(255, 255, 255, .06); }
+html.dark .sat { color: #409cff; }
+html.dark .msg.error { background: rgba(255, 69, 58, .16); }
+html.dark .toast { background: rgba(58, 58, 60, .9); }
+html.dark .field select, html.dark select.in, html.dark .bug-head select, html.dark .notice-edit select, html.dark .time select, html.dark .suffix select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E");
+}
