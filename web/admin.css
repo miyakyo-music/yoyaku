@@ -501,6 +501,16 @@ html.dark .field select, html.dark select.in, html.dark .bug-head select, html.d
 
 /* ---------- 予約の一覧（CSV・印刷） ---------- */
 #exportForm .f-room { flex: 1 1 160px; }
+#exportForm .f-query { flex: 1 1 200px; }
+#exportForm .f-query input { width: 100%; }
+#exportForm .f-wd { flex: 0 1 auto; }
+#exportForm .f-wd .weekdays { flex-wrap: nowrap; gap: 4px; }
+#exportForm .f-wd .weekdays label { padding: 6px 8px; gap: 3px; }
+#exportForm .f-color { flex: none; height: 38px; }
+@media (max-width: 600px) {
+  #exportForm .f-wd { flex: 1 1 100%; min-width: 0; }
+  #exportForm .f-wd .weekdays label { flex: 1; min-width: 0; justify-content: center; padding: 6px 0; }
+}
 #exportForm .f-actions { display: flex; gap: 8px; margin-left: auto; }
 /* 印刷用の表（admin.js が作る）。ふだんは隠し、印刷のときはこれだけを出す。色は画面の明暗にかかわらず白地に黒 */
 #printArea { display: none; }
