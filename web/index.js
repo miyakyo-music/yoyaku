@@ -1748,6 +1748,9 @@
     $('dNote').hidden = !notes.length;
     $('dNote').textContent = notes.join(' ');
     $('dPin').value = mine ? (load_(LS.profile, {}).pin || '') : '';
+    // カレンダーに追加（終わっていない予約だけ）
+    $('dCal').hidden = ended;
+    if (!ended) $('dCalGoogle').href = googleCalendarUrl(r, room);
     $('detailDialog').showModal();
   }
 
@@ -1801,6 +1804,54 @@
         $('dError').textContent = message;
       }
     }
+  }
+
+  // ---------------- カレンダーに追加 ----------------
+  // 予約者の名前などは入れず、部屋と時間だけを書く（Google の URL に個人の情報を載せないため）
+  function calTitle(r, room) { return `${room ? roomText(room) : r.roomId}の予約`; }
+  const CAL_PLACE = '宮城教育大学 音楽棟';
+  /** 日本時間の日付と時刻を、カレンダーの書式（世界標準時 YYYYMMDDTHHMMSSZ）にする */
+  function calStamp(date, hhmm) {
+    const [y, mo, d] = date.split('-').map(Number);
+    const [h, mi] = hhmm.split(':').map(Number);
+    return new Date(Date.UTC(y, mo - 1, d, h - 9, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  }
+  function googleCalendarUrl(r, room) {
+    const q = new URLSearchParams({
+      action: 'TEMPLATE', text: calTitle(r, room),
+      dates: `${calStamp(r.date, r.start)}/${calStamp(r.date, r.end)}`,
+      location: CAL_PLACE, details: location.origin + location.pathname,
+    });
+    return 'https://calendar.google.com/calendar/render?' + q.toString();
+  }
+  /** iPhone・Mac・Outlook などのカレンダーに読み込めるファイル（.ics）を作って開く。開始15分前に知らせる */
+  function downloadIcs(r, room) {
+    const icsText = (t) => String(t).replace(/[\\;,]/g, (c) => '\\' + c);
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//miyakyo-music//yoyaku//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${r.id}@miyakyo-music.github.io`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+      `DTSTART:${calStamp(r.date, r.start)}`, `DTEND:${calStamp(r.date, r.end)}`,
+      `SUMMARY:${icsText(calTitle(r, room))}`, `LOCATION:${icsText(CAL_PLACE)}`,
+      `DESCRIPTION:${icsText(location.origin + location.pathname)}`,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:練習室の予約', 'TRIGGER:-PT15M', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR', '',
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `練習室予約_${r.date}.ics`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+  $('dCalIcs').addEventListener('click', () => {
+    const r = state.detail;
+    if (r) downloadIcs(r, state.rooms.find((x) => x.id === r.roomId));
+  });
+
+  // ---------------- アプリのように使う（ホーム画面に追加したとき。sw.js） ----------------
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* 使えない環境では何もしない */ }); });
   }
 
   // ---------------- この端末の予約一覧 ----------------

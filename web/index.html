@@ -28,6 +28,14 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- ホーム画面に追加して、アプリのように使う（manifest.webmanifest・sw.js） -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="練習室予約">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>練習室予約</title>
 <link rel="stylesheet" href="index.css">
 </head>
@@ -160,6 +168,11 @@
         <dt>予約者</dt><dd id="dName"></dd>
         <dt id="dMemoDt">備考</dt><dd id="dMemo"></dd>
       </dl>
+      <div class="cal-add" id="dCal" hidden>
+        <span>カレンダーに追加</span>
+        <button type="button" class="btn small" id="dCalIcs">iPhone など</button>
+        <a class="btn small" id="dCalGoogle" target="_blank" rel="noopener">Google</a>
+      </div>
       <div id="dOps">
         <label class="field"><span>編集用パスワード（予約時に設定した4桁）<span class="req" aria-hidden="true">*</span></span>
           <input id="dPin" class="pin-input" type="text" inputmode="numeric" autocomplete="one-time-code" data-1p-ignore data-lpignore="true" data-bwignore autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="4桁の数字">
