@@ -158,6 +158,12 @@ input[type="date"], select {
 .sun { color: var(--sun); }
 .legend { display: inline-flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-left: auto; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
+/* iPad（12.9インチの縦など）: 「空室」の右に凡例まで1行に収まるよう、設備の選択欄と凡例を少し詰める */
+@media (min-width: 601px) and (max-width: 1199px) {
+  #equipFilter { max-width: 130px; text-overflow: ellipsis; }
+  .legend { gap: 4px 6px; font-size: 11px; }
+  .legend span { gap: 3px; }
+}
 .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line-strong); display: inline-block; }
 .sw.res { background: var(--res); border: 0; border-left: 3px solid var(--res-border); }
 .sw.mine { background: var(--mine); border: 0; border-left: 3px solid var(--mine-border); }
@@ -165,7 +171,8 @@ input[type="date"], select {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- タイムライン（一覧・部屋別） ---------- */
-.main { flex: 1; overflow: auto; position: relative; background: var(--surface); -webkit-overflow-scrolling: touch; }
+.main { flex: 1; overflow: auto; position: relative; z-index: 0; background: var(--surface); -webkit-overflow-scrolling: touch; }
+/* z-index: 0 で表の中身をこの箱の中に閉じ込める（iPad の Safari で、縞模様の行や部屋名の列がスクロールバーの上に描かれて、バーが途切れて見えたため） */
 /* 2本指の操作は時間軸の拡大・縮小に使うので、ページ自体の拡大は止める */
 .main.has-tl { touch-action: pan-x pan-y; }
 body.loading .main > * { opacity: .65; transition: opacity .2s; }

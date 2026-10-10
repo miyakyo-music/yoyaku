@@ -1230,9 +1230,13 @@
       const pos = el.scrollTop / WHEEL_ITEM;
       const now = Math.round(pos);
       items.forEach((it, i) => {
-        // 真ん中から離れた数字ほど奥へ傾けて薄くし、ドラムのように見せる
-        const a = Math.max(-1, Math.min(1, (i - pos) / 2.6));
-        it.style.transform = `perspective(300px) rotateX(${-a * 55}deg) scale(${1 - Math.abs(a) * .12})`;
+        // 真ん中から離れた数字ほど奥へ傾けて薄くし、ドラムのように見せる。
+        // 円筒に巻いたときの位置まで真ん中へ寄せる（傾けて小さくなった分、端の段だけ間が空いて見えないように）
+        const d = i - pos;
+        const a = Math.max(-1, Math.min(1, d / 2.6));
+        const R = 2.72; // 円筒の半径（段の高さの何倍か）。1段あたり約21度
+        const ty = (R * Math.sin(Math.max(-1.45, Math.min(1.45, d / R))) - d) * WHEEL_ITEM;
+        it.style.transform = `translateY(${ty.toFixed(2)}px) perspective(300px) rotateX(${-a * 55}deg) scale(${1 - Math.abs(a) * .12})`;
         it.style.opacity = String(1 - Math.min(1, Math.abs(i - pos) / 3) * .75);
         it.classList.toggle('sel', i === now);
       });
@@ -1401,6 +1405,7 @@
 
   function updateBookingUi() {
     $('bDateDisplay').innerHTML = dateDisplayHtml($('bDate').value);
+    $('bUntilDisplay').innerHTML = dateDisplayHtml($('bUntil').value);
     const s = state.settings;
     const edit = state.booking.mode === 'edit';
     // まとめて変更するときは、日付と部屋はそれぞれのままなので選べないようにする
