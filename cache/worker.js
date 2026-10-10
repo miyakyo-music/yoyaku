@@ -9,9 +9,18 @@
  * 置くのは、予約表を開けば誰でも見られる内容だけ（編集用パスワード・限定公開の部屋は GAS 側で除いてから送る）。
  * 外部の部品（ライブラリ）は使わない。
  *
+ * もう1つの役目: 管理画面のパスキー（Face ID / Touch ID）ログイン。GAS では署名の確認ができないので、ここで確かめる。
+ * - 確かめられたら「ログインの印」（pk1.有効期限.番号.署名）を返す。画面はこれを管理用パスワードの代わりに GAS へ送り、
+ *   GAS は同じ合言葉で署名を確かめる。
+ * - パスキーの登録・一覧・削除には、GAS が管理者に出した「許可証」（pkt.…、5分間有効）が要る。
+ * - 置くのはパスキーの公開鍵（合い鍵にならない方）だけ。指紋や顔の情報は端末から出ない。
+ *
  * 設定（wrangler.toml とリポジトリの Secrets）:
- *   DB          … D1 データベースのつなぎ（wrangler.toml）
- *   PUSH_TOKEN  … GAS と共有する合言葉（Cloudflare の秘密の設定。GitHub Actions が Secrets から登録する）
+ *   DB             … D1 データベースのつなぎ（wrangler.toml）
+ *   PUSH_TOKEN     … GAS と共有する合言葉（Cloudflare の秘密の設定。GitHub Actions が Secrets から登録する）。
+ *                    パスキーの署名にも使う（変えると、パスキーでのログイン中の人はログインし直しになる）
+ *   PASSKEY_RP_ID  … パスキーを使うサイトのドメイン（wrangler.toml。例: miyakyo-music.github.io）。空ならパスキーは使わない
+ *   PASSKEY_ORIGIN … 管理画面のサイトの起点（例: https://miyakyo-music.github.io）
  */
 
 let tableReady = false;
@@ -25,6 +34,7 @@ export default {
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
       if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
       if (url.pathname === '/push' && request.method === 'POST') return await push(request, env);
+      if (url.pathname.startsWith('/passkey/')) return passkeyCors(await passkey(url.pathname.slice(9), request, env), env);
       if (url.pathname === '/') return cors(json(await status(env)));
       return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
     } catch (e) {
@@ -36,9 +46,149 @@ export default {
 /** 写しを入れる表（k = 'meta' または 'm:YYYY-MM'、v = JSON）。初回だけ作る */
 async function ensureTable(env) {
   if (tableReady) return;
-  await env.DB.prepare('CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL)').run();
+  await env.DB.batch([
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL)'),
+    // パスキー（公開鍵だけ）と、使い終わった確認用の文字列（同じものを2度使わせないため）
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS passkeys (id TEXT PRIMARY KEY, pubkey TEXT NOT NULL, alg INTEGER NOT NULL, name TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS passkey_used (c TEXT PRIMARY KEY, exp INTEGER NOT NULL)'),
+  ]);
   tableReady = true;
 }
+
+// ---------------- パスキー ----------------
+
+const TOKEN_HOURS = 12;   // パスキーでのログインが続く時間
+const CHALLENGE_SEC = 180; // 確認用の文字列の有効時間
+const MAX_PASSKEYS = 30;
+
+/** /passkey/〜 の処理。本文は JSON（CORS の事前確認を避けるため、画面は text/plain で送る） */
+async function passkey(op, request, env) {
+  const rpId = String(env.PASSKEY_RP_ID || '').trim();
+  const key = String(env.PUSH_TOKEN || '').trim();
+  if (!rpId || !key) return json({ ok: false, code: 'DISABLED', message: 'パスキーは使えない設定です。' });
+  if (request.method !== 'POST') return json({ ok: false, code: 'BAD_REQUEST' }, 405);
+  const body = await request.json().catch(() => ({}));
+  const now = Math.floor(Date.now() / 1000);
+  const ng = (message, status = 400) => json({ ok: false, code: 'PASSKEY', message }, status);
+
+  // 確認用の文字列（challenge）: 「有効期限.乱数.署名」。ここでは覚えず、署名で本物か確かめる
+  if (op === 'challenge') {
+    const exp = now + CHALLENGE_SEC;
+    const rand = b64url(crypto.getRandomValues(new Uint8Array(16)));
+    return json({ ok: true, rpId, challenge: `${exp}.${rand}.${await hmac(key, `chal.${exp}.${rand}`)}` });
+  }
+
+  // 登録・一覧・削除は、GAS が出した許可証が要る
+  if (op === 'register' || op === 'list' || op === 'delete') {
+    const m = /^pkt\.(\d+)\.([\w-]+)$/.exec(String(body.ticket || ''));
+    if (!m || Number(m[1]) < now || !safeEqual(m[2], await hmac(key, `pkt.${m[1]}`))) return ng('管理画面に入り直してから、もう一度お試しください。', 401);
+  }
+  if (op === 'list') {
+    const rows = await env.DB.prepare('SELECT id, name, created, last_used FROM passkeys ORDER BY created').all();
+    return json({ ok: true, passkeys: (rows.results || []).map((r) => ({ id: r.id, name: r.name, created: r.created, lastUsed: r.last_used || '' })) });
+  }
+  if (op === 'delete') {
+    await env.DB.prepare('DELETE FROM passkeys WHERE id = ?').bind(String(body.id || '')).run();
+    return json({ ok: true });
+  }
+  if (op !== 'register' && op !== 'login') return json({ ok: false, code: 'NOT_FOUND' }, 404);
+
+  // ここから登録・ログインに共通の確認（端末が作った「どのサイトで・何に答えたか」の記録）
+  const clientData = b64urlDecode(body.clientDataJSON);
+  const authData = b64urlDecode(body.authenticatorData);
+  let cd;
+  try { cd = JSON.parse(new TextDecoder().decode(clientData)); } catch (e) { return ng('形式が正しくありません。'); }
+  if (cd.type !== (op === 'register' ? 'webauthn.create' : 'webauthn.get')) return ng('形式が正しくありません。');
+  if (cd.origin !== String(env.PASSKEY_ORIGIN || `https://${rpId}`)) return ng('このサイトからは使えません。', 403);
+  const chal = new TextDecoder().decode(b64urlDecode(cd.challenge));
+  const cm = /^(\d+)\.([\w-]+)\.([\w-]+)$/.exec(chal);
+  if (!cm || Number(cm[1]) < now || !safeEqual(cm[3], await hmac(key, `chal.${cm[1]}.${cm[2]}`))) return ng('時間がたちすぎました。もう一度お試しください。');
+  if (authData.length < 37 || !equalBytes(authData.slice(0, 32), await sha256(new TextEncoder().encode(rpId)))) return ng('このサイト用のパスキーではありません。', 403);
+  const flags = authData[32];
+  if (!(flags & 0x01) || !(flags & 0x04)) return ng('Face ID・Touch ID などでの本人確認が必要です。');
+  // 同じ確認用の文字列は2度使わせない（古いものは消す）
+  await env.DB.prepare('DELETE FROM passkey_used WHERE exp < ?').bind(now).run();
+  const used = await env.DB.prepare('INSERT OR IGNORE INTO passkey_used (c, exp) VALUES (?, ?)').bind(cm[2], Number(cm[1])).run();
+  if (used.meta && used.meta.changes === 0) return ng('この確認はすでに使われています。もう一度お試しください。');
+  const stamp = nowJst();
+
+  if (op === 'register') {
+    const alg = Number(body.alg);
+    if (alg !== -7 && alg !== -257) return ng('この端末のパスキーの方式には対応していません。');
+    // 端末が作ったパスキーの番号が、本人確認の記録に含まれているものと同じか
+    if (!(flags & 0x40) || authData.length < 55) return ng('形式が正しくありません。');
+    const len = (authData[53] << 8) | authData[54];
+    const credId = b64url(authData.slice(55, 55 + len));
+    if (credId !== String(body.id || '')) return ng('形式が正しくありません。');
+    await importKey(b64urlDecode(body.publicKey), alg); // 読める鍵か（読めなければここで失敗する）
+    const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys').first();
+    if (count && count.n >= MAX_PASSKEYS) return ng(`パスキーは${MAX_PASSKEYS}個までです。使っていないものを削除してください。`);
+    const name = String(body.name || '').trim().slice(0, 40) || '名前なし';
+    await env.DB.prepare('INSERT OR REPLACE INTO passkeys (id, pubkey, alg, name, created) VALUES (?, ?, ?, ?, ?)')
+      .bind(credId, String(body.publicKey), alg, name, stamp).run();
+    return json({ ok: true, id: credId, name });
+  }
+
+  // ログイン: 登録してある公開鍵で、端末の署名を確かめる
+  const row = await env.DB.prepare('SELECT id, pubkey, alg, name FROM passkeys WHERE id = ?').bind(String(body.id || '')).first();
+  if (!row) return ng('このパスキーは登録されていないか、削除されています。', 401);
+  const signed = concat(authData, await sha256(clientData));
+  let sig = b64urlDecode(body.signature);
+  const pub = await importKey(b64urlDecode(row.pubkey), row.alg);
+  const algo = row.alg === -7 ? { name: 'ECDSA', hash: 'SHA-256' } : { name: 'RSASSA-PKCS1-v1_5' };
+  if (row.alg === -7) sig = derToRaw(sig);
+  if (!sig || !(await crypto.subtle.verify(algo, pub, sig, signed))) return ng('パスキーを確かめられませんでした。', 401);
+  await env.DB.prepare('UPDATE passkeys SET last_used = ? WHERE id = ?').bind(stamp, row.id).run();
+  const exp = now + TOKEN_HOURS * 3600;
+  const tag = b64url(await sha256(new TextEncoder().encode(row.id))).slice(0, 12); // どのパスキーか（記録用の短い印）
+  return json({ ok: true, name: row.name, token: `pk1.${exp}.${tag}.${await hmac(key, `pk1.${exp}.${tag}`)}` });
+}
+
+/** パスキーの応答は、管理画面のサイトからだけ読めるようにする */
+function passkeyCors(res, env) {
+  const h = new Headers(res.headers);
+  h.set('Access-Control-Allow-Origin', String(env.PASSKEY_ORIGIN || `https://${env.PASSKEY_RP_ID}`));
+  h.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  h.set('Vary', 'Origin');
+  return new Response(res.body, { status: res.status, headers: h });
+}
+
+function importKey(spki, alg) {
+  return alg === -7
+    ? crypto.subtle.importKey('spki', spki, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+    : crypto.subtle.importKey('spki', spki, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+}
+
+/** ECDSA の署名を、端末の形（DER）から WebCrypto の形（r と s を32バイトずつ並べたもの）に直す */
+function derToRaw(der) {
+  if (der[0] !== 0x30) return null;
+  let i = 2;
+  const part = () => {
+    if (der[i] !== 0x02) return null;
+    const len = der[i + 1];
+    let v = der.slice(i + 2, i + 2 + len);
+    i += 2 + len;
+    while (v.length > 32 && v[0] === 0) v = v.slice(1);
+    if (v.length > 32) return null;
+    const out = new Uint8Array(32); out.set(v, 32 - v.length);
+    return out;
+  };
+  const r = part(), s = part();
+  return r && s ? concat(r, s) : null;
+}
+
+async function hmac(key, message) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64url(new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(message))));
+}
+async function sha256(bytes) { return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)); }
+function b64url(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64urlDecode(text) {
+  const t = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
+  try { return Uint8Array.from(atob(t + '==='.slice((t.length + 3) % 4)), (c) => c.charCodeAt(0)); } catch (e) { return new Uint8Array(0); }
+}
+function concat(a, b) { const out = new Uint8Array(a.length + b.length); out.set(a); out.set(b, a.length); return out; }
+function equalBytes(a, b) { return a.length === b.length && a.every((v, i) => v === b[i]); }
 
 async function readMeta(env) {
   const row = await env.DB.prepare("SELECT v FROM cache WHERE k = 'meta'").first();

@@ -728,6 +728,7 @@
         if (Object.prototype.hasOwnProperty.call(mine, r.id)) cls.push('mine');
         if (r.date < today || (r.date === today && toMin(r.end) <= now)) cls.push('ended');
         if (r.pending) cls.push('mine', 'pending'); // 送信中の予約も自分の予約の色で表示する
+        if (RES_COLORS.includes(r.color)) cls.push('c-' + r.color); // 重要な予定の色（自分の予約の青より優先）
         const title = `${hm(r.start)}〜${hm(r.end)} ${personText(r)}${r.memo ? '　' + r.memo : ''}${r.pending ? '（送信中）' : ''}`;
         // 予約者名を太字で先に、学籍番号/所属は2行目に細字で
         html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}" aria-label="${esc(title)}">` +
@@ -847,7 +848,7 @@
       if (roomId) {
         const max = 4;
         html += '<ul>' + list.slice(0, max).map((r) =>
-          `<li class="${Object.prototype.hasOwnProperty.call(mine, r.id) ? 'mine' : ''}" title="${esc(hm(r.start))}〜${esc(hm(r.end))} ${esc(r.affiliation)} ${esc(r.name)}">` +
+          `<li class="${Object.prototype.hasOwnProperty.call(mine, r.id) ? 'mine' : ''}${RES_COLORS.includes(r.color) ? ' c-' + r.color : ''}" title="${esc(hm(r.start))}〜${esc(hm(r.end))} ${esc(r.affiliation)} ${esc(r.name)}">` +
           `${esc(hm(r.start))} ${esc(r.name || r.affiliation)}</li>`).join('') +
           (list.length > max ? `<li class="more">ほか${list.length - max}件</li>` : '') + '</ul>';
       } else if (list.length) {
@@ -1321,14 +1322,20 @@
   }
 
   /**
-   * @param {{mode:'create'|'edit', roomId?, date?, start?, end?, reservation?, pin?}} o
+   * @param {{mode:'create'|'edit', roomId?, date?, start?, end?, reservation?, pin?, copyFrom?}} o
+   *   copyFrom: コピーのもとの予約（部屋・時間・氏名などを引き継ぎ、曜日を選んで予約する）
    */
   function openBooking(o) {
     const s = state.settings;
     const edit = o.mode === 'edit';
     const r = o.reservation;
-    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null };
-    $('bTitle').textContent = edit ? '予約の変更' : '新規予約';
+    const cp = !edit && o.copyFrom ? o.copyFrom : null;
+    if (cp) {
+      o = Object.assign({}, o, { roomId: cp.roomId, start: toMin(cp.start), end: toMin(cp.end),
+        date: addDays(cp.date, 1) < todayStr() ? todayStr() : addDays(cp.date, 1) });
+    }
+    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null, copy: cp ? { days: new Set() } : null };
+    $('bTitle').textContent = edit ? '予約の変更' : cp ? '予約のコピー' : '新規予約';
     $('bSubmit').textContent = edit ? '変更を保存' : '予約確定';
 
     const roomSel = $('bRoom');
@@ -1363,9 +1370,10 @@
     setTime($('bEndH'), $('bEndM'), end);
 
     const profile = load_(LS.profile, {});
-    $('bAff').value = edit ? r.affiliation : (profile.affiliation || '');
-    $('bPerson').value = edit ? r.name : (profile.name || '');
-    $('bMemo').value = edit ? r.memo : '';
+    const from = edit ? r : cp;
+    $('bAff').value = from ? from.affiliation : (profile.affiliation || '');
+    $('bPerson').value = from ? from.name : (profile.name || '');
+    $('bMemo').value = from ? (from.memo || '') : '';
     $('bPin').value = edit ? (o.pin || '') : (profile.pin || '');
     // 変更時: 編集用パスワードのない予約・管理者モードでは編集用パスワード欄を出さない
     $('bPinField').hidden = edit && (!r.hasPin || isAdminMode());
@@ -1383,6 +1391,11 @@
     $('bRepeat').checked = false;
     $('bRepeatArea').hidden = true;
     $('bInterval').value = '7';
+    $('bInterval').querySelector('option[value="1"]').disabled = !!cp; // コピーは曜日を選ぶので「毎日」は使わない
+    $('bCopyField').hidden = !cp;
+    // 重要な予定の色: 管理者モードか、限定公開に入っているときだけ選べる（GAS でも確かめている）
+    $('bColorField').hidden = !(isAdminMode() || state.limitedKey);
+    setColorChoice(edit ? (r.color || '') : cp ? (cp.color || '') : '');
     $('bUntil').value = addDays(date, 7 * 14);
     $('bMultiBox').hidden = !showBulk;
     $('bMulti').checked = false;
@@ -1403,8 +1416,41 @@
     if (!edit && !quick && !$('bPerson').value) $('bPerson').focus();
   }
 
+  const RES_COLORS = ['red', 'purple', 'green'];
+  function setColorChoice(c) {
+    for (const b of $('bColor').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.c === c));
+  }
+  $('bColor').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-c]');
+    if (b) setColorChoice(b.dataset.c);
+  });
+
+  /** コピー先の曜日のボタン（日付の日から7日分。定休日は選べない） */
+  function renderCopyDays() {
+    const c = state.booking && state.booking.copy;
+    const base = $('bDate').value;
+    if (!c || !base) { $('bCopyDays').innerHTML = ''; return; }
+    $('bCopyDays').innerHTML = Array.from({ length: 7 }, (_, i) => addDays(base, i)).map((d) => {
+      const w = weekday(d);
+      const dd = parseDate(d);
+      const closed = isClosedWeekday(d);
+      return `<button type="button" data-w="${w}" class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}" aria-pressed="${c.days.has(w) && !closed}"${closed ? ' disabled' : ''}>` +
+        `${WEEKDAYS[w]}<small>${dd.getMonth() + 1}/${dd.getDate()}</small></button>`;
+    }).join('');
+  }
+  $('bCopyDays').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-w]');
+    const c = state.booking && state.booking.copy;
+    if (!b || !c) return;
+    const w = Number(b.dataset.w);
+    if (c.days.has(w)) c.days.delete(w); else c.days.add(w);
+    resetConflicts();
+    updateBookingUi();
+  });
+
   function updateBookingUi() {
     $('bDateDisplay').innerHTML = dateDisplayHtml($('bDate').value);
+    renderCopyDays();
     $('bUntilDisplay').innerHTML = dateDisplayHtml($('bUntil').value);
     const s = state.settings;
     const edit = state.booking.mode === 'edit';
@@ -1434,7 +1480,9 @@
     if (!el.hidden) {
       const parts = [];
       if (rooms.length > 1) parts.push(`${rooms.length}部屋`);
-      if (dates.length > 1) {
+      if (state.booking.copy && dates.length > 1) {
+        parts.push(dates.length <= 4 ? dates.map(mdLabel).join('・') : `${dates.length}日（${mdLabel(dates[0])}〜${mdLabel(dates[dates.length - 1])}）`);
+      } else if (dates.length > 1) {
         const label = { 7: '毎週', 14: '隔週', 1: '毎日' }[$('bInterval').value];
         const dow = $('bInterval').value === '1' ? '' : WEEKDAYS[weekday(dates[0])] + '曜日';
         parts.push(`${label}${dow} ${dates.length}回（${mdLabel(dates[0])}〜${mdLabel(dates[dates.length - 1])}）`);
@@ -1497,6 +1545,19 @@
 
   /** 予約する日付（くり返しなしなら1日だけ） */
   function bookingDates() {
+    const c = state.booking.mode === 'create' && state.booking.copy;
+    if (c) {
+      // コピー: 日付の日から7日のうち選んだ曜日の日。くり返すときは、それぞれを最終日まで毎週（隔週）
+      const base = $('bDate').value;
+      if (!base) return [];
+      const firsts = Array.from({ length: 7 }, (_, i) => addDays(base, i)).filter((d) => c.days.has(weekday(d)) && !isClosedWeekday(d));
+      if (!$('bRepeat').checked) return firsts;
+      const until = $('bUntil').value;
+      const step = Number($('bInterval').value) === 14 ? 14 : 7;
+      const out = [];
+      for (const f of firsts) for (let d = f; until && d <= until && out.length <= 400; d = addDays(d, step)) out.push(d);
+      return out.sort();
+    }
     if (state.booking.mode === 'create' && $('bRepeat').checked) return repeatDates();
     return $('bDate').value ? [$('bDate').value] : [];
   }
@@ -1591,6 +1652,10 @@
       memo: $('bMemo').value.trim(),
       pin: $('bPin').value.trim(),
     };
+    if (!$('bColorField').hidden) {
+      const on = $('bColor').querySelector('button[aria-pressed="true"]');
+      payload.color = on ? on.dataset.c : '';
+    }
     if (!payload.date) return fail('日付を指定してください。', 'bDate');
     if (toMin(payload.end) <= toMin(payload.start)) return fail('終了は開始より後にしてください。', 'bEndH');
     if (!payload.name) return fail('氏名／団体名を入力してください。', 'bPerson');
@@ -1603,6 +1668,10 @@
     }
     const roomIds = selectedRooms();
     const dates = bookingDates();
+    if (state.booking.copy) {
+      if (!dates.length) return fail('コピー先の曜日を選んでください。');
+      payload.date = dates[0];
+    }
     const total = roomIds.length * dates.length;
     const bulk = !edit && total > 1;
     if (!edit && $('bRepeat').checked && !dates.length) return fail('最終日を正しく指定してください。', 'bUntil');
@@ -1716,6 +1785,7 @@
         $('bPerson').value = payload.name;
         $('bMemo').value = payload.memo;
         $('bPin').value = payload.pin;
+        if (payload.color !== undefined) setColorChoice(payload.color);
         $('bError').textContent = message;
       }
     }
@@ -1763,6 +1833,7 @@
         $('bAff').value = payload.affiliation;
         $('bPerson').value = payload.name;
         $('bMemo').value = payload.memo;
+        if (payload.color !== undefined) setColorChoice(payload.color);
         updateBookingUi();
         $('bError').textContent = message;
       }
@@ -1806,6 +1877,8 @@
     $('dPin').value = mine ? (load_(LS.profile, {}).pin || '') : '';
     // カレンダーに追加（終わっていない予約だけ）
     $('dCal').hidden = ended;
+    // コピー（まとめて予約ができる人だけ。終わった予約もコピーできる）
+    $('dCopy').hidden = !(isAdminMode() || !state.settings.bulkRequiresAdmin) || !room || room.restriction === STOPPED;
     if (!ended) {
       // Android は Google カレンダーの追加画面、それ以外（iPhone など）はカレンダーのファイルの URL を開く
       const add = $('dCalAdd');
@@ -1814,6 +1887,12 @@
     }
     $('detailDialog').showModal();
   }
+
+  $('dCopy').addEventListener('click', () => {
+    const r = state.detail;
+    $('detailDialog').close();
+    openBooking({ mode: 'create', copyFrom: r });
+  });
 
   function editFromDetail() {
     const pin = $('dPin').value.trim();

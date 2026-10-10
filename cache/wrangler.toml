@@ -10,3 +10,9 @@ workers_dev = true
 binding = "DB"
 database_name = "yoyaku-cache"
 database_id = "6cc35b07-83a0-4e3d-a9ef-ee0d77f951b0"
+
+# 管理画面のパスキー（Face ID / Touch ID）ログイン。使うサイトのドメインと起点。
+# PASSKEY_RP_ID を空にすると、パスキーは使えなくなる（管理用パスワードだけになる）。
+[vars]
+PASSKEY_RP_ID = "miyakyo-music.github.io"
+PASSKEY_ORIGIN = "https://miyakyo-music.github.io"

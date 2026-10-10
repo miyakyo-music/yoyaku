@@ -402,6 +402,33 @@ dialog h2 { margin: 0; }
 /* 予約画面の「部屋」と「日付」: 横幅が足りれば1行に並べ、足りなければ縦に積む（部屋を一覧から選ぶ間は日付だけで1行） */
 /* 予約の詳細の「カレンダーに追加」: 見出しの右に小さく置き、場所を取らないようにする */
 .dlg-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dlg-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+#dCopy { height: 30px; padding: 0 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.dlg-title h2 { white-space: nowrap; }
+@media (max-width: 600px) { #dCopy { width: 30px; padding: 0; justify-content: center; } #dCopy .lbl { display: none; } } /* スマホでは見出しが折り返さないよう、絵だけにする */
+/* 予約のコピー: コピー先の曜日（複数選べる）。日付の日から1週間のうち、選んだ曜日の日に予約する */
+.wd-chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wd-chips button {
+  height: 44px; border: 0; border-radius: 10px; background: var(--fill-field, rgba(118, 118, 128, .12)); color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; cursor: pointer;
+}
+.wd-chips button small { font-size: 10px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wd-chips button.sun { color: var(--sun); } .wd-chips button.sat { color: var(--sat); }
+.wd-chips button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.wd-chips button[aria-pressed="true"] small { color: rgba(255, 255, 255, .85); }
+.wd-chips button:disabled { opacity: .35; cursor: default; }
+/* 重要な予定の色（管理者・限定公開の人だけが付けられる）。帯の色の変数を、その帯だけ置き換える */
+.c-red { --res: rgba(255, 59, 48, .2); --res-border: #ff3b30; --res-text: #8a1710; --mine: var(--res); --mine-border: var(--res-border); --mine-text: var(--res-text); }
+.c-purple { --res: rgba(175, 82, 222, .2); --res-border: #af52de; --res-text: #5b1d7a; --mine: var(--res); --mine-border: var(--res-border); --mine-text: var(--res-text); }
+.c-green { --res: rgba(52, 199, 89, .22); --res-border: #28a745; --res-text: #135c25; --mine: var(--res); --mine-border: var(--res-border); --mine-text: var(--res-text); }
+.blk.res.c-red, .blk.res.c-purple, .blk.res.c-green { font-weight: 600; }
+.color-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.color-pick button {
+  height: 38px; border: 0; border-radius: 10px; background: var(--fill-field); color: var(--text); font: inherit; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+}
+.color-pick i { width: 12px; height: 12px; border-radius: 50%; background: var(--res-border); }
+.color-pick button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent); font-weight: 600; }
 .cal-add { display: flex; flex: none; }
 .cal-add .btn.small { height: 30px; padding: 0 12px; font-size: 13px; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 .room-date { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
@@ -906,6 +933,9 @@ html.dark {
   --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent;
   --fill-field: rgba(118, 118, 128, .24);
 }
+html.dark .c-red { --res: rgba(255, 69, 58, .3); --res-border: #ff453a; --res-text: #ffb4ae; }
+html.dark .c-purple { --res: rgba(191, 90, 242, .3); --res-border: #bf5af2; --res-text: #e6c2fa; }
+html.dark .c-green { --res: rgba(48, 209, 88, .28); --res-border: #30d158; --res-text: #b6f2c4; }
 html.dark body { background: var(--bg); }
 html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180deg, #000 0, #000 40%, rgba(0, 0, 0, .86) 70%, rgba(0, 0, 0, .72)); }
 html.dark .main, html.dark .tl-label, html.dark .tl-corner, html.dark .month .dow { background: var(--surface); }

@@ -30,7 +30,7 @@ const SHEETS = {
 
 const HEADERS = {
   // 列の順番は変えないこと（台帳は列の位置で読み書きしている）
-  reservations: ['予約ID', '予約日', '部屋ID', '開始時刻', '終了時刻', '学籍番号/所属', '氏名・団体名', '編集用パスワード', '作成日時', 'まとめ予約ID', '備考', '更新日時'],
+  reservations: ['予約ID', '予約日', '部屋ID', '開始時刻', '終了時刻', '学籍番号/所属', '氏名・団体名', '編集用パスワード', '作成日時', 'まとめ予約ID', '備考', '更新日時', '色'],
   rooms: ['表示順', '部屋ID', '部屋表示名', '設備区分', '予約制限', '備考', '特徴タグ'],
   closures: ['日付', '部屋ID（空欄=全室）', '開始時刻（空欄=終日）', '終了時刻', '理由'],
   settings: ['項目', '値', '説明'],
@@ -84,6 +84,8 @@ const SECRET_SETTINGS = ['viewPassword', 'limitedPassword'];
 // LIMITED（限定公開）… 演習室など。限定公開のパスワードを入れた人（と管理者）にだけ部屋も予約も見え、予約できる。
 // 知らない人には部屋があることも分からないよう、サーバーから一切返さない。
 const ROOM_RESTRICTIONS = { ADMIN_ONLY: '管理者のみ', STOPPED: '使用停止', LIMITED: '限定公開' };
+/** 重要な予定の色（予約表で帯を目立たせる）。付けられるのは管理者と、限定公開のパスワードを持つ人だけ */
+const RESERVATION_COLORS = ['red', 'purple', 'green'];
 const WEEKDAYS = '日月火水木金土';
 
 // ---------------------------------------------------------------------------
@@ -110,6 +112,7 @@ const API = {
   adminGetBugReports: adminGetBugReports,
   adminSetBugStatus: adminSetBugStatus,
   adminChangePassword: adminChangePassword,
+  adminPasskeyTicket: adminPasskeyTicket,
 };
 
 /**
@@ -231,7 +234,7 @@ function createReservation(p) {
       return fail_('すでに存在する予約と時間が重複しています（' + describe_(conflict) + '）。', 'CONFLICT');
     }
     const now = nowStr_('yyyy-MM-dd HH:mm:ss');
-    const created = Object.assign({}, r, { id: newId_('res'), groupId: '', createdAt: now, updatedAt: '' });
+    const created = Object.assign({}, r, { id: newId_('res'), groupId: '', createdAt: now, updatedAt: '', color: colorOf_(ctx, p, admin.ok, '') });
     appendRows_(ctx.resSheet, [toRow_(created)]);
     log_(ctx.ss, '予約', created, '');
     return { ok: true, reservation: toPublic_(created) };
@@ -298,7 +301,8 @@ function createBulkReservations(p) {
 
     const groupId = newId_('grp');
     const now = nowStr_('yyyy-MM-dd HH:mm:ss');
-    const created = available.map(r => Object.assign({}, r, { id: newId_('res'), groupId: groupId, createdAt: now, updatedAt: '' }));
+    const color = colorOf_(ctx, p, admin.ok, '');
+    const created = available.map(r => Object.assign({}, r, { id: newId_('res'), groupId: groupId, createdAt: now, updatedAt: '', color: color }));
     appendRows_(ctx.resSheet, created.map(toRow_));
     log_(ctx.ss, 'まとめて予約', created[0], created.length + '件（' + roomIds.length + '部屋 × ' + dates.length + '日: ' + dates.join(', ') + '）');
     return { ok: true, groupId: groupId, reservations: created.map(toPublic_), skipped: conflicts };
@@ -345,7 +349,7 @@ function updateReservation(p) {
 
     const updated = Object.assign({}, target, r, {
       id: target.id, pin: target.pin, createdAt: target.createdAt, groupId: target.groupId,
-      updatedAt: nowStr_('yyyy-MM-dd HH:mm:ss'),
+      updatedAt: nowStr_('yyyy-MM-dd HH:mm:ss'), color: colorOf_(ctx, p, auth.admin, target.color),
     });
     ctx.resSheet.getRange(target.row, 1, 1, HEADERS.reservations.length).setNumberFormat('@').setValues([toRow_(updated)]);
     SpreadsheetApp.flush();
@@ -371,7 +375,7 @@ function updateSeries_(ctx, rows, target, p, isAdmin) {
       problems.push(m.date + ' ' + roomOf_(ctx, m.roomId).name + ': ' + (reason || '既存の予約と重複（' + describe_(conflict) + '）'));
       continue;
     }
-    updates.push({ before: m, after: Object.assign({}, m, r, { id: m.id, pin: m.pin, createdAt: m.createdAt, groupId: m.groupId, updatedAt: now }) });
+    updates.push({ before: m, after: Object.assign({}, m, r, { id: m.id, pin: m.pin, createdAt: m.createdAt, groupId: m.groupId, updatedAt: now, color: colorOf_(ctx, p, isAdmin, m.color) }) });
   }
   if (problems.length) {
     return Object.assign(fail_('まとめて変更できない日があるため、変更しませんでした。'), { code: 'SERIES_CONFLICT', conflicts: problems });
@@ -478,6 +482,7 @@ function adminGetData(p) {
   const denied = requireAdmin_(p);
   if (denied) return denied;
   const ss = getSpreadsheet_();
+  ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations); // 後から足した列（「色」など）の見出しを補う
   return {
     ok: true,
     settings: loadSettings_(ss),
@@ -732,6 +737,20 @@ function adminChangePassword(p) {
   setProp_('ADMIN_PASSWORD', next);
   logAdmin_(getSpreadsheet_(), '管理用パスワード変更', '');
   return { ok: true };
+}
+
+/**
+ * パスキーの登録・一覧・削除に使う「許可証」を出す（5分間有効）。高速キャッシュ（Cloudflare）は、
+ * 管理用パスワードを知らないので、GAS が管理者だと確かめた印としてこれを渡す。
+ * 中身は「pkt.有効期限.署名」。署名は高速キャッシュとの合言葉（CACHE_PUSH_TOKEN）で作る
+ */
+function adminPasskeyTicket(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const key = passkeyKey_();
+  if (!key) return fail_('高速キャッシュの合言葉（CACHE_PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
+  const exp = Math.floor(Date.now() / 1000) + 300;
+  return { ok: true, ticket: 'pkt.' + exp + '.' + hmac_(key, 'pkt.' + exp) };
 }
 
 function requireAdmin_(p) {
@@ -1101,8 +1120,10 @@ function resolveAdmin_(password) {
   return error ? { error: error } : { ok: true };
 }
 
-/** 管理用パスワードを照合する。一致すれば null、不一致ならエラーメッセージ。総当たり対策付き。 */
+/** 管理用パスワードを照合する。一致すれば null、不一致ならエラーメッセージ。総当たり対策付き。
+ *  パスキーでログインしたときは、パスワードの代わりに高速キャッシュが出した「ログインの印」（pk1.…）が届く */
 function verifyAdmin_(password) {
+  if (/^pk1\./.test(String(password || ''))) return verifyPasskeyToken_(String(password));
   const adminPassword = prop_('ADMIN_PASSWORD');
   if (!adminPassword) return '管理用パスワードが設定されていません。管理者に連絡してください。';
   // 誤入力の回数は全体で数える。ただし、管理画面にログインしたことのある端末は、その端末だけの回数で数える
@@ -1119,6 +1140,29 @@ function verifyAdmin_(password) {
     return '管理用パスワードが一致しません。';
   }
   return null;
+}
+
+/**
+ * パスキーでのログインの印を確かめる。「pk1.有効期限.パスキーの番号.署名」。
+ * 署名は高速キャッシュ（Cloudflare）が、GAS と共有する合言葉（CACHE_PUSH_TOKEN）で作ったもの。一致すれば null
+ */
+function verifyPasskeyToken_(token) {
+  const m = /^pk1\.(\d+)\.([\w-]{1,64})\.([\w-]+)$/.exec(token);
+  const key = passkeyKey_();
+  if (!m || !key || hmac_(key, 'pk1.' + m[1] + '.' + m[2]) !== m[3]) return '管理用パスワードが一致しません。';
+  if (Number(m[1]) < Date.now() / 1000) return 'パスキーでのログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
+  return null;
+}
+
+/** パスキーの印の署名に使う鍵（高速キャッシュとの合言葉）。設定されていなければ空 */
+function passkeyKey_() {
+  return String(cacheProp_('CACHE_PUSH_TOKEN') || '').trim();
+}
+
+/** HMAC-SHA256 の署名（URL に使える Base64、末尾の = なし）。高速キャッシュの worker.js と同じ作り方 */
+function hmac_(key, message) {
+  const bytes = Utilities.computeHmacSha256Signature(message, key, Utilities.Charset.UTF_8);
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
 }
 
 /** 管理画面にログインしたことのある端末か */
@@ -1369,6 +1413,7 @@ function readReservations_(sheet) {
       groupId: r[9].trim(),
       memo: r[10].trim(),
       updatedAt: r[11].trim(),
+      color: RESERVATION_COLORS.indexOf(r[12].trim()) >= 0 ? r[12].trim() : '',
     }))
     .filter(r => r.id);
 }
@@ -1427,8 +1472,18 @@ function publicSettings_(s) {
   return copy;
 }
 
+/**
+ * 予約の色を決める。管理者か限定公開のパスワードを持つ人の指定だけを受け付け、それ以外の人の指定は無視して今の色を残す
+ * （色の選択肢は画面でも隠しているが、仕組みに詳しい人が直接送っても付けられないように、ここでも確かめる）
+ */
+function colorOf_(ctx, p, isAdmin, current) {
+  if (!(isAdmin || ctx.limited.ok) || p.color === undefined) return current || '';
+  const c = String(p.color || '');
+  return RESERVATION_COLORS.indexOf(c) >= 0 ? c : '';
+}
+
 function toRow_(r) {
-  return [r.id, r.date, r.roomId, r.start, r.end, r.affiliation, r.name, r.pin, r.createdAt || '', r.groupId || '', r.memo || '', r.updatedAt || ''];
+  return [r.id, r.date, r.roomId, r.start, r.end, r.affiliation, r.name, r.pin, r.createdAt || '', r.groupId || '', r.memo || '', r.updatedAt || '', r.color || ''];
 }
 
 function toPublic_(r) {
@@ -1436,6 +1491,7 @@ function toPublic_(r) {
     id: r.id, date: r.date, roomId: r.roomId, start: r.start, end: r.end,
     affiliation: r.affiliation, name: r.name, memo: r.memo || '', groupId: r.groupId || '',
     hasPin: !!r.pin, // 編集用パスワードそのものは返さない
+    color: r.color || '',
   };
 }
 

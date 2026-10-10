@@ -40,7 +40,10 @@
         <h2>管理者ログイン</h2>
         <label class="field">管理用パスワード<input id="loginPw" type="password" autocomplete="current-password"></label>
         <p class="msg error" id="loginError"></p>
-        <button type="submit" class="btn primary" id="loginBtn">ログイン</button>
+        <div class="login-btns">
+          <button type="button" class="btn" id="pkLoginBtn" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M17 6l3 3M14 9l2 2"/></svg>パスキーでログイン</button>
+          <button type="submit" class="btn primary" id="loginBtn">ログイン</button>
+        </div>
       </form>
     </section>
 
@@ -135,6 +138,13 @@
           </form>
           <p class="msg error" id="viewPwError"></p>
         </details>
+      </div>
+
+      <div class="card" data-panel="password" id="pkCard" hidden>
+        <h2>パスキー <button type="button" class="info" aria-label="説明" data-tip="管理用パスワードの代わりに、Face ID・Touch ID・端末のロック解除で管理画面に入れます。使う端末で「この端末を登録」を押してください（iCloud キーチェーンなどで同期される場合は、同じアカウントのほかの端末でも使えます）。指紋や顔の情報は端末から出ず、サーバーには合い鍵にならない公開鍵だけを置きます。管理者が替わったら、前の人のパスキーを削除してください。">i</button></h2>
+        <ul class="pk-list" id="pkList"></ul>
+        <p class="msg error" id="pkError"></p>
+        <div class="submit-row"><button type="button" class="btn primary" id="pkAddBtn">この端末を登録</button></div>
       </div>
 
       <div class="card" data-panel="password" hidden>
