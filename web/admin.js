@@ -117,8 +117,6 @@
   // パスワード欄すべてに「表示」ボタンを付ける（web/api.js。演習室など・予約表全体のパスワードは専用のボタンがある）
   addRevealButtons(document);
 
-  // 説明文は PC では最初から開いておく（スマホでは畳んで、部屋の一覧を先に見せる）
-  if (window.matchMedia && matchMedia('(min-width: 601px)').matches) $('roomsHowto').open = true;
 
   // スマホでは各部屋を1行に畳んで一覧しやすくし、押した部屋だけ開いて編集する（PC では常に全項目を表示）
   const openRooms = new WeakSet();
@@ -521,6 +519,31 @@
   }
   if (window.ResizeObserver) new ResizeObserver(placeTabThumb).observe(document.querySelector('.tabs'));
   window.addEventListener('resize', placeTabThumb);
+
+  // ---------------- i ボタン（押すと説明の吹き出しを出す。もう一度押すか、ほかを押すと閉じる） ----------------
+  let tipFor = null;
+  const tipPop = document.createElement('div');
+  tipPop.className = 'tip-pop';
+  tipPop.setAttribute('role', 'tooltip');
+  tipPop.hidden = true;
+  document.body.appendChild(tipPop);
+  function closeTip() { if (tipFor) tipFor.setAttribute('aria-expanded', 'false'); tipFor = null; tipPop.hidden = true; }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.info');
+    if (!b) { if (!e.target.closest('.tip-pop')) closeTip(); return; }
+    e.preventDefault(); e.stopPropagation(); // ラベルや details の開け閉めを起こさない
+    if (tipFor === b) { closeTip(); return; }
+    closeTip();
+    tipFor = b; b.setAttribute('aria-expanded', 'true');
+    tipPop.textContent = b.dataset.tip; tipPop.hidden = false;
+    const r = b.getBoundingClientRect();
+    const w = tipPop.offsetWidth;
+    const left = Math.max(12, Math.min(window.scrollX + r.left + r.width / 2 - w / 2, window.scrollX + document.documentElement.clientWidth - w - 12));
+    tipPop.style.left = `${left}px`;
+    tipPop.style.top = `${window.scrollY + r.bottom + 8}px`;
+  }, true);
+  window.addEventListener('resize', closeTip);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTip(); });
 
   // ---------------- 利用状況 ----------------
   // 予約表と同じ getSchedule（管理者なので限定公開の部屋も含む）で期間の予約を読み、ここで集計する。

@@ -360,6 +360,20 @@ th, td { border-bottom: .5px solid var(--sep); }
 @media (prefers-reduced-transparency: reduce) {
   .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
 }
+/* ---------- i ボタン（見ればわかることは書かず、どうしても要る説明だけをここに入れる） ---------- */
+.info {
+  display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 4px; vertical-align: 2px;
+  border: 1px solid var(--muted); border-radius: 50%; background: none; color: var(--muted);
+  font: italic 600 11px/1 Georgia, "Times New Roman", serif; cursor: pointer; padding: 0;
+}
+.info[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tip-pop {
+  position: absolute; z-index: 50; max-width: min(300px, calc(100vw - 24px)); padding: 10px 12px; border-radius: 12px;
+  background: var(--surface); color: var(--text); font-size: 13px; font-weight: 400; line-height: 1.6;
+  box-shadow: 0 0 0 .5px rgba(0, 0, 0, .12), 0 8px 24px rgba(0, 0, 0, .18);
+}
+html.dark .tip-pop { background: #2c2c2e; box-shadow: 0 0 0 .5px rgba(255, 255, 255, .1), 0 8px 24px rgba(0, 0, 0, .5); }
+
 /* ---------- 利用状況 ---------- */
 .stats-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .seg-mini { display: inline-flex; background: var(--fill-field); border-radius: 9px; padding: 2px; gap: 2px; }
