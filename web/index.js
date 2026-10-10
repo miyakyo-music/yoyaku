@@ -1168,7 +1168,7 @@
   document.addEventListener('touchcancel', () => { if (touch) clearTimeout(touch.timer); touch = null; cancelDrag(); });
 
   // ---------------- 既存の予約を動かす（スマホは長押し、PC はつかんで動かす） ----------------
-  // 帯の影が指（マウス）について動き、横は時刻（ドラッグの刻み）、縦は行（一覧は部屋、部屋別は日付）が変わる。
+  // 帯の影が指（マウス）について動き、横は時刻（予約単位の刻み）、縦は行（一覧は部屋、部屋別は日付）が変わる。
   // 離すと、新しい部屋・日・時刻を入れた「予約の変更」画面を開き、「変更を保存」で確定する
   // （うっかり動かしても確定しない。編集用パスワードの確認も今まで通り）
   let move = null;
@@ -1200,7 +1200,8 @@
     move.track = track;
     const row = state.rows[Number(track.dataset.i)];
     const { open, close, t0, total } = state.geo;
-    const step = dragStep();
+    // 動かすときは予約単位（5分など）で刻む。長さは変わらないので、指とのずれは変更画面で直さずに済む
+    const step = state.geo.unit;
     let start = roundTo(minuteAt(track, clientX) - move.grab, step);
     start = Math.max(open, Math.min(close - move.len, start));
     const end = start + move.len;
