@@ -858,6 +858,8 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
      iPhone の Safari でぼかしが戻らなくなったのでやめた） */
 :root { --morph-blur: blur(40px) saturate(180%); }
 html.dark { --morph-blur: blur(30px) saturate(190%); }
+/* Chrome など（屈折あり）の小窓は、縁の屈折を見せるためにぼかしを弱くしている（index.js の LENS.dialog の blur）。カードも同じにする */
+html.refract, html.dark.refract { --morph-blur: blur(5px) saturate(180%); }
 body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
