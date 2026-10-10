@@ -640,6 +640,7 @@
   function render() {
     if (state.view === 'month') renderMonth();
     else renderTimeline();
+    liftFab();
     // 「‹」「›」で日付（月）を切り替えたときだけ、表を進む向きから軽くすべり込ませる
     if (state.slide) {
       const cls = state.slide > 0 ? 'slide-next' : 'slide-prev';
@@ -1130,6 +1131,14 @@
   const SCROLL_SETTLE_MS = 300;
   let lastScrollAt = 0;
   $('main').addEventListener('scroll', () => { lastScrollAt = Date.now(); clearPick(); }, { passive: true });
+  // スマホの「＋」: 表の下のフッターが見えている分だけ持ち上げ、表の下端の上に乗せる
+  function liftFab() {
+    const foot = $('main').querySelector('.main-foot');
+    const lift = foot ? Math.max(0, $('main').getBoundingClientRect().bottom - foot.getBoundingClientRect().top) : 0;
+    $('fabBtn').style.setProperty('--fab-lift', `${Math.round(lift)}px`);
+  }
+  $('main').addEventListener('scroll', liftFab, { passive: true });
+  window.addEventListener('resize', liftFab);
   $('main').addEventListener('touchstart', (e) => {
     const track = e.target.closest('.tl-track');
     if (!track || e.touches.length !== 1 || e.target.closest('.blk')) { touch = null; return; }
