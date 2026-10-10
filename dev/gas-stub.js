@@ -156,6 +156,7 @@
   window.PropertiesService = {
     getScriptProperties: () => ({
       getProperty: (k) => (k in props ? props[k] : null),
+      getProperties: () => Object.assign({}, props),
       setProperty: (k, v) => { props[k] = v; localStorage.setItem(PROPS_KEY, JSON.stringify(props)); },
       deleteProperty: (k) => { delete props[k]; localStorage.setItem(PROPS_KEY, JSON.stringify(props)); },
     }),

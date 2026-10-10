@@ -61,6 +61,13 @@ const SYSTEM = {
 
 /** この呼び出しの端末の印（管理画面にログインしたことのある端末なら adminDevice が付いてくる）。doPost で毎回入れ直す */
 let REQ_DEVICE_ = '';
+/**
+ * 1回の呼び出しの中だけで使い回す覚え（doPost の最初に空にする）。速くするため、同じものを何度も読まない。
+ *   ss: 開いたスプレッドシート / master: 設定・部屋・休館 / admin: 管理用パスワードの照合結果 /
+ *   resAfter: 書き込んだ後の予約台帳（ロックの中で読んだものに変更を足したもの。写しづくりに使う） /
+ *   pushVersion: 写しの版（ロックの中で決める）
+ */
+let MEMO_ = {};
 
 /** 「設定」シートの項目。label がシート上の項目名、def が既定値。 */
 const SETTINGS = [
@@ -124,6 +131,7 @@ function doPost(e) {
   let result;
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    MEMO_ = {};
     REQ_DEVICE_ = String((req.params && req.params.adminDevice) || '').slice(0, 64);
     const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
     result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
@@ -179,7 +187,7 @@ function getSchedule(p) {
       to: to,
       rooms: ctx.rooms,
       reservations: readReservations_(ctx.resSheet).filter(r => r.date >= from && r.date <= to && visible(r)).map(toPublic_),
-      closures: readClosures_(ctx.ss).filter(c => c.date >= from && c.date <= to && visible(c)),
+      closures: ctx.closures.filter(c => c.date >= from && c.date <= to && visible(c)),
       settings: publicSettings_(ctx.settings),
     };
     const json = JSON.stringify(base);
@@ -229,13 +237,15 @@ function createReservation(p) {
   if (ruleError) return fail_(ruleError);
 
   return withLock_(() => {
-    const conflict = findConflict_(readReservations_(ctx.resSheet), r, null);
+    const rows = readReservations_(ctx.resSheet);
+    const conflict = findConflict_(rows, r, null);
     if (conflict) {
       return fail_('すでに存在する予約と時間が重複しています（' + describe_(conflict) + '）。', 'CONFLICT');
     }
     const now = nowStr_('yyyy-MM-dd HH:mm:ss');
     const created = Object.assign({}, r, { id: newId_('res'), groupId: '', createdAt: now, updatedAt: '', color: colorOf_(ctx, p, admin.ok, '') });
     appendRows_(ctx.resSheet, [toRow_(created)]);
+    MEMO_.resAfter = rows.concat([created]);
     log_(ctx.ss, '予約', created, '');
     return { ok: true, reservation: toPublic_(created) };
   });
@@ -317,6 +327,7 @@ function createBulkReservations(p) {
     const color = colorOf_(ctx, p, admin.ok, '');
     const created = available.map(r => Object.assign({}, r, { id: newId_('res'), groupId: groupId, createdAt: now, updatedAt: '', color: color }));
     appendRows_(ctx.resSheet, created.map(toRow_));
+    MEMO_.resAfter = rows.concat(created);
     log_(ctx.ss, 'まとめて予約', created[0], created.length + '件（' + roomIds.length + '部屋・' + dates.length + '日: ' + dates.join(', ') + '）');
     return { ok: true, groupId: groupId, reservations: created.map(toPublic_), skipped: conflicts };
   });
@@ -365,7 +376,7 @@ function updateReservation(p) {
       updatedAt: nowStr_('yyyy-MM-dd HH:mm:ss'), color: colorOf_(ctx, p, auth.admin, target.color),
     });
     ctx.resSheet.getRange(target.row, 1, 1, HEADERS.reservations.length).setNumberFormat('@').setValues([toRow_(updated)]);
-    SpreadsheetApp.flush();
+    MEMO_.resAfter = rows.map(x => (x.id === updated.id ? updated : x));
     log_(ctx.ss, auth.admin ? '変更（管理者）' : '変更', updated, '変更前: ' + target.date + ' ' + target.roomId + ' ' + describe_(target));
     return { ok: true, reservation: toPublic_(updated) };
   });
@@ -396,7 +407,9 @@ function updateSeries_(ctx, rows, target, p, isAdmin) {
   updates.forEach(u => {
     ctx.resSheet.getRange(u.before.row, 1, 1, HEADERS.reservations.length).setNumberFormat('@').setValues([toRow_(u.after)]);
   });
-  SpreadsheetApp.flush();
+  const byId = {};
+  updates.forEach(u => { byId[u.after.id] = u.after; });
+  MEMO_.resAfter = rows.map(x => byId[x.id] || x);
   log_(ctx.ss, isAdmin ? 'まとめて変更（管理者）' : 'まとめて変更', updates[0].after,
     updates.length + '件（' + updates.map(u => u.after.date).join(', ') + '）変更前: ' + describe_(target));
   return { ok: true, reservation: toPublic_(updates[0].after), reservations: updates.map(u => toPublic_(u.after)) };
@@ -433,7 +446,8 @@ function cancelReservation(p) {
       : [target];
     // 下の行から削除して行番号のずれを防ぐ
     targets.map(r => r.row).sort((a, b) => b - a).forEach(row => ctx.resSheet.deleteRow(row));
-    SpreadsheetApp.flush();
+    const gone = new Set(targets.map(r => r.id));
+    MEMO_.resAfter = rows.filter(x => !gone.has(x.id));
     log_(ctx.ss, auth.admin ? '取消（管理者）' : '取消', target,
       targets.length > 1 ? targets.length + '件（' + targets.map(t => t.date).join(', ') + '）' : '');
     return { ok: true, cancelledIds: targets.map(r => r.id) };
@@ -481,7 +495,7 @@ function submitBugReport(p) {
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
     SpreadsheetApp.flush();
     return { ok: true, id: id };
-  });
+  }, { noPush: true }); // 予約表に関係しないので、写しは送らない
 }
 
 // ---------------------------------------------------------------------------
@@ -544,6 +558,7 @@ function adminSaveSettings(p) {
       }
     });
     SpreadsheetApp.flush();
+    invalidateMaster_();
     const settings = loadSettings_(ss);
     logAdmin_(ss, '設定変更', SETTINGS.filter(d => SECRET_SETTINGS.indexOf(d.key) < 0).map(d => d.label + '=' + v.value[d.key]).join(' / '));
     return { ok: true, settings: settings, warnings: settingsWarnings_(ss, settings) };
@@ -642,6 +657,7 @@ function adminSaveRooms(p) {
     sheet.getRange(2, 1, rooms.length, HEADERS.rooms.length).setNumberFormat('@')
       .setValues(rooms.map((r, i) => [String(i + 1), r.id, r.name, r.equipment, r.restriction, r.note, r.tags]));
     SpreadsheetApp.flush();
+    invalidateMaster_();
 
     const added = rooms.filter(r => !currentIds.has(r.id)).map(r => r.name);
     logAdmin_(ss, '部屋変更', '全' + rooms.length + '室' +
@@ -694,6 +710,7 @@ function adminSaveClosures(p) {
         .setValues(closures.map(c => [c.date, c.roomId, c.start, c.end, c.reason]));
     }
     SpreadsheetApp.flush();
+    invalidateMaster_();
     logAdmin_(ss, '休館・利用停止の変更', closures.length + '件');
 
     // 今日以降の休館と重なっている予約を知らせる
@@ -738,7 +755,7 @@ function adminSetBugStatus(p) {
     sheet.getRange(idx + 2, 3, 1, 1).setValues([[status]]);
     SpreadsheetApp.flush();
     return { ok: true };
-  });
+  }, { noPush: true }); // 予約表に関係しないので、写しは送らない
 }
 
 /** 管理用パスワードを変更する（引き継ぎ時など）。 */
@@ -865,12 +882,18 @@ function cacheEnabled_() {
 
 /** 今の予約表の写しを作って送る。成功すれば true（失敗の理由は CACHE_LAST_ERROR に残す） */
 function pushCache_() {
-  if (!cacheEnabled_()) return false;
   const props = PropertiesService.getScriptProperties();
+  const all = props.getProperties(); // 1回でまとめて読む（1つずつ読むより速い）
+  const url = String(all.CACHE_PUSH_URL || '').trim();
+  const token = String(all.CACHE_PUSH_TOKEN || '').trim();
+  if (!url || !token) return false;
+  let ok = false, detail = '';
+  const today = nowStr_('yyyy-MM-dd');
   try {
-    const version = Date.now(); // 読み込む直前の時刻を版にする（新しい版ほど新しい内容）
+    // 版: 書き込みのときはロックの中で決めた時刻（書き込んだ順になる）。それ以外は今の時刻
+    const version = MEMO_.pushVersion || Date.now();
+    MEMO_.master = null; // 設定・部屋・休館は、覚え場所の最新のもの（管理画面での変更が入ったもの）で写しを作る
     const ctx = context_({}); // 管理者でも限定公開でもない、一般の人の見え方
-    const today = nowStr_('yyyy-MM-dd');
     const windowFrom = addMonths_(today, -1); // 先月の1日から
     const windowTo = addDays_(addMonths_(today, SYSTEM.CACHE_MONTHS_AHEAD + 1), -1); // 4か月先の月末まで
     const body = { version: version, apiVersion: API_VERSION, windowFrom: windowFrom, windowTo: windowTo };
@@ -880,30 +903,35 @@ function pushCache_() {
       const visible = visibleIn_(ctx);
       const months = {};
       for (let m = windowFrom.slice(0, 7); m <= windowTo.slice(0, 7); m = addMonths_(m + '-01', 1).slice(0, 7)) months[m] = [];
-      readReservations_(ctx.resSheet)
+      // 予約の書き込みのときは、ロックの中で読んだ台帳に変更を足したものを使う（読み直さない）
+      (MEMO_.resAfter || readReservations_(ctx.resSheet))
         .filter(r => r.date >= windowFrom && r.date <= windowTo && visible(r))
         .forEach(r => months[r.date.slice(0, 7)].push(toPublic_(r)));
       body.months = months;
       body.rooms = ctx.rooms;
       body.settings = publicSettings_(ctx.settings);
-      body.closures = readClosures_(ctx.ss).filter(c => c.date >= windowFrom && c.date <= windowTo && visible(c));
+      body.closures = ctx.closures.filter(c => c.date >= windowFrom && c.date <= windowTo && visible(c));
     }
-    const res = UrlFetchApp.fetch(cacheProp_('CACHE_PUSH_URL').trim(), {
+    const res = UrlFetchApp.fetch(url, {
       method: 'post', contentType: 'application/json', payload: JSON.stringify(body),
-      headers: { Authorization: 'Bearer ' + cacheProp_('CACHE_PUSH_TOKEN').trim() }, muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true,
     });
-    const ok = res.getResponseCode() === 200;
-    const detail = ok ? '' : '応答 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200);
+    ok = res.getResponseCode() === 200;
+    detail = ok ? '' : '応答 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200);
     if (!ok) console.error('高速キャッシュへの送信に失敗: ' + detail);
-    props.setProperty('CACHE_DIRTY', ok ? '' : '1');
-    props.setProperty('CACHE_LAST_ERROR', detail);
-    if (ok) props.setProperty('CACHE_PUSHED_DATE', today);
-    return ok;
   } catch (e) {
     console.error(e);
-    try { props.setProperty('CACHE_DIRTY', '1'); props.setProperty('CACHE_LAST_ERROR', String(e && e.message || e).slice(0, 200)); } catch (e2) { /* 何もしない */ }
-    return false;
+    detail = String(e && e.message || e).slice(0, 200);
   }
+  // 送れたかどうかの記録は、変わったときだけ書く（毎回書くと遅い）
+  try {
+    const next = { CACHE_DIRTY: ok ? '' : '1', CACHE_LAST_ERROR: detail, CACHE_PUSHED_DATE: ok ? today : String(all.CACHE_PUSHED_DATE || '') };
+    Object.keys(next).forEach(k => {
+      if (String(all[k] || '') === next[k]) return;
+      if (next[k]) props.setProperty(k, next[k]); else props.deleteProperty(k);
+    });
+  } catch (e2) { /* 何もしない */ }
+  return ok;
 }
 
 /**
@@ -1078,8 +1106,9 @@ function setAdminPassword() {
  */
 function context_(p) {
   const ss = getSpreadsheet_();
-  const settings = loadSettings_(ss);
-  const allRooms = readRooms_(ss);
+  const m = master_(ss);
+  const settings = m.settings;
+  const allRooms = m.rooms;
   const isAdmin = !!(p && p.adminPassword) && !verifyAdmin_(p.adminPassword);
   const limited = limitedAccess_(settings, p || {}, isAdmin);
   const rooms = limited.ok ? allRooms : allRooms.filter(r => r.restriction !== ROOM_RESTRICTIONS.LIMITED);
@@ -1089,8 +1118,42 @@ function context_(p) {
     rooms: rooms,
     limited: limited,
     isAdmin: isAdmin,
+    closures: m.closures,
     resSheet: getSheet_(ss, SHEETS.reservations),
   };
+}
+
+/**
+ * 設定・部屋・休館（めったに変わらないもの）。毎回スプレッドシートから読むと遅いので、CacheService に最長2分覚える。
+ * 管理画面で保存したとき（invalidateMaster_）と、スプレッドシートを手で書き換えたとき（onEdit）は、その場で捨てる。
+ * 覚える場所の名前に版を入れ、捨てた後に古い内容を書き戻されても使われないようにする。
+ * 予約台帳は覚えない（重なりの確認は、必ずロックの中でスプレッドシートから読む）
+ */
+const MASTER_TTL_SECONDS = 120;
+function master_(ss) {
+  if (MEMO_.master) return MEMO_.master;
+  const cache = CacheService.getScriptCache();
+  let ver = cache.get('masterVer');
+  if (!ver) { ver = String(Date.now()); cache.put('masterVer', ver, 21600); }
+  const key = 'master_' + ver;
+  const hit = cache.get(key);
+  let m = hit ? JSON.parse(hit) : null;
+  if (!m) {
+    m = { settings: loadSettings_(ss), rooms: readRooms_(ss), closures: readClosures_(ss) };
+    const json = JSON.stringify(m);
+    if (json.length < 90000) cache.put(key, json, MASTER_TTL_SECONDS); // 1件に覚えられるのは 100KB まで
+  }
+  MEMO_.master = m;
+  return m;
+}
+function invalidateMaster_() {
+  CacheService.getScriptCache().put('masterVer', String(Date.now()) + Math.floor(Math.random() * 1000), 21600);
+  MEMO_.master = null;
+}
+
+/** スプレッドシートを手で書き換えたとき（単純トリガー）。覚えている設定・部屋・休館と予約表を捨て、すぐ反映されるようにする */
+function onEdit() {
+  try { invalidateMaster_(); bumpScheduleVersion_(); } catch (e) { /* 単純トリガーで使えない環境では、最長2分で反映 */ }
 }
 
 /** 限定公開の部屋を見られるか。{ok} / {ok:false, denied:true}（パスワードが違う） */
@@ -1136,6 +1199,13 @@ function resolveAdmin_(password) {
 /** 管理用パスワードを照合する。一致すれば null、不一致ならエラーメッセージ。総当たり対策付き。
  *  パスキーでログインしたときは、パスワードの代わりに高速キャッシュが出した「ログインの印」（pk1.…）が届く */
 function verifyAdmin_(password) {
+  // 1回の呼び出しの中で何度も照合しない（結果は同じ。誤入力を二重に数えないためでもある）
+  const k = String(password || '');
+  MEMO_.admin = MEMO_.admin || {};
+  if (!Object.prototype.hasOwnProperty.call(MEMO_.admin, k)) MEMO_.admin[k] = verifyAdminOnce_(k);
+  return MEMO_.admin[k];
+}
+function verifyAdminOnce_(password) {
   if (/^pk1\./.test(String(password || ''))) return verifyPasskeyToken_(String(password));
   const adminPassword = prop_('ADMIN_PASSWORD');
   if (!adminPassword) return '管理用パスワードが設定されていません。管理者に連絡してください。';
@@ -1331,8 +1401,10 @@ function describe_(r) {
 // ---------------------------------------------------------------------------
 
 function getSpreadsheet_() {
+  if (MEMO_.ss) return MEMO_.ss; // 開くだけで時間がかかるので、1回の呼び出しの中では使い回す
   const id = prop_('SPREADSHEET_ID');
-  return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  MEMO_.ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  return MEMO_.ss;
 }
 
 /**
@@ -1511,7 +1583,7 @@ function toPublic_(r) {
 /** 書式を「書式なしテキスト」にしてから追記し、日付・時刻・先頭ゼロの自動変換を防ぐ */
 function appendRows_(sheet, rows) {
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setNumberFormat('@').setValues(rows);
-  SpreadsheetApp.flush();
+  // 確定（flush）は withLock_ がロックを外す前にまとめて行う
 }
 
 function log_(ss, action, r, detail) {
@@ -1524,20 +1596,26 @@ function log_(ss, action, r, detail) {
   }
 }
 
-function withLock_(fn) {
+function withLock_(fn, opts) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(SYSTEM.LOCK_WAIT_MS)) {
     return fail_('アクセスが集中しています。少し待ってから再度お試しください。', 'BUSY');
   }
+  const push = !(opts && opts.noPush);
   let result;
   try {
     result = fn();
-    if (result && result.ok) bumpScheduleVersion_(); // 予約・設定が変わったので、覚えていた予約表を使わないようにする
+    // 書き込み（操作ログも含む）は、ロックを外す前に確定させる（次の人が古い内容を読んだり、同じ行に書いたりしないように）
+    SpreadsheetApp.flush();
+    if (result && result.ok && push) {
+      bumpScheduleVersion_(); // 予約・設定が変わったので、覚えていた予約表を使わないようにする
+      MEMO_.pushVersion = Date.now(); // 写しの版はロックの中で決める（書き込んだ順＝版の順になり、古い写しで上書きされない）
+    }
   } finally {
     lock.releaseLock();
   }
   // 高速キャッシュ（Cloudflare）を使っているときは、変わった予約表の写しを送る（ロックを外してから。失敗しても予約は成功のまま）
-  if (result && result.ok) pushCache_();
+  if (result && result.ok && push) pushCache_();
   return result;
 }
 
