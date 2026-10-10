@@ -362,12 +362,13 @@ th, td { border-bottom: .5px solid var(--sep); }
 }
 /* ---------- i ボタン（見ればわかることは書かず、どうしても要る説明だけをここに入れる） ---------- */
 .info {
-  /* どこでも同じ大きさ（13px の丸）。文字の上下の真ん中にそろえる */
+  /* macOS の「info.circle」に似せる: 細い線の丸に、立った細めの i。色は薄い灰色で控えめに。どこでも同じ大きさ（12px） */
   display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box;
-  width: 13px; height: 13px; margin: 0 0 0 5px; padding: 0; vertical-align: middle; position: relative; top: -1px;
-  border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--muted); opacity: .8;
-  font: italic 600 9px/1 Georgia, "Times New Roman", serif; cursor: help;
+  width: 12px; height: 12px; margin: 0 0 0 4px; padding: 0 0 .5px; vertical-align: middle; position: relative; top: -1px;
+  border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--muted); opacity: .65;
+  font: 500 8.5px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; cursor: help;
 }
+@media (hover: hover) { .info:hover { opacity: 1; } }
 .info[aria-expanded="true"] { opacity: 1; color: var(--accent); }
 /* 吹き出し: macOS の説明（ヘルプタグ）に似せた、小さく控えめな札。マウスの少し右下に出る */
 .tip-pop {
