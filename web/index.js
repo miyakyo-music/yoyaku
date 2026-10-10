@@ -948,12 +948,12 @@
 
   let drag = null;
   /**
-   * ドラッグで選ぶときの刻み。指の太さで「17:00 のつもりが 17:05」とならないよう、予約単位より粗い
-   * 15分（予約単位で割り切れなければ30分）にして、いちばん近い区切りに吸い付かせる。細かい時刻は予約画面で直す
+   * ドラッグで新規予約するときの開始の刻み。指の太さで「17:00 のつもりが 17:05」とならないよう、
+   * 開始だけは10分（予約単位で割り切れなければ予約単位）のいちばん近い区切りに吸い付かせる。終了は予約単位
    */
-  function dragStep() {
+  function dragStartStep() {
     const u = state.geo.unit;
-    return [15, 30].find((x) => x >= u && x % u === 0) || u;
+    return u <= 10 && 10 % u === 0 ? 10 : u;
   }
   const roundTo = (m, step) => Math.round(m / step) * step;
 
@@ -969,7 +969,7 @@
     const m = minuteAt(track, clientX);
     const free = freeSpanAt(row, m);
     if (!free) return null;
-    const anchor = Math.min(Math.max(roundTo(m, dragStep()), free[0]), free[1] - state.geo.unit);
+    const anchor = Math.min(Math.max(roundTo(m, dragStartStep()), free[0]), free[1] - state.geo.unit);
     const ghost = document.createElement('div');
     ghost.className = 'ghost';
     track.appendChild(ghost);
@@ -980,11 +980,11 @@
 
   function updateDrag(clientX) {
     const { t0, total } = state.geo;
-    const step = dragStep();
+    const unit = state.geo.unit;
     const m = minuteAt(drag.track, clientX);
     let s, e;
-    if (m >= drag.anchor) { s = drag.anchor; e = Math.max(drag.anchor + step, roundTo(m, step)); }
-    else { s = Math.min(roundTo(m, step), drag.anchor - step); e = drag.anchor + step; }
+    if (m >= drag.anchor) { s = drag.anchor; e = Math.max(drag.anchor + unit, ceilTo(m, unit)); }
+    else { s = Math.min(roundTo(m, dragStartStep()), drag.anchor - unit); e = drag.anchor + unit; }
     drag.start = Math.max(s, drag.free[0]);
     drag.end = Math.min(e, drag.free[1]);
     drag.ghost.style.left = `${((drag.start - t0) / total * 100).toFixed(4)}%`;
