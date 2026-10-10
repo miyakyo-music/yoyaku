@@ -1489,7 +1489,21 @@
         }
       }
     }
-    el.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+    // 回し終わったのに段の途中で止まっていたら、近い段へ寄せる（iPhone の Safari は、吸い付き〈scroll-snap〉を
+    // いったん止めて戻したあとなどに、段の途中で止まったままになることがある）。指が触れている間は寄せない
+    let touching = false, alignTimer = 0;
+    function alignLater() {
+      clearTimeout(alignTimer);
+      alignTimer = setTimeout(() => {
+        if (touching || dragY !== null || !el.offsetParent) return;
+        const off = el.scrollTop / WHEEL_ITEM;
+        if (Math.abs(off - Math.round(off)) > 0.02) setScroll(Math.max(0, Math.min(items.length - 1, Math.round(off))), true);
+      }, 180);
+    }
+    el.addEventListener('touchstart', () => { touching = true; clearTimeout(alignTimer); }, { passive: true });
+    el.addEventListener('touchend', () => { touching = false; alignLater(); }, { passive: true });
+    el.addEventListener('touchcancel', () => { touching = false; alignLater(); }, { passive: true });
+    el.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); alignLater(); }, { passive: true });
     // 触れたら合わせ直しをやめて、指の動きに任せる。まだ指定した段に着いていなければ、先にそこへ動かす
     // （ずれた段のまま触れると、その段の値が書き込まれてしまうため）
     for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) {
