@@ -5,6 +5,7 @@
   if (/[?&]reset=1/.test(location.search)) {
     localStorage.clear();
     sessionStorage.clear();
+    window.devCf.reset(); // ブラウザの中の Cloudflare（正本）のデータも消す
     location.replace(location.pathname);
     return;
   }

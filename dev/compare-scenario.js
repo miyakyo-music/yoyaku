@@ -1,0 +1,115 @@
+/**
+ * テスト環境だけで使う: 同じ操作の台本を流し、結果を window.__scenario に残す（GAS と Cloudflare の結果を比べるため）。
+ * 使い方は保守マニュアル 03 の「正本の移し替えを試す」。時刻は ?now=2026-10-10T09:00:00%2B09:00 で固定して流す。
+ */
+(async () => {
+  const out = [];
+  const A = 'admin123';
+  const D = '2026-10-12', D7 = '2026-10-19', T = '2026-10-10';
+  const ids = {};
+  const rec = (name, r, extra) => { out.push([name, r.ok, r.code || '', (r.message || '').replace(/res_\w+/g, 'ID'), extra === undefined ? '' : extra]); return r; };
+  const c = (fn, p) => callApi(fn, p);
+  const base = { roomId: 'room_07', date: D, affiliation: 'G1', name: '甲', memo: '', pin: '1111' };
+
+  let r = rec('sched', await c('getSchedule', { from: T, to: D }), null);
+  out[out.length - 1][4] = [r.reservations.length, r.rooms.length, r.closures.length, r.settings.unitMinutes, r.settings.viewPasswordRequired];
+  r = rec('create', await c('createReservation', Object.assign({}, base, { start: '13:00', end: '14:00' })));
+  ids.a = r.reservation && r.reservation.id;
+  out[out.length - 1][4] = r.reservation && [r.reservation.start, r.reservation.end, r.reservation.hasPin, r.reservation.color];
+  rec('overlap', await c('createReservation', Object.assign({}, base, { start: '13:30', end: '14:30' })));
+  rec('unit', await c('createReservation', Object.assign({}, base, { start: '13:03', end: '14:30' })));
+  rec('formula', await c('createReservation', Object.assign({}, base, { start: '15:00', end: '16:00', name: '=x' })));
+  rec('closure', await c('createReservation', Object.assign({}, base, { date: T, roomId: 'room_10', start: '15:00', end: '16:00' })));
+  rec('closureAll', await c('createReservation', Object.assign({}, base, { date: T, roomId: 'room_05', start: '21:00', end: '21:30' })));
+  rec('past', await c('createReservation', Object.assign({}, base, { date: T, start: '07:00', end: '08:00' })));
+  rec('pinBad', await c('createReservation', Object.assign({}, base, { start: '16:00', end: '17:00', pin: '12a' })));
+  rec('noRoom', await c('createReservation', Object.assign({}, base, { roomId: 'room_99', start: '16:00', end: '17:00' })));
+  rec('colorNonAdmin', await c('createReservation', Object.assign({}, base, { start: '18:00', end: '19:00', color: 'red' })), null);
+  rec('bulkNoAdmin', await c('createBulkReservations', Object.assign({}, base, { dates: [D, D7], roomIds: ['room_08', 'room_09'], start: '15:00', end: '16:00' })));
+  r = rec('bulk', await c('createBulkReservations', Object.assign({}, base, { adminPassword: A, dates: [D, D7], roomIds: ['room_08', 'room_09'], start: '15:00', end: '16:00', color: 'purple' })));
+  ids.g = r.groupId; ids.g1 = r.reservations && r.reservations[0].id;
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.date + x.roomId + x.color).join(',');
+  r = rec('bulkConflict', await c('createBulkReservations', Object.assign({}, base, { adminPassword: A, dates: [D, D7], roomIds: ['room_08'], start: '15:30', end: '16:30' })));
+  out[out.length - 1][4] = [r.availableCount, (r.conflicts || []).length];
+  r = rec('pairs', await c('createBulkReservations', Object.assign({}, base, { adminPassword: A, pairs: [{ date: D, roomId: 'room_11' }, { date: D7, roomId: 'room_12' }, { date: D, roomId: 'room_11' }], start: '09:00', end: '10:00' })));
+  out[out.length - 1][4] = r.reservations && r.reservations.length;
+  rec('updWrongPin', await c('updateReservation', Object.assign({}, base, { id: ids.a, pin: '2222', start: '14:00', end: '15:00' })));
+  r = rec('upd', await c('updateReservation', Object.assign({}, base, { id: ids.a, pin: '1111', start: '14:00', end: '15:00', memo: 'メモ  あり' })));
+  out[out.length - 1][4] = r.reservation && [r.reservation.start, r.reservation.end, r.reservation.memo];
+  rec('updConflict', await c('updateReservation', Object.assign({}, base, { id: ids.a, pin: '1111', roomId: 'room_08', start: '15:00', end: '16:00' })));
+  r = rec('updSeries', await c('updateReservation', Object.assign({}, base, { id: ids.g1, adminPassword: A, scope: 'following', start: '16:00', end: '17:00', name: '乙' })));
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.start + x.name).join(',');
+  r = rec('byIds', await c('getReservationsByIds', { ids: [ids.a, ids.g1, 'nope'] }));
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.start + x.name + x.hasPin).join(',');
+  for (let i = 0; i < 6; i++) rec('cancelBad' + i, await c('cancelReservation', { id: ids.a, pin: '9999' }));
+  r = rec('cancelSeries', await c('cancelReservation', { id: ids.g1, adminPassword: A, scope: 'following' }));
+  out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.length;
+  r = rec('cancelAdminPinField', await c('cancelReservation', { id: ids.a, pin: A }));
+  rec('cancelAgain', await c('cancelReservation', { id: ids.a, pin: '1111' }));
+  rec('bug', await c('submitBugReport', { message: '=テスト', contact: 'x', env: { userAgent: 'UA', screen: '1x1', page: 'p' } }), null);
+  r = rec('bugs', await c('adminGetBugReports', { adminPassword: A }));
+  ids.bug = r.reports && r.reports[0] && r.reports[0].id;
+  out[out.length - 1][4] = r.reports && r.reports.map((x) => x.status + x.message + x.contact + x.userAgent).join(',');
+  rec('bugStatus', await c('adminSetBugStatus', { adminPassword: A, id: ids.bug, status: '対応済み' }));
+  rec('bugStatusBad', await c('adminSetBugStatus', { adminPassword: A, id: ids.bug, status: 'x' }));
+  r = rec('adminData', await c('adminGetData', { adminPassword: A }));
+  out[out.length - 1][4] = r.ok && [Object.keys(r).sort().join(','), r.rooms.length, r.closures.length, r.openBugs, JSON.stringify(r.settings)];
+  const s = Object.assign({}, r.settings, { maxDurationMinutes: 120 });
+  r = rec('saveSettings', await c('adminSaveSettings', { adminPassword: A, settings: s }));
+  out[out.length - 1][4] = r.ok && [JSON.stringify(r.settings), r.warnings.join('|')];
+  rec('tooLong', await c('createReservation', Object.assign({}, base, { start: '07:00', end: '10:00' })));
+  rec('tooLongAdmin', await c('createReservation', Object.assign({}, base, { adminPassword: A, start: '07:00', end: '10:00' })));
+  rec('badSettings', await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, s, { unitMinutes: 7 }) }));
+  r = rec('notice', await c('adminSetNotice', { adminPassword: A, notice: 'お知らせ  です', noticeLevel: '重要' }));
+  out[out.length - 1][4] = r.ok && JSON.stringify(r.settings);
+  r = await c('adminGetData', { adminPassword: A });
+  const rooms = r.rooms.map((x) => ({ id: x.id, name: x.name, equipment: x.equipment, restriction: x.restriction, note: x.note, tags: x.tags }));
+  rec('roomInUse', await c('adminSaveRooms', { adminPassword: A, rooms: rooms.filter((x) => x.id !== 'room_07') }));
+  const rooms2 = rooms.filter((x) => x.id !== 'room_25').concat([{ name: '新しい部屋', equipment: 'GP', restriction: '限定公開', note: '', tags: 'GP' }]);
+  r = rec('saveRooms', await c('adminSaveRooms', { adminPassword: A, rooms: rooms2 }));
+  out[out.length - 1][4] = r.rooms && r.rooms.slice(-2).map((x) => x.id + x.name + x.restriction + x.order).join(',');
+  const newRoom = r.rooms && r.rooms[r.rooms.length - 1].id;
+  r = rec('saveClosures', await c('adminSaveClosures', { adminPassword: A, closures: [{ date: D, roomId: 'room_07', allDay: false, start: '07:00', end: '08:00', reason: '点検' }, { date: D, roomId: '', allDay: true, reason: '休館' }] }));
+  out[out.length - 1][4] = r.ok && [JSON.stringify(r.closures), r.warnings.join('|')];
+  rec('afterClosure', await c('createReservation', Object.assign({}, base, { roomId: 'room_01', start: '10:00', end: '11:00' })));
+  await c('adminSaveClosures', { adminPassword: A, closures: [] });
+  // 1分あたりの書き込みの上限（GAS は30件、Cloudflare は60件）に台本が当たらないよう、ここで数え直す
+  const minuteKey = 'writes_' + Math.floor(Date.now() / 60000);
+  CacheService.getScriptCache().remove(minuteKey);
+  devCf.core.kdel(minuteKey);
+  // 限定公開
+  r = await c('adminGetData', { adminPassword: A });
+  await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { limitedPassword: 'secret1' }) });
+  r = rec('limitedNo', await c('getSchedule', { from: D, to: D }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedDenied || false];
+  r = rec('limitedBad', await c('getSchedule', { from: D, to: D, limitedKey: 'nope' }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedDenied || false];
+  r = rec('limitedOk', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false];
+  r = rec('limitedBook', await c('createReservation', Object.assign({}, base, { roomId: newRoom, start: '10:00', end: '11:00', limitedKey: 'secret1', color: 'green' })));
+  out[out.length - 1][4] = r.reservation && r.reservation.color;
+  rec('limitedBookNo', await c('createReservation', Object.assign({}, base, { roomId: newRoom, start: '12:00', end: '13:00' })));
+  // 閲覧パスワード
+  r = await c('adminGetData', { adminPassword: A });
+  await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { viewPassword: 'view' }) });
+  rec('viewNo', await c('getSchedule', { from: D, to: D }));
+  rec('viewBad', await c('getSchedule', { from: D, to: D, viewKey: 'x' }));
+  r = rec('viewOk', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
+  out[out.length - 1][4] = r.settings && r.settings.viewPasswordRequired;
+  await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { viewPassword: '', limitedPassword: 'secret1', closedWeekdays: [] }) });
+  // パスワード変更・パスキー
+  rec('pwShort', await c('adminChangePassword', { adminPassword: A, newPassword: '123' }));
+  rec('pwChange', await c('adminChangePassword', { adminPassword: A, newPassword: 'newpass1' }));
+  rec('pwOld', await c('adminGetData', { adminPassword: A }));
+  rec('pwNew', await c('adminGetData', { adminPassword: 'newpass1' }), null);
+  rec('pwBack', await c('adminChangePassword', { adminPassword: 'newpass1', newPassword: A }));
+  r = rec('ticket', await c('adminPasskeyTicket', { adminPassword: A }));
+  out[out.length - 1][4] = /^pkt\.\d+\.[\w-]+$/.test(r.ticket || '');
+  for (let i = 0; i < 10; i++) rec('adminBad' + i, await c('adminGetData', { adminPassword: 'wrong' + i }));
+  rec('range', await c('getSchedule', { from: '2026-10-01', to: '2026-12-01' }));
+  rec('unknown', await c('nope', {}));
+  r = await c('getSchedule', { from: T, to: D7 });
+  out.push(['final', r.ok, '', '', r.reservations.map((x) => x.date + x.roomId + x.start + x.end + x.name + x.hasPin + x.color + x.memo).sort().join(';')]);
+  window.__scenario = out;
+  return out.length;
+})();

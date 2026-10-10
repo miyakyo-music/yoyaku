@@ -16,6 +16,8 @@ database_id = "6cc35b07-83a0-4e3d-a9ef-ee0d77f951b0"
 [vars]
 PASSKEY_RP_ID = "miyakyo-music.github.io"
 PASSKEY_ORIGIN = "https://miyakyo-music.github.io"
+# GAS のウェブアプリの URL（web/config.js の GAS_API_URL と同じ）。予約が変わったら「スプレッドシートへ写して」と合図を送る
+GAS_URL = "https://script.google.com/macros/s/AKfycbwq8wtllGrITwNSLkfmBKNYXLwnh-LbF58fUbW1fYr_SLi4tArg2Irlp__zbOtUgQ/exec"
 
 # リアルタイム同期: 予約表を開いている画面とのつながりをまとめて持つ Durable Object（worker.js の Hub）。
 # 無料のプランで使えるのは SQLite を使う形だけなので new_sqlite_classes にする。
@@ -23,6 +25,15 @@ PASSKEY_ORIGIN = "https://miyakyo-music.github.io"
 name = "HUB"
 class_name = "Hub"
 
+# 予約の正本: 予約・部屋・設定・休館・不具合報告を、この Durable Object の中の SQLite に置く（worker.js の Store、中身は store.js）
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "Store"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Hub"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Store"]

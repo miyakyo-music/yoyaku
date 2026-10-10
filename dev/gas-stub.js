@@ -152,7 +152,9 @@
     }),
   };
 
-  const props = JSON.parse(localStorage.getItem(PROPS_KEY) || '{"ADMIN_PASSWORD":"admin123"}');
+  // 高速キャッシュ（Cloudflare）の送り先と合言葉は、dev/cf-stub.js（ブラウザの中の Cloudflare）に向ける
+  const props = JSON.parse(localStorage.getItem(PROPS_KEY) ||
+    '{"ADMIN_PASSWORD":"admin123","CACHE_PUSH_URL":"http://dev-cf.test/push","CACHE_PUSH_TOKEN":"devtoken"}');
   window.PropertiesService = {
     getScriptProperties: () => ({
       getProperty: (k) => (k in props ? props[k] : null),
@@ -162,6 +164,17 @@
     }),
   };
   window.Logger = { log: console.log };
+
+  // UrlFetchApp: ブラウザの中の Cloudflare（dev/cf-stub.js）にだけつなぐ。/push（高速キャッシュの写し）は受け取ったことにする
+  window.UrlFetchApp = {
+    fetch(url, opts) {
+      opts = opts || {};
+      if (!String(url).startsWith('http://dev-cf.test')) throw new Error('UrlFetchApp: dev では ' + url + ' には接続しない');
+      if (/\/push$/.test(url)) return { getResponseCode: () => 200, getContentText: () => '{"ok":true}' };
+      const auth = (opts.headers && opts.headers.Authorization) || '';
+      return window.devCf.httpSync(opts.method || 'get', url, auth, opts.payload ? JSON.parse(opts.payload) : {});
+    },
+  };
 
   window.ContentService = {
     MimeType: { JSON: 'application/json' },
