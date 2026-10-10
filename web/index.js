@@ -2732,6 +2732,8 @@
   // 画面が裏に回ったら切り、戻ったらつなぎ直す。切れたら少しずつ間をあけてつなぎ直す
   const LIVE_URL = window.CACHE_API_URL ? String(window.CACHE_API_URL).replace(/\/+$/, '').replace(/^http/, 'ws') + '/live' : '';
   let live = null, liveRetry = 0, livePing = 0, liveTimer = 0, liveReload = 0;
+  const liveInfo = { state: LIVE_URL ? '未接続' : '使わない', openedAt: '', lastChange: '', closes: 0 };
+  const hhmmss = () => new Date().toTimeString().slice(0, 8);
   function connectLive() {
     if (!LIVE_URL || live || document.hidden || typeof WebSocket !== 'function') return;
     let ws;
@@ -2739,6 +2741,7 @@
     live = ws;
     ws.onopen = () => {
       liveRetry = 0;
+      liveInfo.state = '接続中'; liveInfo.openedAt = hhmmss();
       clearInterval(livePing);
       livePing = setInterval(() => { try { ws.send('ping'); } catch (e) { /* 切れていれば onclose でつなぎ直す */ } }, 45 * 1000);
     };
@@ -2746,6 +2749,7 @@
       let m = null;
       try { m = JSON.parse(e.data); } catch (x) { return; } // 「pong」など
       if (!m || m.type !== 'changed' || !state.data) return;
+      liveInfo.lastChange = hhmmss();
       invalidate(); // 覚えている期間はすべて古くなった
       clearTimeout(liveReload);
       // 全員が同じ瞬間に読みに来ないよう、少しずらす
@@ -2753,6 +2757,7 @@
     };
     ws.onclose = () => {
       clearInterval(livePing);
+      liveInfo.state = '切断'; liveInfo.closes++;
       if (live !== ws) return;
       live = null;
       if (!document.hidden) liveTimer = setTimeout(connectLive, Math.min(60 * 1000, 2000 * 2 ** liveRetry++));
@@ -2778,6 +2783,7 @@
     const room = state.view !== 'day' ? roomById(state.roomId) : null;
     return {
       appVersion: APP_VERSION,
+      live: liveInfo, // リアルタイム同期の様子（つながっているか・最後に知らせを受けた時刻）
       reportedAt: new Date().toLocaleString('ja-JP'),
       userAgent: navigator.userAgent,
       language: navigator.language,
