@@ -604,10 +604,13 @@
     if (room.restriction === STOPPED) tags.push('<span class="tag t-admin">使用停止</span>');
     if (room.restriction === LIMITED) tags.push('<span class="tag t-limited">限定</span>');
     const title = [roomText(room), room.equipment, room.note].filter(Boolean).join(' / ');
-    const name = `<span class="nm" title="${esc(title)}">${lampHtml(room)}${esc(room.name)}</span>`;
+    const name = `<span class="nm" title="${esc(title)}">${esc(room.name)}</span>`;
     // 「○時まで空き」を出すときは、タグを部屋名の横に寄せて2行目に置き、列の幅を節約する
-    if (extraHtml) return `<span class="nm-line">${name}${tags.join('')}</span>${extraHtml}`;
-    return name + (tags.length ? `<span class="sub">${tags.join('')}</span>` : '');
+    const body = extraHtml ? `<span class="nm-line">${name}${tags.join('')}</span>${extraHtml}`
+      : name + (tags.length ? `<span class="sub">${tags.join('')}</span>` : '');
+    // 空室ランプは部屋名とタグの左に置き、欄の上下中央にそろえる（タグの左端は部屋名の左端とそろう）
+    const lamp = lampHtml(room);
+    return lamp ? `<span class="lbl-lamp">${lamp}<span class="lbl-body">${body}</span></span>` : body;
   }
 
   function renderTimeline() {
