@@ -1230,12 +1230,8 @@
     if (same) return;
     if (!m.ok) { toast('その時間には動かせません（重なり・利用不可・過去）。', 'error'); return; }
     const pin = isMine(r.id) ? (load_(LS.profile, {}).pin || '') : '';
-    openBooking({ mode: 'edit', reservation: r, pin });
-    $('bRoom').value = m.row.roomId;
-    $('bDate').value = m.row.date;
-    setTime($('bStartH'), $('bStartM'), m.start);
-    setTime($('bEndH'), $('bEndM'), m.start + m.len);
-    updateBookingUi();
+    // 利用時間は元のまま（開始だけを刻みに合わせ、終了は開始＋元の長さ）
+    openBooking({ mode: 'edit', reservation: r, pin, at: { roomId: m.row.roomId, date: m.row.date, start: m.start, end: m.start + m.len } });
   }
   // PC: 帯を押したまま5px以上動かすと、つかんで動かす（動かさなければ今まで通りクリックで詳細）
   let moveMouse = null;
@@ -1470,6 +1466,10 @@
     sel.wheel.sync();
   }
   for (const sel of document.querySelectorAll('#bookDialog .time select')) makeWheel(sel);
+  // 時刻の欄を自分で回したか（帯を動かしたときの利用時間の確認に使う）
+  for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+    $('bookDialog').addEventListener(type, (e) => { if (state.booking && e.target.closest && e.target.closest('.twheel')) state.booking.timeTouched = true; }, { passive: true });
+  }
 
   function setTime(hSel, mSel, min) {
     hSel.value = String(Math.floor(min / 60)); mSel.value = String(min % 60);
@@ -1496,7 +1496,7 @@
     if (cp) {
       o = Object.assign({}, o, { roomId: cp.roomId, start: toMin(cp.start), end: toMin(cp.end), date: cp.date < todayStr() ? todayStr() : cp.date });
     }
-    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null,
+    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null, keepLen: o.at ? o.at.end - o.at.start : null,
       // コピー: 選んだ日（日付の文字列）× 選んだ部屋。初めは元の日・元の部屋を選んだ状態（そのままでは0件）
       copy: cp ? { orig: { date: cp.date, roomId: cp.roomId }, start: o.date,
         days: new Set(cp.date >= todayStr() ? [cp.date] : []), rooms: new Set([cp.roomId]) } : null };
@@ -1511,7 +1511,10 @@
       .map((x) => `<option value="${esc(x.id)}">${esc(roomText(x))}${x.restriction === ADMIN_ONLY ? '［管理者のみ］' : ''}</option>`).join('');
     const firstRoom = roomSel.options[0] ? roomSel.options[0].value : '';
     // 部屋の初期値: 指定があればその部屋、部屋別・カレンダー表示中は選んでいる部屋、一覧からは先頭の部屋
-    roomSel.value = edit ? r.roomId : (o.roomId || (state.view !== 'day' && state.roomId) || firstRoom);
+    // at: 帯を動かしたときの行き先（部屋・日・開始・終了）。最初からこの値で開く（開いてから回し直すと、
+    // iPhone ではホイールが元の位置を拾い直して、時刻の一部だけが元に戻ることがあったため）
+    const at = edit && o.at ? o.at : null;
+    roomSel.value = at ? at.roomId : edit ? r.roomId : (o.roomId || (state.view !== 'day' && state.roomId) || firstRoom);
     if (!roomSel.value) roomSel.value = firstRoom;
     // 一覧の「新規予約」から開いたときは、まず部屋を選ぶことが多いので、部屋の一覧を広げて見せる。
     // 部屋を押すと、いつもの選択欄に戻る（ドラッグや空き枠から開いたとき・部屋別表示・変更時は広げない）
@@ -1524,13 +1527,13 @@
     $('bRoomQuickField').hidden = !quick;
     $('bRoomField').hidden = quick;
 
-    const date = edit ? r.date : (o.date || state.date);
+    const date = at ? at.date : edit ? r.date : (o.date || state.date);
     $('bDate').value = date;
     $('bDate').min = edit ? '' : todayStr();
     fillTimeSelects($('bStartH'), $('bStartM'));
     fillTimeSelects($('bEndH'), $('bEndM'));
-    const start = edit ? toMin(r.start) : (o.start != null ? o.start : defaultStart(date));
-    const end = edit ? toMin(r.end) : (o.end != null ? o.end : Math.min(start + 60, toMin(s.closeTime)));
+    const start = at ? at.start : edit ? toMin(r.start) : (o.start != null ? o.start : defaultStart(date));
+    const end = at ? at.end : edit ? toMin(r.end) : (o.end != null ? o.end : Math.min(start + 60, toMin(s.closeTime)));
     setTime($('bStartH'), $('bStartM'), start);
     setTime($('bEndH'), $('bEndM'), end);
 
@@ -1861,6 +1864,11 @@
       memo: $('bMemo').value.trim(),
       pin: $('bPin').value.trim(),
     };
+    // 帯を動かして開いた変更画面で、時刻の欄に触れていなければ、利用時間は必ず元の長さにする（念のため）
+    const keep = state.booking.keepLen;
+    if (keep && !state.booking.timeTouched && toMin(payload.end) - toMin(payload.start) !== keep) {
+      payload.end = toHHMM(toMin(payload.start) + keep);
+    }
     if (!$('bColorField').hidden) {
       const on = $('bColor').querySelector('button[aria-pressed="true"]');
       payload.color = on ? on.dataset.c : '';
