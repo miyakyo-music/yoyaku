@@ -973,7 +973,8 @@
     const ghost = document.createElement('div');
     ghost.className = 'ghost';
     track.appendChild(ghost);
-    drag = { track, row, free, anchor, ghost, start: anchor, end: anchor + state.geo.unit };
+    // press: 押した位置。右へ引けば開始（10分刻み）、左へ引けば終了（予約単位）になる
+    drag = { track, row, free, anchor, press: m, ghost, start: anchor, end: anchor + state.geo.unit };
     updateDrag(clientX);
     return drag;
   }
@@ -983,8 +984,11 @@
     const unit = state.geo.unit;
     const m = minuteAt(drag.track, clientX);
     let s, e;
-    if (m >= drag.anchor) { s = drag.anchor; e = Math.max(drag.anchor + unit, ceilTo(m, unit)); }
-    else { s = Math.min(roundTo(m, dragStartStep()), drag.anchor - unit); e = drag.anchor + unit; }
+    if (m >= drag.press) { s = drag.anchor; e = Math.max(drag.anchor + unit, ceilTo(m, unit)); }
+    else {
+      e = Math.min(drag.free[1], Math.max(drag.free[0] + unit, roundTo(drag.press, unit)));
+      s = Math.min(roundTo(m, dragStartStep()), e - unit);
+    }
     drag.start = Math.max(s, drag.free[0]);
     drag.end = Math.min(e, drag.free[1]);
     drag.ghost.style.left = `${((drag.start - t0) / total * 100).toFixed(4)}%`;
@@ -1384,6 +1388,9 @@
     sel.hidden = true;
     sel.parentNode.classList.add('has-wheel');
     let items = [], index = -1, raf = 0, sig = '';
+    // 回し直し中（sync で位置を合わせている最中）は、読み取った位置で値を書き戻さない。
+    // 小窓が開く動きの最中などは、指定した位置へすぐには動かず、古い位置を読んで値が元に戻ることがあったため
+    let syncing = false;
 
     const setScroll = (i, smooth) => el.scrollTo({ top: i * WHEEL_ITEM, behavior: smooth ? 'smooth' : 'auto' });
     function paint() {
@@ -1401,6 +1408,10 @@
         it.style.opacity = String(1 - Math.min(1, Math.abs(i - pos) / 3) * .75);
         it.classList.toggle('sel', i === now);
       });
+      if (syncing) {
+        if (now === index) syncing = false; // 指定した位置に着いた
+        return;
+      }
       if (now !== index && now >= 0 && now < items.length) {
         index = now;
         el.setAttribute('aria-valuetext', items[now].textContent);
@@ -1411,6 +1422,7 @@
       }
     }
     el.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+    for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) el.addEventListener(type, () => { syncing = false; }, { passive: true });
     // 数字を押すと、その数字まで回る
     let dragY = null, startTop = 0, moved = false;
     el.addEventListener('click', (e) => {
@@ -1459,7 +1471,10 @@
         el.setAttribute('aria-valuetext', items[index] ? items[index].textContent : '');
         // 予約画面が閉じている間は回せない（位置が 0 のまま読めてしまい、値を書き戻すおそれがある）ので、開いてから合わせる
         if (!el.offsetParent) return;
+        syncing = true;
         setScroll(Math.max(0, index), false);
+        // 位置がすぐに反映されないことがあるので、次の描画でも合わせ直す
+        requestAnimationFrame(() => { if (syncing) setScroll(Math.max(0, index), false); });
         paint();
       },
       focus() { el.focus(); },
@@ -2308,8 +2323,7 @@
         return `<div class="ms-bar"><span>${esc(rm ? roomText(rm) : id)}</span><i style="width:${(m / maxRoom * 100).toFixed(1)}%"></i><em>${hh(m)}</em></div>`;
       }).join('') + '</div>' : '') +
       (done.length ? `<p class="ms-h">曜日ごと</p><div class="ms-week">` + order.map((w) =>
-        `<div class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}" title="${WEEKDAYS[w]}曜 ${hh(byDow[w])}"><i style="height:${(byDow[w] / maxDow * 70).toFixed(1)}px"></i>${WEEKDAYS[w]}</div>`).join('') + '</div>' : '') +
-      '<p class="hint">この端末から予約した分です（取り消した予約は数えません）。</p>';
+        `<div class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}" title="${WEEKDAYS[w]}曜 ${hh(byDow[w])}"><i style="height:${(byDow[w] / maxDow * 70).toFixed(1)}px"></i>${WEEKDAYS[w]}</div>`).join('') + '</div>' : '');
   }
 
   async function openMyList() {
