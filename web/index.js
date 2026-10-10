@@ -2749,7 +2749,7 @@
       invalidate(); // 覚えている期間はすべて古くなった
       clearTimeout(liveReload);
       // 全員が同じ瞬間に読みに来ないよう、少しずらす
-      liveReload = setTimeout(() => { if (!document.hidden) load({ force: true, background: true }); }, 300 + Math.random() * 1200);
+      liveReload = setTimeout(() => { if (!document.hidden) load({ force: true, background: true }); }, Math.random() * 400);
     };
     ws.onclose = () => {
       clearInterval(livePing);
