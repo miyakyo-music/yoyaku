@@ -1754,8 +1754,10 @@
     // カレンダーに追加（終わっていない予約だけ）
     $('dCal').hidden = ended;
     if (!ended) {
-      $('dCalGoogle').href = googleCalendarUrl(r, room);
-      $('dCalIcs').href = icsUrl(r, room) || '#';
+      // Android は Google カレンダーの追加画面、それ以外（iPhone など）はカレンダーのファイルの URL を開く
+      const add = $('dCalAdd');
+      if (IS_ANDROID) { add.href = googleCalendarUrl(r, room); add.target = '_blank'; add.rel = 'noopener'; }
+      else { add.href = icsUrl(r, room) || '#'; add.removeAttribute('target'); }
     }
     $('detailDialog').showModal();
   }
@@ -1813,7 +1815,7 @@
   }
 
   // ---------------- カレンダーに追加 ----------------
-  // iPhone はカレンダーのファイル（.ics）を開くと標準のカレンダーに入る。Android は標準が Google カレンダーなので、その追加画面を開く
+  // ボタンは1つ。iPhone はカレンダーのファイル（.ics）の URL を開くと標準のカレンダーに入る。Android は標準が Google カレンダーなので、その追加画面を開く
   // 予約者の名前などは入れず、部屋と時間だけを書く（Google の URL に個人の情報を載せないため）
   function calTitle(r, room) { return `${room ? roomText(room) : r.roomId}の予約`; }
   const CAL_PLACE = '宮城教育大学 音楽棟';
@@ -1860,9 +1862,10 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
-  $('dCalIcs').addEventListener('click', (e) => {
+  const IS_ANDROID = /Android/i.test(navigator.userAgent);
+  $('dCalAdd').addEventListener('click', (e) => {
     const r = state.detail;
-    if (!r || $('dCalIcs').getAttribute('href') !== '#') return; // URL があれば、そのまま開く
+    if (!r || $('dCalAdd').getAttribute('href') !== '#') return; // URL があれば、そのまま開く
     e.preventDefault();
     downloadIcs(r, state.rooms.find((x) => x.id === r.roomId));
   });
