@@ -40,6 +40,14 @@ body {
   min-width: 360px; /* これより狭い画面では縮めずに画面全体を横スクロール */
 }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* 画面の本体（帯・上部・表・＋ボタン）。小窓を開くと、まとめて少し縮んで奥へ下がり、閉じると戻る（iPhone のシートと同じ考え方）。
+   小窓が広がる動きと同じ速さ・弾み方にそろえる。縮める間だけ角を丸め、まわりに背景の色をのぞかせる */
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; transform-origin: 50% 40%;
+  transition: transform .46s cubic-bezier(.28, 1.12, .4, 1), border-radius .46s, filter .3s ease; }
+/* 後ろを暗くするのも、幕（::backdrop）ではなく画面の本体で行う。幕は閉じた瞬間に消えるので、暗さがぱっと戻って見えたため */
+html.dlg-open .page { transform: scale(.965); border-radius: 16px; overflow: hidden; filter: brightness(.78); }
+html.dark.dlg-open .page { filter: brightness(.82); }
+@media (prefers-reduced-motion: reduce) { html.dlg-open .page { transform: none; border-radius: 0; } }
 
 /* ---------- ヘッダー ---------- */
 .topbar {
@@ -892,9 +900,25 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
      iPhone の Safari でぼかしが戻らなくなったのでやめた） */
 :root { --morph-blur: blur(40px) saturate(180%); }
 html.dark { --morph-blur: blur(30px) saturate(190%); }
+/* カードの影: 帯の小さな影から小窓の影へ、形と一緒に育てる（小窓の写しの影はカードの外にはみ出して切り取られるため、
+   これがないと、動きが終わって本物の小窓になったときに影が遅れて出てきた）。影の数をそろえておくと滑らかにつながる。
+   影はぼかしを持つカード（image-pair）ではなく、外側の枠（group）に付ける（同じ所に付けると、iPhone の Safari で
+   角が四角く見えた）。group の動きはブラウザが作るので、上書きせず index.js の morph() から足す */
+:root {
+  --morph-shadow-band: 0 0 0 .5px rgba(0, 0, 0, 0), 0 1px 2px rgba(0, 0, 0, .12);
+  --morph-shadow-dialog: 0 0 0 .5px rgba(0, 0, 0, .08), 0 24px 60px rgba(0, 0, 0, .22);
+}
+html.dark {
+  --morph-shadow-band: 0 0 0 .5px rgba(255, 255, 255, 0), 0 1px 2px rgba(0, 0, 0, .5);
+  --morph-shadow-dialog: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6);
+}
 /* Chrome など（屈折あり）の小窓は、縁の屈折を見せるためにぼかしを弱くしている（index.js の LENS.dialog の blur）。カードも同じにする */
 html.refract, html.dark.refract { --morph-blur: blur(5px) saturate(180%); }
-body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
+body.vt-morph dialog { transition: none !important; }
+/* 動きの間、後ろの画面（root）は「前の姿」と「後の姿」を重ねて切り替えず、後の姿をそのまま見せる。後ろの画面は
+   縮む・戻る動き（.page）と幕の濃さの変化を自分で行うので、重ねると2枚がずれて、上部の帯から下の表が二重に透けて見えた */
+html.vt-morph::view-transition-old(root) { animation: none; opacity: 0; }
+html.vt-morph::view-transition-new(root) { animation: none; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
   overflow: clip; border-radius: 22px;
@@ -999,6 +1023,10 @@ html.dark .c-purple { --res: rgba(191, 90, 242, .3); --res-border: #bf5af2; --re
 html.dark .c-green { --res: rgba(48, 209, 88, .28); --res-border: #30d158; --res-text: #b6f2c4; }
 html.dark body { background: var(--bg); }
 html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180deg, #000 0, #000 40%, rgba(0, 0, 0, .86) 70%, rgba(0, 0, 0, .72)); }
+/* 小窓を開いている間と、閉じて後ろの画面が元の大きさに戻りきるまで、上部を不透明にする（index.js の syncDepth。後ろの画面を縮める・暗くすると、iPhone の Safari で上部のぼかしが効かず、
+   表がそのまま透けて見えたため。ふだんは半透明のまま、縁の屈折とぼかしで表を透かす） */
+html.hdr-solid .topbar, html.hdr-solid .refract .topbar { background: #fff; }
+html.dark.hdr-solid .topbar, html.dark.hdr-solid .refract .topbar { background: #000; }
 html.dark .main, html.dark .tl-label, html.dark .tl-corner, html.dark .month .dow { background: var(--surface); }
 html.dark .tl-head { background: rgba(28, 28, 30, .9); }
 html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #222224; }
@@ -1067,3 +1095,6 @@ html.dark .hovercard, html.dark .refract .hovercard {
 }
 html.dark .hovercard .summary { background: rgba(255, 255, 255, .07); }
 
+
+/* 小窓の幕は透明にする（後ろを暗くするのは画面の本体 .page。上の .page の説明）。ダークの幕の色より後ろに置く */
+html body:not(.dialog-fallback) dialog::backdrop { background: transparent; }

@@ -609,6 +609,7 @@
     let to = null;
     from.style.viewTransitionName = 'morph';
     document.body.classList.add('vt-morph');
+    document.documentElement.classList.add('vt-morph');
     document.documentElement.classList.toggle('vt-close', from.tagName === 'DIALOG'); // 小窓 → 帯の向き
     const t = document.startViewTransition(() => {
       from.style.viewTransitionName = '';
@@ -617,12 +618,24 @@
       if (to && (to.tagName === 'DIALOG' ? to.open : onScreen(to))) to.style.viewTransitionName = 'morph';
       else { to = null; document.documentElement.classList.add('vt-noto'); } // 行き先がないときは、その場で薄く消す（CSS）
     });
-    t.ready.catch(() => {}); // 画面が隠れているときなどは動きだけ省かれる（切り替えそのものは行われる）
+    t.ready.then(() => {
+      if (!to) return; // 行き先がないときは、その場で薄く消す（CSS の vt-noto）
+      // 外側の枠（group）に、角の丸みと影を足して育てる（CSS で group の animation を書くと、ブラウザが作る位置・大きさの動きを消してしまうため）
+      const css = getComputedStyle(document.documentElement);
+      const band = css.getPropertyValue('--morph-shadow-band').trim(), dlg = css.getPropertyValue('--morph-shadow-dialog').trim();
+      const closing = from.tagName === 'DIALOG';
+      try {
+        document.documentElement.animate([
+          { boxShadow: closing ? dlg : band, borderRadius: closing ? '22px' : '9px' },
+          { boxShadow: closing ? band : dlg, borderRadius: closing ? '9px' : '22px' },
+        ], { duration: 460, easing: 'cubic-bezier(.28, 1.12, .4, 1)', fill: 'both', pseudoElement: '::view-transition-group(morph)' });
+      } catch (e) { /* 影を付けられない環境では、影なしで動かす */ }
+    }).catch(() => {}); // 画面が隠れているときなどは動きだけ省かれる（切り替えそのものは行われる）
     t.finished.finally(() => {
       from.style.viewTransitionName = '';
       if (to) to.style.viewTransitionName = '';
       document.body.classList.remove('vt-morph');
-      document.documentElement.classList.remove('vt-close', 'vt-noto');
+      document.documentElement.classList.remove('vt-close', 'vt-noto', 'vt-morph');
     });
   }
   /** 予約の詳細を閉じる（その帯が見えていれば、帯へ縮んで戻る） */
@@ -2804,6 +2817,19 @@
   for (const dlg of dialogs) dlg.addEventListener('close', () => hideSecrets(dlg));
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
+  // 小窓が開いている間は、画面の本体を少し奥へ下げる（index.css の html.dlg-open .page）
+  // 上部は、閉じたあと後ろの画面が元の大きさに戻りきるまで不透明のままにする（hdr-solid。戻る途中に半透明に戻すと、
+  // iPhone の Safari で上部のぼかしが効かず、表が透けて見えた）
+  let solidTimer = 0;
+  const syncDepth = () => {
+    const open = anyDialogOpen(), root = document.documentElement;
+    root.classList.toggle('dlg-open', open);
+    clearTimeout(solidTimer);
+    if (open) root.classList.add('hdr-solid');
+    else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 520); // 縮みが戻る 0.46秒＋少し
+  };
+  const depthWatch = new MutationObserver(syncDepth);
+  for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
   // ---------------- 自動更新（操作の邪魔をしない） ----------------
   const IDLE_MS = 3000; // 最後の操作からこの時間が過ぎるまでは、画面を描き直さない
   let lastActive = 0;
