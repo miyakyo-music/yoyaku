@@ -687,7 +687,14 @@
     -webkit-backdrop-filter: none; backdrop-filter: none; background-image: none;
   }
   .field .time select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"); }
-  .field select { background-image: none; }
+  /* 選択欄の矢印: 端末ごとの標準の矢印は位置がまちまちなので使わず、部屋・時刻とも右から 12px の位置に同じ矢印を描く */
+  .field select, .field .time select {
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center;
+  }
+  .field select { padding-right: 32px; }
+  .field .time select { padding: 0 26px 0 8px; }
+  html.dark .field select, html.dark .field .time select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"); }
   .field input:focus, .field select:focus, .field textarea:focus, .time select:focus { outline: 0; background-color: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent); }
   .box { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .07); }
   .box .field input, .box .field select { background-color: rgba(255, 255, 255, .9); }
@@ -760,7 +767,8 @@
 
 
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
-  .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  /* 左に 2px あけて、ランプの周りの光の輪が部屋名の欄の左端で切れないようにする */
+  .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
   .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
   .lamp.lamp-soon { background: #ffcc00; box-shadow: 0 0 0 2px rgba(255, 204, 0, .25); }
   .lamp.lamp-busy { background: #ff9500; box-shadow: 0 0 0 2px rgba(255, 149, 0, .22); }
@@ -1360,7 +1368,7 @@
       return;
     }
     // 開いた直後: 前回と同じ表示なら、端末に覚えておいた予約表をすぐ出し、最新の取得は裏で行って差し替える
-    if (!state.data && !hit) {
+    if (!state.data && !hit && !state.skipSnapshot) {
       const snap = load_(LS.snapshot, null);
       if (snap && snap.key === `${state.view}|${key}` && Date.now() - snap.at < 24 * 3600 * 1000) {
         show({ res: snap.res, at: snap.at }, key);
@@ -3155,8 +3163,19 @@
     state.limitedEntry = true;
     state.view = 'day';
   }
+  // 管理画面から戻ったとき（このタブで管理画面を開いた印があるとき）は、部屋や設定が変わっているかもしれないので、
+  // 前回の表を出さずに最初から読み込む。ブラウザの「戻る」で古い画面がそのまま出たときは、ページごと読み直す
+  try {
+    state.skipSnapshot = sessionStorage.getItem('prr.fromAdmin') === '1';
+    sessionStorage.removeItem('prr.fromAdmin');
+  } catch (e) { /* 保存できない環境では何もしない */ }
+  window.addEventListener('pageshow', (e) => {
+    let fromAdmin = false;
+    try { fromAdmin = sessionStorage.getItem('prr.fromAdmin') === '1'; } catch (err) { /* 何もしない */ }
+    if (e.persisted && fromAdmin) location.reload();
+  });
   updateChrome();
-  load();
+  load(state.skipSnapshot ? { force: true } : undefined);
 })();
 </script>
 </body>

@@ -451,6 +451,7 @@
   <div class="wrap">
     <!-- ログイン -->
     <section class="card login" id="loginView">
+      <p class="lead" id="loginChecking" hidden>ログイン状態を確認しています…</p>
       <form id="loginForm" novalidate>
         <h2>管理者ログイン</h2>
         <p class="lead">管理用パスワードを入力してください。ログイン状態はこのタブを閉じると解除されます。</p>
@@ -599,6 +600,8 @@
   'use strict';
 
   const SESSION_KEY = 'prr.adminPw';
+  // 管理画面を開いた印。予約表に戻ったとき、前回の表を使わずに最新を読み込ませる（部屋・設定の変更をすぐ反映するため）
+  try { sessionStorage.setItem('prr.fromAdmin', '1'); } catch (e) { /* 保存できない環境では何もしない */ }
   const WEEKDAYS = '日月火水木金土';
   const RESTRICTIONS = [['', '制限なし'], ['管理者のみ', '管理者のみ'], ['限定公開', '限定公開'], ['使用停止', '使用停止']];
   const $ = (id) => document.getElementById(id);
@@ -1187,8 +1190,17 @@
     if (state.dirty.rooms || state.dirty.settings) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  if (state.pw) login(state.pw);
-  else $('loginPw').focus();
+  // このタブで一度ログインしていれば、自動でログインし直す。確かめている間はパスワード欄を出さない
+  // （入力の途中で確認が終わり、画面が勝手に切り替わらないように）
+  if (state.pw) {
+    $('loginForm').hidden = true;
+    $('loginChecking').hidden = false;
+    login(state.pw).finally(() => {
+      $('loginChecking').hidden = true;
+      $('loginForm').hidden = false;
+      if (!state.pw) $('loginPw').focus();
+    });
+  } else $('loginPw').focus();
 })();
 </script>
 </body>
