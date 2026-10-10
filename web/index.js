@@ -266,8 +266,22 @@
         opts = Object.assign({}, opts, { background: true });
       }
     }
+    // 管理者モード・限定公開は、限定公開の部屋も出すために GAS から読む（2〜4秒かかる）。待たせないよう、
+    // 高速キャッシュの写しがあれば先にそれを出し（限定公開の部屋は後から現れる）、GAS の結果で差し替える
+    let quick = false;
+    if (!hit && !opts.background && (state.adminPw || state.limitedKey) && !state.limitedEntry && window.CACHE_API_URL && Date.now() > state.noCacheUntil) {
+      let res = await fetchCacheSchedule(range).catch(() => null); // web/api.js
+      if (seq !== state.seq) return;
+      if (res && res.ok) {
+        // 写しには無い札の情報（限定公開を表示中か・不具合の件数）は、今の表示のものを引き継ぐ
+        res = Object.assign({}, res, { limitedAccess: !!state.limitedKey, openBugs: state.data ? state.data.openBugs : 0 });
+        show({ res, at: Date.now() }, key);
+        quick = true;
+        $('statusText').textContent = '更新中…';
+      }
+    }
     // 自動更新（opts.background）は裏で取得し、画面を薄くしない
-    if (!opts.background) document.body.classList.add('loading');
+    if (!opts.background && !quick) document.body.classList.add('loading');
     try {
       const res = await fetchRange(range, opts.force);
       if (seq !== state.seq) return; // 表示切替を連続で行った場合は古い応答を捨てる
@@ -933,6 +947,15 @@
   }
 
   let drag = null;
+  /**
+   * ドラッグで選ぶときの刻み。指の太さで「17:00 のつもりが 17:05」とならないよう、予約単位より粗い
+   * 15分（予約単位で割り切れなければ30分）にして、いちばん近い区切りに吸い付かせる。細かい時刻は予約画面で直す
+   */
+  function dragStep() {
+    const u = state.geo.unit;
+    return [15, 30].find((x) => x >= u && x % u === 0) || u;
+  }
+  const roundTo = (m, step) => Math.round(m / step) * step;
 
   // 予約の帯に残っている青い枠（詳細を閉じたあとのフォーカス）を外す
   function blurBlock() {
@@ -946,7 +969,7 @@
     const m = minuteAt(track, clientX);
     const free = freeSpanAt(row, m);
     if (!free) return null;
-    const anchor = Math.min(Math.max(floorTo(m, state.geo.unit), free[0]), free[1] - state.geo.unit);
+    const anchor = Math.min(Math.max(roundTo(m, dragStep()), free[0]), free[1] - state.geo.unit);
     const ghost = document.createElement('div');
     ghost.className = 'ghost';
     track.appendChild(ghost);
@@ -956,11 +979,12 @@
   }
 
   function updateDrag(clientX) {
-    const { unit, t0, total } = state.geo;
+    const { t0, total } = state.geo;
+    const step = dragStep();
     const m = minuteAt(drag.track, clientX);
     let s, e;
-    if (m >= drag.anchor) { s = drag.anchor; e = Math.max(drag.anchor + unit, ceilTo(m, unit)); }
-    else { s = floorTo(m, unit); e = drag.anchor + unit; }
+    if (m >= drag.anchor) { s = drag.anchor; e = Math.max(drag.anchor + step, roundTo(m, step)); }
+    else { s = Math.min(roundTo(m, step), drag.anchor - step); e = drag.anchor + step; }
     drag.start = Math.max(s, drag.free[0]);
     drag.end = Math.min(e, drag.free[1]);
     drag.ghost.style.left = `${((drag.start - t0) / total * 100).toFixed(4)}%`;
@@ -1143,6 +1167,127 @@
   }, { passive: false });
   document.addEventListener('touchcancel', () => { if (touch) clearTimeout(touch.timer); touch = null; cancelDrag(); });
 
+  // ---------------- 既存の予約を動かす（スマホは長押し、PC はつかんで動かす） ----------------
+  // 帯の影が指（マウス）について動き、横は時刻（ドラッグの刻み）、縦は行（一覧は部屋、部屋別は日付）が変わる。
+  // 離すと、新しい部屋・日・時刻を入れた「予約の変更」画面を開き、「変更を保存」で確定する
+  // （うっかり動かしても確定しない。編集用パスワードの確認も今まで通り）
+  let move = null;
+  let moveClickBlockUntil = 0;
+  function hideHoverCard() { $('hoverCard').hidden = true; }
+  function canMove(r) {
+    if (!r || r.pending) return false;
+    const room = roomById(r.roomId);
+    const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
+    return !ended && !(room && room.restriction === ADMIN_ONLY && !isAdminMode());
+  }
+  function beginMove(blk, clientX) {
+    const r = visibleReservations().find((x) => x.id === blk.dataset.id);
+    if (!canMove(r) || !state.geo) return false;
+    const track = blk.closest('.tl-track');
+    const grab = minuteAt(track, clientX) - toMin(r.start); // つかんだ所と開始の差（指の下の位置を保つ）
+    const ghost = document.createElement('div');
+    ghost.className = 'ghost move';
+    blk.classList.add('moving-src');
+    move = { r, blk, grab, len: toMin(r.end) - toMin(r.start), ghost, row: null, start: toMin(r.start), ok: false };
+    hideHoverCard();
+    return true;
+  }
+  function updateMove(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    let track = el && el.closest && el.closest('.tl-track');
+    if (!track && move.track) track = move.track; // 行の外に出たときは、直前の行のまま
+    if (!track) return;
+    move.track = track;
+    const row = state.rows[Number(track.dataset.i)];
+    const { open, close, t0, total } = state.geo;
+    const step = dragStep();
+    let start = roundTo(minuteAt(track, clientX) - move.grab, step);
+    start = Math.max(open, Math.min(close - move.len, start));
+    const end = start + move.len;
+    const r = move.r;
+    const today = todayStr();
+    const clash = visibleReservations().some((x) => x.id !== r.id && x.date === row.date && x.roomId === row.roomId && toMin(x.start) < end && start < toMin(x.end))
+      || closuresFor(row.date, row.roomId).some((c) => c.start < end && start < c.end);
+    const past = row.date < today || (row.date === today && start < nowMin());
+    move.ok = !clash && !past && !row.stopped;
+    move.row = row; move.start = start;
+    if (move.ghost.parentNode !== track) track.appendChild(move.ghost);
+    move.ghost.classList.toggle('bad', !move.ok);
+    move.ghost.style.left = `${((start - t0) / total * 100).toFixed(4)}%`;
+    move.ghost.style.width = `${(move.len / total * 100).toFixed(4)}%`;
+    move.ghost.textContent = `${hm(toHHMM(start))}〜${hm(toHHMM(end))}`;
+  }
+  function endMove(commit) {
+    const m = move;
+    move = null;
+    if (!m) return;
+    m.ghost.remove();
+    m.blk.classList.remove('moving-src');
+    moveClickBlockUntil = Date.now() + 400;
+    if (!commit || !m.row) return;
+    const r = m.r;
+    const same = m.row.date === r.date && m.row.roomId === r.roomId && m.start === toMin(r.start);
+    if (same) return;
+    if (!m.ok) { toast('その時間には動かせません（重なり・利用不可・過去）。', 'error'); return; }
+    const pin = isMine(r.id) ? (load_(LS.profile, {}).pin || '') : '';
+    openBooking({ mode: 'edit', reservation: r, pin });
+    $('bRoom').value = m.row.roomId;
+    $('bDate').value = m.row.date;
+    setTime($('bStartH'), $('bStartM'), m.start);
+    setTime($('bEndH'), $('bEndM'), m.start + m.len);
+    updateBookingUi();
+  }
+  // PC: 帯を押したまま5px以上動かすと、つかんで動かす（動かさなければ今まで通りクリックで詳細）
+  let moveMouse = null;
+  $('main').addEventListener('mousedown', (e) => {
+    const blk = e.target.closest('.blk.res');
+    if (!blk || e.button !== 0 || !blk.closest('.tl-track')) return;
+    moveMouse = { blk, x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!moveMouse) return;
+    if (!move) {
+      if (Math.hypot(e.clientX - moveMouse.x, e.clientY - moveMouse.y) < 5) return;
+      if (!beginMove(moveMouse.blk, moveMouse.x)) { moveMouse = null; return; }
+      document.body.classList.add('moving');
+    }
+    e.preventDefault();
+    updateMove(e.clientX, e.clientY);
+  });
+  document.addEventListener('mouseup', () => {
+    if (!moveMouse) return;
+    moveMouse = null;
+    document.body.classList.remove('moving');
+    if (move) endMove(true);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && move) { document.body.classList.remove('moving'); moveMouse = null; endMove(false); } });
+  // スマホ: 帯を長押しすると持ち上がり、そのまま指を動かす（長押しの前に動かせば、今まで通りスクロール）
+  let moveTouch = null;
+  $('main').addEventListener('touchstart', (e) => {
+    const blk = e.target.closest('.blk.res');
+    if (!blk || e.touches.length !== 1 || !blk.closest('.tl-track')) { moveTouch = null; return; }
+    const t = e.touches[0];
+    moveTouch = { blk, x: t.clientX, y: t.clientY };
+    moveTouch.timer = setTimeout(() => {
+      if (!moveTouch || !beginMove(blk, moveTouch.x)) return;
+      if (navigator.vibrate) navigator.vibrate(15);
+      updateMove(moveTouch.x, moveTouch.y);
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!moveTouch) return;
+    const t = e.touches[0];
+    if (move) { e.preventDefault(); updateMove(t.clientX, t.clientY); return; }
+    if (Math.abs(t.clientX - moveTouch.x) > 10 || Math.abs(t.clientY - moveTouch.y) > 10) { clearTimeout(moveTouch.timer); moveTouch = null; }
+  }, { passive: false });
+  document.addEventListener('touchend', (e) => {
+    if (!moveTouch) return;
+    clearTimeout(moveTouch.timer);
+    moveTouch = null;
+    if (move) { e.preventDefault(); endMove(true); }
+  }, { passive: false });
+  document.addEventListener('touchcancel', () => { if (moveTouch) clearTimeout(moveTouch.timer); moveTouch = null; endMove(false); });
+
   // ---------------- 予約の帯の詳細カード（PC でマウスを乗せたとき） ----------------
   // スマホ（タップ）では出さず、今までどおり予約の詳細画面を開く。表示する項目と書き方は詳細画面とそろえる
   if (window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches) {
@@ -1152,7 +1297,7 @@
     const hideCard = () => { clearTimeout(hoverTimer); hoverBlk = null; card.hidden = true; };
     const showCard = (blk, x, y) => {
       const r = state.data && visibleReservations().find((v) => v.id === blk.dataset.id);
-      if (!r || anyDialogOpen() || drag || mouse) return;
+      if (!r || anyDialogOpen() || drag || mouse || move) return;
       const room = roomById(r.roomId);
       const mine = Object.prototype.hasOwnProperty.call(getMine(), r.id) || r.pending;
       card.innerHTML =
@@ -1196,6 +1341,7 @@
 
   $('main').addEventListener('click', (e) => {
     const blk = e.target.closest('.blk.res');
+    if (blk && Date.now() < moveClickBlockUntil) return; // 動かし終えた直後のクリックでは詳細を開かない
     if (blk) { morph(blk, () => openDetail(blk.dataset.id), () => $('detailDialog')); return; }
     const cell = e.target.closest('.mc');
     if (cell) { state.date = cell.dataset.date; setView('day'); return; }

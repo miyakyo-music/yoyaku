@@ -313,6 +313,11 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
   display: flex; align-items: center; justify-content: center; padding: 0 2px; overflow: visible;
 }
 .ghost.pick.fading { opacity: 0; transition: opacity .3s; }
+/* 既存の予約を動かしている間: もとの帯は薄く、行き先に影（重なる・過去などで動かせない所は赤） */
+.ghost.move { background: rgba(37, 99, 235, .16); }
+.ghost.move.bad { border-color: var(--danger); color: var(--danger); background: rgba(255, 59, 48, .12); }
+.blk.res.moving-src { opacity: .35; }
+body.moving, body.moving * { cursor: grabbing !important; }
 .ghost.pick b { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
 .ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
 .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
