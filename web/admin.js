@@ -579,6 +579,10 @@
   const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   function statsRange(period) {
     const now = new Date();
+    if (period === 'week') { // 月曜〜日曜
+      const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+      return { from: ymd(mon), to: ymd(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6)), label: '今週' };
+    }
     if (period === 'month') return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)), label: '今月' };
     if (period === 'last') return { from: ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: ymd(new Date(now.getFullYear(), now.getMonth(), 0)), label: '先月' };
     const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;

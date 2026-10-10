@@ -362,10 +362,11 @@ th, td { border-bottom: .5px solid var(--sep); }
 }
 /* ---------- i ボタン（見ればわかることは書かず、どうしても要る説明だけをここに入れる） ---------- */
 .info {
-  /* 大きさは文字に合わせる（見出しでも項目名でも、行の高さを超えない） */
-  display: inline-flex; align-items: center; justify-content: center; width: 1.4em; height: 1.4em; margin-left: .45em; vertical-align: -.12em; /* 文字の .68 倍の字に対して 1.4em = 項目名の字の .95 倍 */
+  /* どこでも同じ大きさ（13px の丸）。文字の上下の真ん中にそろえる */
+  display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box;
+  width: 13px; height: 13px; margin: 0 0 0 5px; padding: 0; vertical-align: middle; position: relative; top: -1px;
   border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--muted); opacity: .8;
-  font: italic 600 .68em/1 Georgia, "Times New Roman", serif; cursor: help; padding: 0;
+  font: italic 600 9px/1 Georgia, "Times New Roman", serif; cursor: help;
 }
 .info[aria-expanded="true"] { opacity: 1; color: var(--accent); }
 /* 吹き出し: macOS の説明（ヘルプタグ）に似せた、小さく控えめな札。マウスの少し右下に出る */
