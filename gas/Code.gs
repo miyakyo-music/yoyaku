@@ -886,7 +886,13 @@ function cacheRetry(e) {
   if (fromTrigger && !due) return;
   const ok = pushCache_();
   if (!fromTrigger) {
-    const why = props.getProperty('CACHE_LAST_ERROR') || '';
+    let why = props.getProperty('CACHE_LAST_ERROR') || '';
+    if (!ok) { // 合言葉の手がかり（長さとハッシュの先頭8文字）。Cloudflare 側の URL を開くと出る tokenHint と比べる
+      const t = cacheProp_('CACHE_PUSH_TOKEN').trim();
+      const hex = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, t, Utilities.Charset.UTF_8)
+        .map(b => ('0' + ((b + 256) % 256).toString(16)).slice(-2)).join('');
+      why += '\nGAS の合言葉の手がかり: 長さ ' + t.length + '、' + hex.slice(0, 8);
+    }
     try {
       SpreadsheetApp.getUi().alert(ok ? '高速キャッシュに送りました。'
         : '高速キャッシュに送れませんでした。\n理由: ' + why + '\n\n「応答 401」なら合言葉が GAS と GitHub（Cloudflare）で違います。スクリプトプロパティの CACHE_PUSH_URL・CACHE_PUSH_TOKEN と、Cloudflare 側の設定を確かめてください。');

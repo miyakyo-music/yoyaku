@@ -49,6 +49,7 @@ async function status(env) {
   const meta = await readMeta(env);
   return {
     ok: true, service: '練習室予約キャッシュ',
+    tokenHint: await tokenHint(String(env.PUSH_TOKEN || '').trim()),
     version: meta ? meta.version : null, pushedAt: meta ? meta.pushedAt : null,
     disabled: meta ? !!meta.disabled : null, windowFrom: meta ? meta.windowFrom : null, windowTo: meta ? meta.windowTo : null,
   };
@@ -86,8 +87,9 @@ async function schedule(url, env) {
 
 /** GAS からの写しの受け取り。版が今より古いもの（順番が入れ替わって届いたもの）は捨てる */
 async function push(request, env) {
-  const auth = request.headers.get('Authorization') || '';
-  if (!env.PUSH_TOKEN || !safeEqual(auth, 'Bearer ' + env.PUSH_TOKEN)) return json({ ok: false, code: 'UNAUTHORIZED' }, 401);
+  const auth = (request.headers.get('Authorization') || '').trim();
+  const token = String(env.PUSH_TOKEN || '').trim();
+  if (!token || !safeEqual(auth, 'Bearer ' + token)) return json({ ok: false, code: 'UNAUTHORIZED', tokenHint: await tokenHint(token) }, 401);
   const body = await request.json();
   const version = Number(body && body.version);
   if (!Number.isFinite(version)) return json({ ok: false, code: 'BAD_REQUEST' }, 400);
@@ -113,6 +115,17 @@ async function push(request, env) {
 }
 
 // ---------------- 小物 ----------------
+
+/**
+ * 合言葉の「手がかり」: 長さと、ハッシュ（SHA-256）の先頭8文字。合言葉そのものは分からないが、
+ * GAS 側の手がかりと比べれば、両方に同じ合言葉が入っているかを確かめられる
+ */
+async function tokenHint(token) {
+  if (!token) return { length: 0 };
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return { length: token.length, sha256: hex.slice(0, 8) };
+}
 
 function monthsBetween(from, to) {
   const out = [];
