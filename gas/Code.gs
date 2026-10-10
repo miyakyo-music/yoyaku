@@ -300,7 +300,7 @@ function createBulkReservations(p) {
     if (v.error) return fail_(v.error);
     bases[roomId] = v.value;
   }
-  if (bases[roomIds[0]].pin && !/^\d{4}$/.test(bases[0].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
+  if (bases[roomIds[0]].pin && !/^\d{4}$/.test(bases[roomIds[0]].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
 
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
