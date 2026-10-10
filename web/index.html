@@ -109,12 +109,21 @@
         <label class="field" id="bRoomField">部屋<select id="bRoom"></select></label>
         <div class="field">日付<label class="date-field b-date"><span class="date-display" id="bDateDisplay" aria-hidden="true"></span><input type="date" id="bDate" aria-label="日付"></label></div>
       </div>
-      <div class="field" id="bCopyField" hidden><span>コピー先<span class="req" aria-hidden="true">*</span></span><div class="wd-chips" id="bCopyDays"></div></div>
+      <div class="copy-box" id="bCopyField" hidden>
+        <p class="copy-src" id="bCopySrc"></p>
+        <div class="field"><span>日<span class="req" aria-hidden="true">*</span></span>
+          <div class="wd-row">
+            <button type="button" class="wd-nav" id="bCopyPrev" aria-label="前の週"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <div class="wd-chips" id="bCopyDays"></div>
+            <button type="button" class="wd-nav" id="bCopyNext" aria-label="次の週"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+        </div>
+        <div class="field"><span>部屋<span class="req" aria-hidden="true">*</span></span><div class="room-quick room-grid" id="bCopyRooms"></div></div>
+      </div>
       <div class="box" id="bMultiBox">
         <label class="check"><input type="checkbox" id="bMulti"><span>他の部屋も同時に予約する</span></label>
         <div id="bMultiArea" hidden>
-          <p class="hint" style="margin-bottom:8px">同じ名前の部屋は、名前のボタンでまとめて選択できます。</p>
-          <div class="room-picker" id="bRoomPicker"></div>
+          <div class="room-quick room-grid" id="bRoomPicker"></div>
         </div>
       </div>
       <div class="grid2">

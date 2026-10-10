@@ -233,24 +233,6 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
   font-size: 11px; font-weight: 700; padding: 2px 6px; cursor: pointer; white-space: nowrap;
 }
 .limited-mode, .tag.t-limited { color: #5b3a9b; background: #efe8fb; border-color: #d4c3f2; }
-/* 複数部屋の選択 */
-.room-picker { display: flex; flex-direction: column; gap: 8px; max-height: 196px; overflow: auto; padding: 2px; overscroll-behavior: contain; }
-.rp-group { display: flex; align-items: flex-start; gap: 8px; }
-.rp-name {
-  flex: none; min-width: 84px; height: 30px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 15px;
-  background: var(--surface); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
-}
-.rp-name small { font-weight: 400; color: var(--muted); margin-left: 2px; }
-.rp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.rp-chip { position: relative; display: inline-flex; }
-.rp-chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.rp-chip span {
-  display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 15px;
-  font-size: 13px; cursor: pointer; background: var(--surface); white-space: nowrap;
-}
-.rp-chip input:checked + span { border-color: var(--accent); color: #fff; font-weight: 600; }
-.rp-chip input:disabled + span { cursor: default; opacity: .85; }
-.rp-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tl-track {
   /* 高さは行に合わせて伸ばす（部屋名の欄が文字の大きさの都合で少し高くなっても、帯が行の上下中央からずれないように） */
   position: relative; flex: none; align-self: stretch; min-height: var(--row-h);
@@ -729,8 +711,6 @@ html.dark .field select, html.dark .field .time select { background-image: url("
 .box { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .07); }
 .box .field input, .box .field select { background-color: rgba(255, 255, 255, .9); }
 .summary { border-radius: 14px; background: rgba(118, 118, 128, .08); }
-.rp-name, .rp-chip span { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 .5px var(--sep); }
-.rp-chip input:checked + span { background: var(--accent); box-shadow: none; }
 .conflicts { background: rgba(255, 59, 48, .08); border-radius: 14px; }
 .mylist button { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .08); padding: 11px 14px; }
 @media (hover: hover) { .mylist button:hover { background: rgba(118, 118, 128, .14); } }
@@ -872,12 +852,17 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
    動いている間は、小窓自身の広がる動きを止める（二重に動かさない）。
    広がるのは無地のカード（--morph-bg）で、中身は拡大・縮小しない: 帯の文字はすぐ消し、小窓の中身は本来の大きさのまま
    カードが広がるにつれて見えてくる（写しを引き伸ばすと、文字まで大きくせり出して見えたため） */
-:root { --morph-bg: rgba(255, 255, 255, .94); }
-html.dark { --morph-bg: rgba(44, 44, 46, .96); }
+/* カードは小窓と同じすりガラス（色・ぼかし・角丸）にし、動いている間は小窓自身の背景を消す（重ねると濃くなり、
+   終わった瞬間に本物の小窓へ入れ替わって「遅れて透ける」ように見えたため） */
+:root { --morph-bg: rgba(255, 255, 255, .84); --morph-blur: blur(40px) saturate(180%); }
+.refract { --morph-bg: rgba(255, 255, 255, .6); }
+html.dark { --morph-bg: rgba(40, 40, 44, .52); --morph-blur: blur(30px) saturate(190%); }
 body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
+body.vt-morph dialog { background: transparent !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
-  overflow: clip; border-radius: 16px; background: var(--morph-bg); box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+  overflow: clip; border-radius: 22px; background: var(--morph-bg);
+  -webkit-backdrop-filter: var(--morph-blur); backdrop-filter: var(--morph-blur); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .08), 0 24px 60px rgba(0, 0, 0, .22);
 }
 ::view-transition-old(morph), ::view-transition-new(morph) { width: 100%; height: 100%; object-fit: none; }
 /* 帯の写しは左端・上下中央のまま、すぐ消す */
@@ -922,6 +907,26 @@ html.dark .room-quick .rq.t-large { background: rgba(191, 90, 242, .15); } html.
 .room-quick .rq:active small { color: #fff !important; }
 @media (hover: hover) { .room-quick .rq:hover { background: var(--accent-weak); } }
 .room-quick .rq:active { background: var(--accent); color: #fff; }
+/* 複数の部屋を選ぶ欄（他の部屋も同時に予約・予約のコピー）: 新規予約の部屋の一覧を小さくしたもの。押すと選択・解除。
+   同じ名前の部屋（練習室6 など）は、先頭の「全◯室」でまとめて選べる */
+.room-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; max-height: 172px; overflow-y: auto; overscroll-behavior: contain; padding: 1px; }
+.room-grid .rq { min-height: 40px; padding: 4px 4px; border-radius: 9px; position: relative; }
+.room-grid .rq b { font-size: 13px; }
+.room-grid .rq small { font-size: 10px; }
+.room-grid .rq.rq-group { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.room-quick .rq[aria-pressed="true"], html.dark .room-quick .rq[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.room-quick .rq[aria-pressed="true"] small, html.dark .room-quick .rq[aria-pressed="true"] small { color: rgba(255, 255, 255, .88); }
+.room-quick .rq:disabled { cursor: default; opacity: .75; }
+/* 元の予約の部屋・日には小さな点を付ける */
+.rq.orig::after, .wd-chips button.orig::after { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .55; }
+.wd-chips button { position: relative; }
+/* 予約のコピー */
+.copy-box { display: flex; flex-direction: column; gap: 10px; }
+.copy-src { margin: 0; font-size: 13px; color: var(--muted); }
+.wd-row { display: flex; align-items: center; gap: 4px; }
+.wd-row .wd-chips { flex: 1; min-width: 0; gap: 4px; }
+.wd-nav { flex: none; width: 26px; height: 44px; border: 0; border-radius: 8px; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.wd-nav:disabled { opacity: .3; cursor: default; }
 
 /* 入力が必須の欄: 見出しの右に赤い「*」（Google フォームの必須の質問と同じ印） */
 .req { color: #d93025; margin-left: 3px; font-weight: 600; }
@@ -989,7 +994,7 @@ html.dark dialog, html.dark .hovercard { box-shadow: 0 0 0 .5px rgba(255, 255, 2
 html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
 html.dark dialog, html.dark .refract dialog { color: var(--text); }
 html.dark .field input:focus, html.dark .field select:focus, html.dark .field textarea:focus { background-color: rgba(118, 118, 128, .32); }
-html.dark .box .field input, html.dark .box .field select, html.dark .rp-name, html.dark .rp-chip span { background-color: rgba(118, 118, 128, .3); }
+html.dark .box .field input, html.dark .box .field select { background-color: rgba(118, 118, 128, .3); }
 html.dark .mc.other { background: #151517; color: #636366; }
 html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
 html.dark .admin-link, html.dark .brand .admin-link, html.dark .status { color: #e5e5ea; }

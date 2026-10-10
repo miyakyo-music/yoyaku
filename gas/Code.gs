@@ -246,7 +246,9 @@ function createReservation(p) {
  * 「部屋 × 日付」のすべての組み合わせを、共通のグループIDで登録する。
  * 予約できない組み合わせがあり skipConflicts が false の場合は何も書き込まず、
  * code: 'PARTIAL_CONFLICT' と予約できない一覧を返す（画面側で「予約できる分だけ予約」を確認する）。
- * @param {{dates:string[], roomIds?:string[], roomId?:string, start, end, affiliation, name, memo, pin,
+ * pairs（[{date, roomId}]）を渡すと、すべての組み合わせではなく、その組み合わせだけを予約する（予約のコピーで、
+ * 元の予約と同じ日・部屋を外すため）。
+ * @param {{dates:string[], roomIds?:string[], roomId?:string, pairs?:{date, roomId}[], start, end, affiliation, name, memo, pin,
  *          adminPassword?, skipConflicts?, viewKey?}} p
  */
 function createBulkReservations(p) {
@@ -256,39 +258,50 @@ function createBulkReservations(p) {
   const ctx = context_(p);
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
-  if (!Array.isArray(p.dates) || !p.dates.length) return fail_('予約する日付が指定されていません。');
-  const dates = Array.from(new Set(p.dates.map(normDate_))).sort();
+  let combos;
+  if (Array.isArray(p.pairs) && p.pairs.length) {
+    const seen = {};
+    combos = p.pairs.map(x => ({ date: normDate_(x && x.date), roomId: String((x && x.roomId) || '').trim() }))
+      .filter(x => !seen[x.date + '|' + x.roomId] && (seen[x.date + '|' + x.roomId] = true));
+  } else {
+    if (!Array.isArray(p.dates) || !p.dates.length) return fail_('予約する日付が指定されていません。');
+    const ds = p.dates.map(normDate_);
+    const rs = (Array.isArray(p.roomIds) && p.roomIds.length ? p.roomIds : [p.roomId]).map(id => String(id || '').trim());
+    combos = [];
+    Array.from(new Set(ds)).forEach(d => Array.from(new Set(rs)).forEach(id => combos.push({ date: d, roomId: id })));
+  }
+  combos.sort((a, b) => a.date.localeCompare(b.date));
+  const dates = Array.from(new Set(combos.map(x => x.date))).sort();
+  if (!dates.length) return fail_('予約する日付が指定されていません。');
   if (dates.some(d => !isValidDate_(d))) return fail_('日付の形式が正しくありません。');
-  const roomIds = Array.from(new Set((Array.isArray(p.roomIds) && p.roomIds.length ? p.roomIds : [p.roomId]).map(id => String(id || '').trim())));
-  const total = dates.length * roomIds.length;
+  const roomIds = Array.from(new Set(combos.map(x => x.roomId)));
+  const total = combos.length;
   if (total > ctx.settings.maxBulkCount) {
-    return fail_('まとめて予約できるのは最大' + ctx.settings.maxBulkCount + '件です（今回: ' + roomIds.length + '部屋 × ' + dates.length + '日 = ' + total + '件）。');
+    return fail_('まとめて予約できるのは最大' + ctx.settings.maxBulkCount + '件です（今回: ' + total + '件）。');
   }
 
   const admin = resolveAdmin_(p.adminPassword);
   if (admin.error) return fail_(admin.error);
   if (ctx.settings.bulkRequiresAdmin && total > 1 && !admin.ok) return fail_('くり返し予約・複数部屋の同時予約には管理用パスワードが必要です。');
 
-  const bases = [];
+  const bases = {};
   for (const roomId of roomIds) {
     const v = validateBooking_(ctx, Object.assign({}, p, { date: dates[0], roomId: roomId }), admin.ok);
     if (v.error) return fail_(v.error);
-    bases.push(v.value);
+    bases[roomId] = v.value;
   }
-  if (bases[0].pin && !/^\d{4}$/.test(bases[0].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
+  if (bases[roomIds[0]].pin && !/^\d{4}$/.test(bases[0].pin)) return fail_('編集用パスワードは4桁の数字で入力してください（設定しない場合は空欄）。');
 
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
     const conflicts = [];
     const available = [];
-    dates.forEach(date => {
-      bases.forEach(base => {
-        const r = Object.assign({}, base, { date: date });
-        const reason = checkDateRules_(ctx, r, admin.ok) || closureError_(ctx, r);
-        const conflict = reason ? null : findConflict_(rows, r, null);
-        if (reason || conflict) conflicts.push({ date: date, roomId: r.roomId, reason: reason || '既存の予約と重複（' + describe_(conflict) + '）' });
-        else available.push(r);
-      });
+    combos.forEach(c => {
+      const r = Object.assign({}, bases[c.roomId], { date: c.date });
+      const reason = checkDateRules_(ctx, r, admin.ok) || closureError_(ctx, r);
+      const conflict = reason ? null : findConflict_(rows, r, null);
+      if (reason || conflict) conflicts.push({ date: c.date, roomId: r.roomId, reason: reason || '既存の予約と重複（' + describe_(conflict) + '）' });
+      else available.push(r);
     });
 
     if (conflicts.length && !p.skipConflicts) {
@@ -304,7 +317,7 @@ function createBulkReservations(p) {
     const color = colorOf_(ctx, p, admin.ok, '');
     const created = available.map(r => Object.assign({}, r, { id: newId_('res'), groupId: groupId, createdAt: now, updatedAt: '', color: color }));
     appendRows_(ctx.resSheet, created.map(toRow_));
-    log_(ctx.ss, 'まとめて予約', created[0], created.length + '件（' + roomIds.length + '部屋 × ' + dates.length + '日: ' + dates.join(', ') + '）');
+    log_(ctx.ss, 'まとめて予約', created[0], created.length + '件（' + roomIds.length + '部屋・' + dates.length + '日: ' + dates.join(', ') + '）');
     return { ok: true, groupId: groupId, reservations: created.map(toPublic_), skipped: conflicts };
   });
 }

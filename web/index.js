@@ -1323,7 +1323,7 @@
 
   /**
    * @param {{mode:'create'|'edit', roomId?, date?, start?, end?, reservation?, pin?, copyFrom?}} o
-   *   copyFrom: コピーのもとの予約（部屋・時間・氏名などを引き継ぎ、曜日を選んで予約する）
+   *   copyFrom: コピーのもとの予約（時間・氏名などを引き継ぎ、日と部屋を選んで予約する。元と同じ日・部屋の組み合わせは除く）
    */
   function openBooking(o) {
     const s = state.settings;
@@ -1331,10 +1331,12 @@
     const r = o.reservation;
     const cp = !edit && o.copyFrom ? o.copyFrom : null;
     if (cp) {
-      o = Object.assign({}, o, { roomId: cp.roomId, start: toMin(cp.start), end: toMin(cp.end),
-        date: addDays(cp.date, 1) < todayStr() ? todayStr() : addDays(cp.date, 1) });
+      o = Object.assign({}, o, { roomId: cp.roomId, start: toMin(cp.start), end: toMin(cp.end), date: cp.date < todayStr() ? todayStr() : cp.date });
     }
-    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null, copy: cp ? { days: new Set() } : null };
+    state.booking = { mode: o.mode, id: r ? r.id : null, origDate: r ? r.date : null, orig: r || null,
+      // コピー: 選んだ日（日付の文字列）× 選んだ部屋。初めは元の日・元の部屋を選んだ状態（そのままでは0件）
+      copy: cp ? { orig: { date: cp.date, roomId: cp.roomId }, start: o.date,
+        days: new Set(cp.date >= todayStr() ? [cp.date] : []), rooms: new Set([cp.roomId]) } : null };
     $('bTitle').textContent = edit ? '予約の変更' : cp ? '予約のコピー' : '新規予約';
     $('bSubmit').textContent = edit ? '変更を保存' : '予約確定';
 
@@ -1393,11 +1395,20 @@
     $('bInterval').value = '7';
     $('bInterval').querySelector('option[value="1"]').disabled = !!cp; // コピーは曜日を選ぶので「毎日」は使わない
     $('bCopyField').hidden = !cp;
+    // コピーでは、部屋と日付の欄・「他の部屋も同時に予約」の代わりに、日と部屋のボタンで選ぶ
+    $('bookDialog').querySelector('.room-date').hidden = !!cp;
+    // 件数の表示は、コピーでは部屋の欄のすぐ下に、それ以外は「くり返し予約」の下に置く
+    if (cp) $('bCopyField').appendChild($('bBulkSummary'));
+    else $('bAdminField').before($('bBulkSummary'));
+    if (cp) {
+      const rm = roomById(cp.roomId);
+      $('bCopySrc').textContent = `元の予約: ${mdLabel(cp.date)} ${rm ? roomText(rm) : ''} ${hm(cp.start)}〜${hm(cp.end)}`;
+    }
     // 重要な予定の色: 管理者モードか、限定公開に入っているときだけ選べる（GAS でも確かめている）
     $('bColorField').hidden = !(isAdminMode() || state.limitedKey);
     setColorChoice(edit ? (r.color || '') : cp ? (cp.color || '') : '');
     $('bUntil').value = addDays(date, 7 * 14);
-    $('bMultiBox').hidden = !showBulk;
+    $('bMultiBox').hidden = !showBulk || !!cp;
     $('bMulti').checked = false;
     $('bMultiArea').hidden = true;
     state.extraRooms = new Set();
@@ -1425,28 +1436,37 @@
     if (b) setColorChoice(b.dataset.c);
   });
 
-  /** コピー先の曜日のボタン（日付の日から7日分。定休日は選べない） */
+  /** コピー: 日のボタン（7日分。‹ › で1週間ずつ動かす。今日より前・定休日は選べない） */
   function renderCopyDays() {
     const c = state.booking && state.booking.copy;
-    const base = $('bDate').value;
-    if (!c || !base) { $('bCopyDays').innerHTML = ''; return; }
-    $('bCopyDays').innerHTML = Array.from({ length: 7 }, (_, i) => addDays(base, i)).map((d) => {
+    if (!c) { $('bCopyDays').innerHTML = ''; return; }
+    const today = todayStr();
+    $('bCopyDays').innerHTML = Array.from({ length: 7 }, (_, i) => addDays(c.start, i)).map((d) => {
       const w = weekday(d);
       const dd = parseDate(d);
-      const closed = isClosedWeekday(d);
-      return `<button type="button" data-w="${w}" class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}" aria-pressed="${c.days.has(w) && !closed}"${closed ? ' disabled' : ''}>` +
+      const off = d < today || isClosedWeekday(d);
+      return `<button type="button" data-d="${d}" class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}${d === c.orig.date ? ' orig' : ''}" aria-pressed="${c.days.has(d) && !off}"${off ? ' disabled' : ''}>` +
         `${WEEKDAYS[w]}<small>${dd.getMonth() + 1}/${dd.getDate()}</small></button>`;
     }).join('');
+    $('bCopyPrev').disabled = c.start <= today;
   }
   $('bCopyDays').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-w]');
+    const b = e.target.closest('button[data-d]');
     const c = state.booking && state.booking.copy;
     if (!b || !c) return;
-    const w = Number(b.dataset.w);
-    if (c.days.has(w)) c.days.delete(w); else c.days.add(w);
+    if (c.days.has(b.dataset.d)) c.days.delete(b.dataset.d); else c.days.add(b.dataset.d);
     resetConflicts();
     updateBookingUi();
   });
+  for (const [id, step] of [['bCopyPrev', -7], ['bCopyNext', 7]]) {
+    $(id).addEventListener('click', () => {
+      const c = state.booking && state.booking.copy;
+      if (!c) return;
+      const next = addDays(c.start, step);
+      c.start = next < todayStr() ? todayStr() : next;
+      renderCopyDays();
+    });
+  }
 
   function updateBookingUi() {
     $('bDateDisplay').innerHTML = dateDisplayHtml($('bDate').value);
@@ -1468,7 +1488,8 @@
 
     const rooms = selectedRooms().map(roomById).filter(Boolean);
     const dates = bookingDates();
-    const total = rooms.length * dates.length;
+    const pairs = bookingPairs();
+    const total = pairs.length;
     const adminOnly = rooms.some((x) => x.restriction === ADMIN_ONLY);
     const needAdmin = !edit && !isAdminMode() && (adminOnly || (total > 1 && s.bulkRequiresAdmin));
     $('bAdminField').hidden = !needAdmin;
@@ -1476,13 +1497,19 @@
 
     // まとめて予約の件数（部屋数 × 日数）
     const el = $('bBulkSummary');
-    el.hidden = edit || total <= 1;
-    if (!el.hidden) {
+    const copy = state.booking.copy;
+    el.hidden = edit || (copy ? false : total <= 1);
+    if (copy) {
+      // コピー: 予約する日・部屋をそのまま並べる（多いときは件数だけ）
+      const name = (id) => { const rm = roomById(id); return rm ? rm.name + (state.rooms.filter((x) => x.name === rm.name).length > 1 && rm.tags ? `（${rm.tags}）` : '') : id; };
+      el.textContent = !total ? '日と部屋を選んでください（元の予約と同じ組み合わせは除きます）'
+        : (total <= 4 ? pairs.map((x) => `${mdLabel(x.date)} ${name(x.roomId)}`).join('・') + `　計${total}件` : `${dates.length}日 × ${rooms.length}部屋のうち 計${total}件`)
+          + (total > s.maxBulkCount ? `　※最大${s.maxBulkCount}件までです` : '');
+      el.style.color = !total || total > s.maxBulkCount ? 'var(--danger)' : '';
+    } else if (!el.hidden) {
       const parts = [];
       if (rooms.length > 1) parts.push(`${rooms.length}部屋`);
-      if (state.booking.copy && dates.length > 1) {
-        parts.push(dates.length <= 4 ? dates.map(mdLabel).join('・') : `${dates.length}日（${mdLabel(dates[0])}〜${mdLabel(dates[dates.length - 1])}）`);
-      } else if (dates.length > 1) {
+      if (dates.length > 1) {
         const label = { 7: '毎週', 14: '隔週', 1: '毎日' }[$('bInterval').value];
         const dow = $('bInterval').value === '1' ? '' : WEEKDAYS[weekday(dates[0])] + '曜日';
         parts.push(`${label}${dow} ${dates.length}回（${mdLabel(dates[0])}〜${mdLabel(dates[dates.length - 1])}）`);
@@ -1526,12 +1553,11 @@
     const end = getTime($('bEndH'), $('bEndM'));
     if (!(end > start)) return;
     const { t0, total } = state.geo;
-    const rooms = new Set(selectedRooms());
-    const dates = new Set(bookingDates());
+    const keys = new Set(bookingPairs().map((x) => x.date + '|' + x.roomId));
     const s = Math.max(start, t0), e = Math.min(end, t0 + total);
     if (e <= s) return;
     state.rows.forEach((row, i) => {
-      if (!rooms.has(row.roomId) || !dates.has(row.date)) return;
+      if (!keys.has(row.date + '|' + row.roomId)) return;
       const track = $('main').querySelector(`.tl-track[data-i="${i}"]`);
       if (!track) return;
       const el = document.createElement('div');
@@ -1547,16 +1573,14 @@
   function bookingDates() {
     const c = state.booking.mode === 'create' && state.booking.copy;
     if (c) {
-      // コピー: 日付の日から7日のうち選んだ曜日の日。くり返すときは、それぞれを最終日まで毎週（隔週）
-      const base = $('bDate').value;
-      if (!base) return [];
-      const firsts = Array.from({ length: 7 }, (_, i) => addDays(base, i)).filter((d) => c.days.has(weekday(d)) && !isClosedWeekday(d));
+      // コピー: 選んだ日。くり返すときは、それぞれを最終日まで毎週（隔週）
+      const firsts = [...c.days].filter((d) => d >= todayStr() && !isClosedWeekday(d)).sort();
       if (!$('bRepeat').checked) return firsts;
       const until = $('bUntil').value;
       const step = Number($('bInterval').value) === 14 ? 14 : 7;
-      const out = [];
-      for (const f of firsts) for (let d = f; until && d <= until && out.length <= 400; d = addDays(d, step)) out.push(d);
-      return out.sort();
+      const out = new Set();
+      for (const f of firsts) for (let d = f; until && d <= until && out.size <= 400; d = addDays(d, step)) out.add(d);
+      return [...out].sort();
     }
     if (state.booking.mode === 'create' && $('bRepeat').checked) return repeatDates();
     return $('bDate').value ? [$('bDate').value] : [];
@@ -1565,33 +1589,10 @@
   /** 予約する部屋（選択中の部屋 + 「他の部屋も同時に予約」で選んだ部屋、部屋マスタの順） */
   function selectedRooms() {
     const main = $('bRoom').value;
+    const c = state.booking.mode === 'create' && state.booking.copy;
+    if (c) return state.rooms.map((r) => r.id).filter((id) => c.rooms.has(id));
     if (state.booking.mode !== 'create' || !$('bMulti').checked) return [main];
     return state.rooms.map((r) => r.id).filter((id) => id === main || state.extraRooms.has(id));
-  }
-
-  /** 部屋の複数選択: 同じ名前の部屋（練習室6の電子P.1〜5 など）はまとめて1行にし、名前のボタンで一括選択 */
-  function renderRoomPicker() {
-    const main = $('bRoom').value;
-    const rooms = state.rooms.filter((r) => r.restriction !== STOPPED);
-    const groups = [];
-    for (const r of rooms) {
-      const g = groups.find((x) => x.name === r.name);
-      if (g) g.rooms.push(r); else groups.push({ name: r.name, rooms: [r] });
-    }
-    const chip = (r, text) => `<label class="rp-chip"><input type="checkbox" value="${esc(r.id)}"` +
-      `${r.id === main || state.extraRooms.has(r.id) ? ' checked' : ''}${r.id === main ? ' disabled' : ''}>` +
-      `<span>${esc(text)}${r.restriction === ADMIN_ONLY ? '［管理者のみ］' : ''}</span></label>`;
-    let html = '';
-    let singles = [];
-    const flush = () => { if (singles.length) html += `<div class="rp-chips">${singles.join('')}</div>`; singles = []; };
-    for (const g of groups) {
-      if (g.rooms.length === 1) { singles.push(chip(g.rooms[0], roomText(g.rooms[0]))); continue; }
-      flush();
-      html += `<div class="rp-group"><button type="button" class="rp-name" data-group="${esc(g.name)}">${esc(g.name)}<small>全${g.rooms.length}室</small></button>` +
-        `<div class="rp-chips">${g.rooms.map((r) => chip(r, r.tags || r.name)).join('')}</div></div>`;
-    }
-    flush();
-    $('bRoomPicker').innerHTML = html;
   }
 
   /** くり返し予約の対象日（毎日の場合は定休日を除く） */
@@ -1608,25 +1609,63 @@
     return dates;
   }
 
-  $('bMulti').addEventListener('change', (e) => { $('bMultiArea').hidden = !e.target.checked; resetConflicts(); updateBookingUi(); });
-  $('bRoomPicker').addEventListener('change', (e) => {
-    const cb = e.target.closest('input[type=checkbox]');
-    if (!cb) return;
-    if (cb.checked) state.extraRooms.add(cb.value); else state.extraRooms.delete(cb.value);
-    resetConflicts();
-    updateBookingUi();
-  });
-  $('bRoomPicker').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-group]');
-    if (!b) return;
-    const main = $('bRoom').value;
-    const ids = state.rooms.filter((r) => r.name === b.dataset.group && r.restriction !== STOPPED && r.id !== main).map((r) => r.id);
-    const allOn = ids.every((id) => state.extraRooms.has(id));
-    ids.forEach((id) => (allOn ? state.extraRooms.delete(id) : state.extraRooms.add(id)));
+  /** 予約する日と部屋の組み合わせ（コピーでは、元の予約と同じ日・部屋を除く） */
+  function bookingPairs() {
+    const c = state.booking.mode === 'create' && state.booking.copy;
+    const out = [];
+    for (const date of bookingDates()) {
+      for (const roomId of selectedRooms()) {
+        if (c && date === c.orig.date && roomId === c.orig.roomId) continue;
+        out.push({ date, roomId });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 部屋を複数選ぶ欄（新規予約の部屋の一覧を小さくしたもの）。押すと選択・解除。
+   * 同じ名前の部屋（練習室6の電子P.1〜5 など）は、先頭の「全◯室」でまとめて選べる。
+   * lock: 選んだまま外せない部屋（他の部屋も同時に予約するときの、上で選んだ部屋）、orig: 元の予約の部屋（点を付ける）
+   */
+  function roomGridHtml(selected, lock, orig) {
+    const rooms = state.rooms.filter((r) => r.restriction !== STOPPED);
+    const count = {};
+    for (const r of rooms) count[r.name] = (count[r.name] || 0) + 1;
+    let html = '';
+    let prev = '';
+    for (const r of rooms) {
+      if (count[r.name] > 1 && r.name !== prev) {
+        html += `<button type="button" class="rq rq-group" data-group="${esc(r.name)}"><b>${esc(r.name)}</b><small>全${count[r.name]}室</small></button>`;
+      }
+      prev = r.name;
+      const sub = [count[r.name] > 1 ? r.tags || '' : r.tags, r.restriction === ADMIN_ONLY ? '管理者のみ' : ''].filter(Boolean).join('・');
+      html += `<button type="button" class="rq ${r.tags ? tagClass(r.tags) : ''}${r.id === orig ? ' orig' : ''}" data-id="${esc(r.id)}"` +
+        ` aria-pressed="${selected.has(r.id) || r.id === lock}"${r.id === lock ? ' disabled' : ''} aria-label="${esc(roomText(r))}">` +
+        `<b>${esc(r.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+    }
+    return html;
+  }
+  function renderRoomPicker() {
+    const c = state.booking && state.booking.copy;
+    if (c) $('bCopyRooms').innerHTML = roomGridHtml(c.rooms, '', c.orig.roomId);
+    else $('bRoomPicker').innerHTML = roomGridHtml(state.extraRooms, $('bRoom').value, '');
+  }
+  /** 部屋のボタンを押したとき（1部屋 or 同じ名前の全部屋を切り替える） */
+  function onRoomGridClick(e, set, lock) {
+    const b = e.target.closest('button[data-id], button[data-group]');
+    if (!b || b.disabled) return;
+    const ids = b.dataset.group
+      ? state.rooms.filter((r) => r.name === b.dataset.group && r.restriction !== STOPPED && r.id !== lock).map((r) => r.id)
+      : [b.dataset.id];
+    const allOn = ids.every((id) => set.has(id));
+    ids.forEach((id) => (allOn ? set.delete(id) : set.add(id)));
     renderRoomPicker();
     resetConflicts();
     updateBookingUi();
-  });
+  }
+  $('bMulti').addEventListener('change', (e) => { $('bMultiArea').hidden = !e.target.checked; resetConflicts(); updateBookingUi(); });
+  $('bRoomPicker').addEventListener('click', (e) => onRoomGridClick(e, state.extraRooms, $('bRoom').value));
+  $('bCopyRooms').addEventListener('click', (e) => { if (state.booking && state.booking.copy) onRoomGridClick(e, state.booking.copy.rooms, ''); });
 
   function resetConflicts() {
     state.skipConflicts = false;
@@ -1668,11 +1707,13 @@
     }
     const roomIds = selectedRooms();
     const dates = bookingDates();
+    const pairs = bookingPairs();
     if (state.booking.copy) {
-      if (!dates.length) return fail('コピー先の曜日を選んでください。');
-      payload.date = dates[0];
+      if (!pairs.length) return fail('コピー先の日と部屋を選んでください（元の予約と同じ組み合わせは除きます）。');
+      payload.date = pairs[0].date;
+      payload.roomId = pairs[0].roomId;
     }
-    const total = roomIds.length * dates.length;
+    const total = pairs.length;
     const bulk = !edit && total > 1;
     if (!edit && $('bRepeat').checked && !dates.length) return fail('最終日を正しく指定してください。', 'bUntil');
     if (bulk && total > s.maxBulkCount) return fail(`まとめて予約は最大${s.maxBulkCount}件までです（今回${total}件）。部屋か期間を減らしてください。`);
@@ -1713,7 +1754,7 @@
       let res;
       const series = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
       if (edit) res = await api('updateReservation', Object.assign(payload, { id: state.booking.id }, series ? { scope: 'following' } : {}));
-      else if (bulk) res = await api('createBulkReservations', Object.assign(payload, { roomIds, dates, skipConflicts: state.skipConflicts }));
+      else if (bulk) res = await api('createBulkReservations', Object.assign(payload, { roomIds, dates, skipConflicts: state.skipConflicts }, state.booking.copy ? { pairs } : {}));
       else res = await api('createReservation', payload);
 
       if (res && res.ok) {
