@@ -23,6 +23,7 @@ export default {
     try {
       await ensureTable(env);
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
+      if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
       if (url.pathname === '/push' && request.method === 'POST') return await push(request, env);
       if (url.pathname === '/') return cors(json(await status(env)));
       return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
@@ -112,6 +113,45 @@ async function push(request, env) {
   }
   await env.DB.batch(stmts); // まとめて1回で書き換える（途中で失敗したら全部取り消される）
   return json({ ok: true, version });
+}
+
+/**
+ * カレンダーに追加するためのファイル（.ics）を返す。iPhone の Safari でこの URL を開くと、
+ * ダウンロードを挟まずに「カレンダーに追加」の画面がそのまま出る（ファイルとして保存されるのは、画面側で作った場合だけ）。
+ * 名前などの個人の情報は受け取らない: 部屋の名前・日付・開始・終了・予約のIDだけ。データベースも見ない。
+ *   /ics?id=res_…&room=練習室7（UP）&date=2026-10-10&start=19:00&end=20:00&site=https://…/yoyaku/
+ */
+function icsResponse(url) {
+  const q = (k) => (url.searchParams.get(k) || '').slice(0, 100);
+  const date = q('date'), start = q('start'), end = q('end');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(start) || !/^\d{1,2}:\d{2}$/.test(end)) {
+    return new Response('bad request', { status: 400 });
+  }
+  const stamp = (d, t) => {
+    const [y, mo, da] = d.split('-').map(Number);
+    const [h, mi] = t.split(':').map(Number);
+    return new Date(Date.UTC(y, mo - 1, da, h - 9, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  };
+  const text = (t) => String(t).replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, (c) => '\\' + c);
+  const room = q('room') || '練習室';
+  const site = /^https:\/\/[\w.-]+\.github\.io\//.test(q('site')) ? q('site') : '';
+  const id = (q('id').replace(/[^\w-]/g, '') || stamp(date, start)) + '@miyakyo-music.github.io';
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//miyakyo-music//yoyaku//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT', `UID:${id}`, `DTSTAMP:${stamp(date, start)}`,
+    `DTSTART:${stamp(date, start)}`, `DTEND:${stamp(date, end)}`,
+    `SUMMARY:${text(room + 'の予約')}`, `LOCATION:${text('宮城教育大学 音楽棟')}`,
+    ...(site ? [`URL:${site}`, `DESCRIPTION:${text(site)}`] : []),
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:練習室の予約', 'TRIGGER:-PT15M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR', '',
+  ].join('\r\n');
+  return new Response(ics, {
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `inline; filename="yoyaku-${date}.ics"`,
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
 // ---------------- 小物 ----------------
