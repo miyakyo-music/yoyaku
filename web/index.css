@@ -850,19 +850,19 @@ body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-durat
 
 /* 予約の帯と小窓のあいだを、形を変えながらつなぐ（View Transitions。JS の morph()）。
    動いている間は、小窓自身の広がる動きを止める（二重に動かさない）。
-   広がるのは無地のカード（--morph-bg）で、中身は拡大・縮小しない: 帯の文字はすぐ消し、小窓の中身は本来の大きさのまま
+   広がるのはすりガラスのカードで、中身は拡大・縮小しない: 帯の文字はすぐ消し、小窓の中身は本来の大きさのまま
    カードが広がるにつれて見えてくる（写しを引き伸ばすと、文字まで大きくせり出して見えたため） */
-/* カードは小窓と同じすりガラス（色・ぼかし・角丸）にし、動いている間は小窓自身の背景を消す（重ねると濃くなり、
-   終わった瞬間に本物の小窓へ入れ替わって「遅れて透ける」ように見えたため） */
-:root { --morph-bg: rgba(255, 255, 255, .84); --morph-blur: blur(40px) saturate(180%); }
-.refract { --morph-bg: rgba(255, 255, 255, .6); }
-html.dark { --morph-bg: rgba(40, 40, 44, .52); --morph-blur: blur(30px) saturate(190%); }
+/* カードは「ぼかし」だけを受け持ち、色（半透明の白・黒）と影は小窓の写しがそのまま持つ。
+   写しには後ろのぼかしが写らないので、カードのぼかしと重ねると、終わったときの本物の小窓と同じ見え方になる
+   （以前はカードに色を付けていたため、濃く見えたあと「遅れて透けた」。小窓自身の背景を消す方法は、
+     iPhone の Safari でぼかしが戻らなくなったのでやめた） */
+:root { --morph-blur: blur(40px) saturate(180%); }
+html.dark { --morph-blur: blur(30px) saturate(190%); }
 body.vt-morph dialog, body.vt-morph dialog::backdrop { transition: none !important; }
-body.vt-morph dialog { background: transparent !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
-  overflow: clip; border-radius: 22px; background: var(--morph-bg);
-  -webkit-backdrop-filter: var(--morph-blur); backdrop-filter: var(--morph-blur); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .08), 0 24px 60px rgba(0, 0, 0, .22);
+  overflow: clip; border-radius: 22px;
+  -webkit-backdrop-filter: var(--morph-blur); backdrop-filter: var(--morph-blur);
 }
 ::view-transition-old(morph), ::view-transition-new(morph) { width: 100%; height: 100%; object-fit: none; }
 /* 帯の写しは左端・上下中央のまま、すぐ消す */
