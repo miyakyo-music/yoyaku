@@ -1157,8 +1157,109 @@
     for (let h = Math.floor(open / 60); h <= Math.floor(close / 60); h++) hSel.add(new Option(String(h), String(h)));
     mSel.innerHTML = '';
     for (let m = 0; m < 60; m += s.unitMinutes) mSel.add(new Option(pad(m), String(m)));
+    syncWheel(hSel); syncWheel(mSel);
   }
-  function setTime(hSel, mSel, min) { hSel.value = String(Math.floor(min / 60)); mSel.value = String(min % 60); }
+
+  // ---------------- 時刻のホイール（予約画面の開始・終了） ----------------
+  // 選択欄（select）はデータの入れ物として残して隠し、その隣に指・マウス・キーで回せるホイールを置く。
+  // ホイールを回すと選択欄の値を変えて change を送るので、ほかの処理は選択欄だけを見ればよい。
+  // 表示する段の数は、画面の高さに合わせて CSS で 5段／3段を切り替える（--wheel-rows）。
+  const WHEEL_ITEM = 34; // 1段の高さ（CSS の .twheel .item と同じ）
+  function syncWheel(sel) { if (sel.wheel) sel.wheel.sync(); }
+  function makeWheel(sel) {
+    const el = document.createElement('div');
+    el.className = 'twheel';
+    el.tabIndex = 0;
+    el.setAttribute('role', 'spinbutton');
+    el.setAttribute('aria-label', sel.getAttribute('aria-label') || '');
+    sel.after(el);
+    sel.hidden = true;
+    sel.parentNode.classList.add('has-wheel');
+    let items = [], index = -1, raf = 0, sig = '';
+
+    const setScroll = (i, smooth) => el.scrollTo({ top: i * WHEEL_ITEM, behavior: smooth ? 'smooth' : 'auto' });
+    function paint() {
+      raf = 0;
+      const pos = el.scrollTop / WHEEL_ITEM;
+      const now = Math.round(pos);
+      items.forEach((it, i) => {
+        // 真ん中から離れた数字ほど奥へ傾けて薄くし、ドラムのように見せる
+        const a = Math.max(-1, Math.min(1, (i - pos) / 2.6));
+        it.style.transform = `perspective(300px) rotateX(${-a * 55}deg) scale(${1 - Math.abs(a) * .12})`;
+        it.style.opacity = String(1 - Math.min(1, Math.abs(i - pos) / 3) * .75);
+        it.classList.toggle('sel', i === now);
+      });
+      if (now !== index && now >= 0 && now < items.length) {
+        index = now;
+        el.setAttribute('aria-valuetext', items[now].textContent);
+        if (sel.selectedIndex !== now) {
+          sel.selectedIndex = now;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }
+    el.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+    // 数字を押すと、その数字まで回る
+    let dragY = null, startTop = 0, moved = false;
+    el.addEventListener('click', (e) => {
+      if (moved) return;
+      const it = e.target.closest('.item');
+      if (it) setScroll(items.indexOf(it), true);
+    });
+    // PC: マウスでつかんで上下にドラッグ（指はふつうのスクロールでそのまま回る）
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      dragY = e.clientY; startTop = el.scrollTop; moved = false;
+      el.setPointerCapture(e.pointerId); el.classList.add('dragging');
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (dragY === null) return;
+      if (Math.abs(e.clientY - dragY) > 3) moved = true;
+      el.scrollTop = startTop - (e.clientY - dragY);
+    });
+    const endDrag = () => {
+      if (dragY === null) return;
+      dragY = null; el.classList.remove('dragging');
+      setScroll(Math.round(el.scrollTop / WHEEL_ITEM), true);
+      setTimeout(() => { moved = false; }, 0);
+    };
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+    // キー: ↑↓ で1つ、PageUp/PageDown で3つ、Home/End で端まで
+    el.addEventListener('keydown', (e) => {
+      const step = { ArrowUp: -1, ArrowDown: 1, PageUp: -3, PageDown: 3 }[e.key];
+      let to = step ? index + step : e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : null;
+      if (to === null) return;
+      e.preventDefault();
+      setScroll(Math.max(0, Math.min(items.length - 1, to)), true);
+    });
+
+    sel.wheel = {
+      /** 選択欄の選択肢・値に合わせて、ホイールを作り直す・回し直す（change は送らない） */
+      sync() {
+        const nextSig = [...sel.options].map((o) => o.text).join('|');
+        if (nextSig !== sig) {
+          sig = nextSig;
+          el.innerHTML = '<div class="pad"></div>' + [...sel.options].map((o) => `<div class="item">${esc(o.text)}</div>`).join('') + '<div class="pad"></div>';
+          items = [...el.querySelectorAll('.item')];
+        }
+        index = sel.selectedIndex;
+        el.setAttribute('aria-valuetext', items[index] ? items[index].textContent : '');
+        // 予約画面が閉じている間は回せない（位置が 0 のまま読めてしまい、値を書き戻すおそれがある）ので、開いてから合わせる
+        if (!el.offsetParent) return;
+        setScroll(Math.max(0, index), false);
+        paint();
+      },
+      focus() { el.focus(); },
+    };
+    sel.wheel.sync();
+  }
+  for (const sel of document.querySelectorAll('#bookDialog .time select')) makeWheel(sel);
+
+  function setTime(hSel, mSel, min) {
+    hSel.value = String(Math.floor(min / 60)); mSel.value = String(min % 60);
+    syncWheel(hSel); syncWheel(mSel);
+  }
   function getTime(hSel, mSel) { return Number(hSel.value) * 60 + Number(mSel.value); }
 
   function defaultStart(date) {
@@ -1242,6 +1343,8 @@
     resetConflicts();
     updateBookingUi();
     $('bookDialog').showModal();
+    // 閉じている間はホイールの位置を合わせられないので、開いてから合わせ直す
+    for (const sel of $('bookDialog').querySelectorAll('.time select')) syncWheel(sel);
     renderDraft();
     // 新規予約は氏名／団体名の欄から入力できるようにする。
     // 変更時は入力欄に触れない（iPhoneでは部屋の選択肢やキーボードが勝手に開いてしまうため、見出しを選択状態にしている）
@@ -1424,7 +1527,7 @@
     const s = state.settings;
     const edit = state.booking.mode === 'edit';
     const err = $('bError');
-    const fail = (msg, focusId) => { err.textContent = msg; if (focusId) $(focusId).focus(); };
+    const fail = (msg, focusId) => { err.textContent = msg; if (focusId) ($(focusId).wheel || $(focusId)).focus(); };
     if (!$('bRoomQuickField').hidden) return fail('部屋を選んでください。');
     const payload = {
       roomId: $('bRoom').value,
