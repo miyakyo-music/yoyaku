@@ -51,6 +51,7 @@
       <nav class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="closures" aria-selected="true">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
+        <button type="button" role="tab" data-tab="history" aria-selected="false"><span class="lg">予約</span>履歴</button>
         <button type="button" role="tab" data-tab="stats" aria-selected="false">利用<span class="lg">状況</span></button>
         <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotSetup" hidden>●</span></button>
       </nav>
@@ -156,9 +157,9 @@
       </div>
 
       <!-- 不具合報告 -->
-      <!-- 予約の一覧（admin.js の「予約の一覧」。期間・部屋を選んで CSV に保存・印刷する） -->
-      <div class="card" data-panel="stats" hidden>
-        <h2>予約の一覧 <button type="button" class="info" aria-label="説明" data-tip="選んだ期間・部屋の予約を、印刷したり、CSV・Excel・PDF のファイルに書き出したりできます。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
+      <!-- 予約履歴（admin.js の「予約の一覧」。期間・部屋を選んで表示・印刷・エクスポートする） -->
+      <div class="card" data-panel="history" hidden>
+        <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="選んだ期間・部屋の予約を、印刷したり、CSV・Excel・PDF のファイルに書き出したりできます。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
         <form id="exportForm" class="add-form" novalidate>
           <div class="field f-date">開始日<label class="date-field"><span class="date-display" id="xFromDisplay" aria-hidden="true"></span><input id="xFrom" type="date" aria-label="開始日"></label></div>
           <div class="field f-date">終了日<label class="date-field"><span class="date-display" id="xToDisplay" aria-hidden="true"></span><input id="xTo" type="date" aria-label="終了日"></label></div>
