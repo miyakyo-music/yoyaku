@@ -980,7 +980,44 @@
     return drag;
   }
 
+  // ドラッグ中に表の端（左は部屋名の列の右端、右は画面の右端）へ近づいたら、その向きへ自動でスクロールする。
+  // 端に近いほど速い。スクロールした分、指の下の時刻が変わるので、帯（影）も合わせて伸ばす
+  const edge = { timer: 0, x: 0, y: 0, update: null, vertical: false };
+  function edgeFollow(x, y, update, vertical) {
+    edge.x = x; edge.y = y; edge.update = update; edge.vertical = !!vertical;
+    if (!edge.timer) edge.timer = setInterval(edgeStep, 30);
+  }
+  function edgeStop() { clearInterval(edge.timer); edge.timer = 0; edge.update = null; }
+  function edgeStep() {
+    if (!edge.update) { edgeStop(); return; }
+    const main = $('main');
+    const r = main.getBoundingClientRect();
+    const label = main.querySelector('.tl-label');
+    const left = label ? label.getBoundingClientRect().right : r.left;
+    const ZONE = 44, MAX = 16;
+    const speed = (d) => Math.round(Math.min(MAX, 3 + (1 - Math.max(0, d) / ZONE) * (MAX - 3)));
+    let dx = 0, dy = 0;
+    if (edge.x > r.right - ZONE) dx = speed(r.right - edge.x);
+    else if (edge.x < left + ZONE) dx = -speed(edge.x - left);
+    if (edge.vertical) {
+      const head = main.querySelector('.tl-head');
+      const top = head ? head.getBoundingClientRect().bottom : r.top;
+      if (edge.y > r.bottom - ZONE) dy = speed(r.bottom - edge.y);
+      else if (edge.y < top + ZONE) dy = -speed(edge.y - top);
+    }
+    if (!dx && !dy) return;
+    const bx = main.scrollLeft, by = main.scrollTop;
+    main.scrollLeft += dx;
+    main.scrollTop += dy;
+    if (main.scrollLeft !== bx || main.scrollTop !== by) edge.update(edge.x, edge.y);
+  }
+
   function updateDrag(clientX) {
+    edgeFollow(clientX, 0, (x) => updateDragAt(x));
+    updateDragAt(clientX);
+  }
+  function updateDragAt(clientX) {
+    if (!drag) return;
     const { t0, total } = state.geo;
     const unit = state.geo.unit;
     const m = minuteAt(drag.track, clientX);
@@ -998,6 +1035,7 @@
   }
 
   function finishDrag() {
+    edgeStop();
     const d = drag;
     drag = null;
     if (!d) return;
@@ -1007,7 +1045,7 @@
     }, () => $('bookDialog'));
   }
 
-  function cancelDrag() { if (drag) { drag.ghost.remove(); drag = null; } }
+  function cancelDrag() { edgeStop(); if (drag) { drag.ghost.remove(); drag = null; } }
 
   /** クリック・タップ: 30分単位の位置から1時間（空きが足りなければ空きの範囲）で予約画面を開く */
   function slotAt(track, clientX) {
@@ -1206,6 +1244,10 @@
     return true;
   }
   function updateMove(clientX, clientY) {
+    edgeFollow(clientX, clientY, (x, y) => { if (move) updateMoveAt(x, y); }, true);
+    updateMoveAt(clientX, clientY);
+  }
+  function updateMoveAt(clientX, clientY) {
     const el = document.elementFromPoint(clientX, clientY);
     let track = el && el.closest && el.closest('.tl-track');
     if (!track && move.track) track = move.track; // 行の外に出たときは、直前の行のまま
@@ -1232,6 +1274,7 @@
     move.ghost.textContent = `${hm(toHHMM(start))}〜${hm(toHHMM(end))}`;
   }
   function endMove(commit) {
+    edgeStop();
     const m = move;
     move = null;
     if (!m) return;
