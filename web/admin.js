@@ -661,13 +661,11 @@
     let html = '<div class="hc"></div>' + Array.from({ length: h1 - h0 }, (_, i) => `<div class="hh">${(h0 + i) % 3 === 0 ? h0 + i : ''}</div>`).join('');
     for (const wd of order) {
       html += `<div class="hd ${wd === 0 ? 'sun' : wd === 6 ? 'sat' : ''}">${WD[wd]}</div>`;
-      html += avg[wd].map((v, i) => `<div class="hx lv${v > 0 ? Math.min(4, Math.ceil((v / max) * 4)) : 0}" title="${WD[wd]}曜 ${h0 + i}時台: 平均 ${v.toFixed(1)}部屋"></div>`).join('');
+      html += avg[wd].map((v, i) => `<div class="hx" style="--v:${(v / max).toFixed(3)}" title="${WD[wd]}曜 ${h0 + i}時台: 平均 ${v.toFixed(1)}部屋"></div>`).join('');
     }
     const heat = $('stHeat');
     heat.style.setProperty('--cols', h1 - h0);
     heat.innerHTML = html;
-    // GitHub の草のように、色の濃さは5段階（0＝使われていない、4＝この期間でいちばん混む時間帯の近く）
-    $('stLegend').innerHTML = '少ない' + [0, 1, 2, 3, 4].map((l) => `<i class="hx lv${l}"></i>`).join('') + '多い';
 
     // 部屋ごと・設備ごと
     const openMin = days.length * (close - open);
