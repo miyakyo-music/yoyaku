@@ -526,7 +526,13 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
 .hx-bar { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: .5px solid var(--sep); }
 #xResultHead { flex: 1; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--muted); }
 #xResultHead b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; }
-#xResultHead + .btn { margin-left: auto; }
+.hx-out { display: flex; gap: 8px; margin-left: auto; }
+/* 印刷・PDF に入れる項目 */
+.cols-pop { min-width: 200px; padding: 10px; gap: 2px; }
+.cols-title { margin: 0 4px 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.cols-pop .check:first-child { border-bottom: 0; margin-bottom: 0; border-radius: 8px; }
+#xColsList { display: flex; flex-direction: column; gap: 2px; }
+#xColsGo { margin-top: 8px; }
 /* 印刷用の表（admin.js が作る）。ふだんは隠し、印刷のときはこれだけを出す。色は画面の明暗にかかわらず白地に黒 */
 #printArea { display: none; }
 @media print {
@@ -544,7 +550,7 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
   #printArea th { border-bottom: 1pt solid #000; font-weight: 700; }
   #printArea tr { break-inside: avoid; }
   #printArea tr.day td { border-top: 1pt solid #777; }
-  #printArea td.d, #printArea td.t { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #printArea td.d, #printArea td.c-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
   #printArea .sat { color: #1d4ed8; }
   #printArea .sun { color: #c62828; }
 }
@@ -552,7 +558,18 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
 #xResult { margin-top: 10px; }
 #xResult .list-table td { font-variant-numeric: tabular-nums; }
 #xResult .list-table tr.day td { border-top: 1px solid var(--line-strong); }
-#xResult .list-table td.m { white-space: normal; min-width: 140px; }
+/* 行を押すと、その予約の情報を全部その下に開く */
+#xResult .list-table.clickable tr[data-i] { cursor: pointer; }
+@media (hover: hover) { #xResult .list-table.clickable tr[data-i]:hover td { background: var(--fill-field); } }
+#xResult .list-table tr.open td { background: rgba(0, 122, 255, .07); }
+#xResult .list-table tr.detail td { padding: 6px 12px 14px; white-space: normal; background: rgba(0, 122, 255, .07); }
+.res-detail { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 16px; margin: 0; font-size: 13px; }
+.res-detail div { display: contents; }
+.res-detail dt { color: var(--muted); }
+.res-detail dd { margin: 0; overflow-wrap: anywhere; }
+.res-detail .none { color: var(--muted); }
+.swatch { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 3px; vertical-align: -1px; }
+.swatch.c-red { background: #ff3b30; } .swatch.c-purple { background: #af52de; } .swatch.c-green { background: #34c759; }
 /* エクスポートの形式の一覧 */
 .fmt-pop { min-width: 220px; }
 .fmt-pop button {
@@ -575,7 +592,9 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
   #xResult .table-wrap td:nth-child(3) { grid-area: room; color: var(--text); font-size: 14px; }
   #xResult .table-wrap td:nth-child(4) { grid-area: name; color: var(--muted); font-size: 13px; }
   #xResult .table-wrap td:nth-child(5) { grid-area: aff; color: var(--muted); font-size: 13px; }
-  #xResult .table-wrap td.m { grid-area: memo; min-width: 0; color: var(--muted); font-size: 12px; }
-  #xResult .table-wrap td.m:empty { display: none; }
+  #xResult .table-wrap tr.detail { display: block; padding: 0 0 10px; border-bottom: .5px solid var(--sep); }
+  #xResult .table-wrap tr.detail td { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 400; }
+  #xResult .table-wrap tr.open td { background: none; }
+  #xResult .table-wrap tr.open { border-bottom: 0; }
   #xResult .list-table tr.day td { border-top: 0; }
 }

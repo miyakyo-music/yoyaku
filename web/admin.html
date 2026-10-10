@@ -177,13 +177,19 @@
         </form>
         <div class="hx-bar">
           <p id="xResultHead" aria-live="polite"></p>
-          <button type="button" class="btn" id="xPrintBtn">印刷</button>
-          <div class="multi" id="xFmtPick">
+          <div class="multi hx-out" id="xFmtPick">
+            <button type="button" class="btn" id="xPrintBtn" aria-haspopup="true" aria-expanded="false">印刷</button>
             <button type="button" class="btn primary" id="xFmtBtn" aria-haspopup="true" aria-expanded="false">エクスポート</button>
             <div class="multi-pop fmt-pop" id="xFmtPop" hidden>
               <button type="button" data-fmt="csv">CSV<small>Excel・Numbers などで開ける表</small></button>
               <button type="button" data-fmt="xlsx">Excel<small>.xlsx</small></button>
               <button type="button" data-fmt="pdf">PDF<small>印刷と同じ表を A4 で</small></button>
+            </div>
+            <!-- 印刷・PDF に入れる項目（日付はいつも入れる） -->
+            <div class="multi-pop cols-pop" id="xColsPop" hidden>
+              <p class="cols-title" id="xColsTitle"></p>
+              <div id="xColsList"></div>
+              <button type="button" class="btn primary" id="xColsGo"></button>
             </div>
           </div>
         </div>
