@@ -1,6 +1,6 @@
 /* 管理画面（admin.html）の見た目。HTML から <link> で読み込む */
 :root {
-  --surface: #ffffff;
+  --surface: #ffffff; --pop-bg: #ffffff;
   --line: #e3e7ec;
   --line-strong: #b8c1cb;
   --warn-bg: #fff7e0;
@@ -200,6 +200,26 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .bug-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .bug details pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 11px; margin: 6px 0 0; }
 .add-form .f-room { flex: 1 1 140px; } /* スマホでは日付の右に並べる（長い部屋名は端が省略される） */
+/* 対象（複数選べる）: 選択欄と同じ見た目のボタンを押すと、部屋のチェックの一覧が下に開く */
+.multi { position: relative; }
+.multi-btn {
+  display: block; width: 100%; height: 38px; padding: 0 32px 0 12px; border: 0; border-radius: 11px; text-align: left;
+  font: inherit; font-size: 16px; color: var(--text); background-color: var(--fill-field); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.multi-btn:focus-visible, .multi-btn[aria-expanded="true"] { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
+.multi-pop {
+  position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; min-width: 100%; width: max-content; max-width: min(320px, calc(100vw - 32px));
+  max-height: min(360px, 55vh); overflow-y: auto; overscroll-behavior: contain; padding: 6px; border-radius: 12px;
+  display: flex; flex-direction: column; gap: 2px; background: var(--pop-bg);
+  box-shadow: 0 0 0 .5px rgba(0, 0, 0, .12), 0 8px 24px rgba(0, 0, 0, .16);
+}
+.multi-pop[hidden] { display: none; }
+.multi-pop .check { padding: 7px 8px; border-radius: 8px; color: var(--text); font-size: 15px; cursor: pointer; }
+@media (hover: hover) { .multi-pop .check:hover { background: var(--fill-field); } }
+.multi-pop .check:first-child { border-bottom: .5px solid var(--sep); border-radius: 8px 8px 0 0; margin-bottom: 2px; }
 .add-form .f-allday { flex: none; height: 38px; }
 .add-form .f-time { flex: 0 0 auto; }
 .add-form .f-time select { width: 64px; flex: none; }
@@ -427,7 +447,7 @@ html.dark [data-panel="stats"] { --heat: #30d158; }
    端末がダークモードのとき（または URL に ?dark を付けたとき）、html に .dark を付けて色を差し替える */
 html.dark {
   color-scheme: dark;
-  --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93;
+  --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93; --pop-bg: #2c2c2e;
   --line: rgba(255, 255, 255, .07); --line-strong: rgba(84, 84, 88, .65); --sep: rgba(84, 84, 88, .6);
   --accent: #0a84ff; --accent-weak: rgba(10, 132, 255, .18); --danger: #ff453a;
   --warn-bg: rgba(255, 159, 10, .16); --warn-text: #ffc66b;
@@ -462,6 +482,6 @@ html.dark th { background: rgba(255, 255, 255, .06); }
 html.dark .sat { color: #409cff; }
 html.dark .msg.error { background: rgba(255, 69, 58, .16); }
 html.dark .toast { background: rgba(58, 58, 60, .9); }
-html.dark .field select, html.dark select.in, html.dark .bug-head select, html.dark .notice-edit select, html.dark .time select, html.dark .suffix select {
+html.dark .field select, html.dark select.in, html.dark .bug-head select, html.dark .notice-edit select, html.dark .time select, html.dark .suffix select, html.dark .multi-btn {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E");
 }

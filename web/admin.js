@@ -358,9 +358,36 @@
   }
   $('cDate').addEventListener('input', showClosureDate);
   $('cDate').addEventListener('change', showClosureDate);
+  // 対象は複数の部屋を選べる（何も選ばなければ全室）。追加すると部屋ごとに1件ずつ登録する
+  const closureRooms = new Set();
+  function showClosureRooms() {
+    $('cRoomPop').querySelectorAll('input').forEach((c) => { c.checked = c.value ? closureRooms.has(c.value) : !closureRooms.size; });
+    const names = state.data.rooms.filter((r) => closureRooms.has(r.id)).map((r) => roomName(r.id));
+    $('cRoomBtn').textContent = !names.length ? '全室' : names.length === 1 ? names[0] : `${names[0].replace(/（.*$/, '')} ほか${names.length - 1}室`;
+    $('cRoomBtn').title = names.join('、');
+  }
+  function toggleRoomPop(open) {
+    $('cRoomPop').hidden = !open;
+    $('cRoomBtn').setAttribute('aria-expanded', String(open));
+  }
+  $('cRoomBtn').addEventListener('click', () => toggleRoomPop($('cRoomPop').hidden));
+  $('cRoomPop').addEventListener('change', (e) => {
+    const c = e.target;
+    if (!c.value) closureRooms.clear();
+    else if (c.checked) closureRooms.add(c.value);
+    else closureRooms.delete(c.value);
+    showClosureRooms();
+  });
+  document.addEventListener('pointerdown', (e) => { if (!$('cRoomPop').hidden && !e.target.closest('#cRoomPick')) toggleRoomPop(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('cRoomPop').hidden) { toggleRoomPop(false); $('cRoomBtn').focus(); } });
   function renderClosureForm() {
     const s = state.data.settings;
-    $('cRoom').innerHTML = '<option value="">全室</option>' + state.data.rooms.map((r) => `<option value="${esc(r.id)}">${esc(roomName(r.id))}</option>`).join('');
+    // 消えた部屋は選択から外す
+    const ids = new Set(state.data.rooms.map((r) => r.id));
+    [...closureRooms].forEach((id) => { if (!ids.has(id)) closureRooms.delete(id); });
+    $('cRoomPop').innerHTML = `<label class="check"><input type="checkbox" value="">全室</label>` +
+      state.data.rooms.map((r) => `<label class="check"><input type="checkbox" value="${esc(r.id)}">${esc(roomName(r.id))}</label>`).join('');
+    showClosureRooms();
     if (!$('cDate').value) $('cDate').value = state.data.today;
     showClosureDate();
     timeSelects($('cStartH'), $('cStartM'), 24);
@@ -406,7 +433,6 @@
     e.preventDefault();
     const item = {
       date: $('cDate').value,
-      roomId: $('cRoom').value,
       allDay: $('cAllDay').checked,
       start: getTime($('cStartH'), $('cStartM')),
       end: getTime($('cEndH'), $('cEndM')),
@@ -417,7 +443,9 @@
     const btn = $('addClosureBtn');
     btn.disabled = true;
     try {
-      await saveClosures(state.closures.concat([item]), '追加しました');
+      const ids = closureRooms.size ? state.data.rooms.map((r) => r.id).filter((id) => closureRooms.has(id)) : [''];
+      toggleRoomPop(false);
+      await saveClosures(state.closures.concat(ids.map((roomId) => ({ ...item, roomId }))), ids.length > 1 ? `${ids.length}室に追加しました` : '追加しました');
       $('cReason').value = '';
     } catch (ex) {
       $('closureError').textContent = errMessage(ex);
