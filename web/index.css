@@ -393,9 +393,10 @@ dialog h2 { margin: 0; }
 .hovercard .hc-dot.mine { background: var(--mine-border); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 /* 予約画面の「部屋」と「日付」: 横幅が足りれば1行に並べ、足りなければ縦に積む（部屋を一覧から選ぶ間は日付だけで1行） */
-/* 予約の詳細の「カレンダーに追加」 */
-.cal-add { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-size: 13px; color: var(--muted); }
-.cal-add .btn.small { height: 32px; padding: 0 14px; font-size: 14px; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+/* 予約の詳細の「カレンダーに追加」: 見出しの右に小さく置き、場所を取らないようにする */
+.dlg-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-add { display: flex; flex: none; }
+.cal-add .btn.small { height: 30px; padding: 0 12px; font-size: 13px; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 .room-date { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 /* 氏名と学籍番号は、スマホでは入力例が切れないよう縦に並べる */
 @media (max-width: 600px) { .grid2.person { grid-template-columns: 1fr; } }

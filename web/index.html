@@ -160,7 +160,11 @@
   <!-- 予約詳細ダイアログ -->
   <dialog id="detailDialog">
     <form id="detailForm" novalidate>
-      <h2 tabindex="-1" autofocus>予約の詳細</h2>
+      <div class="dlg-title">
+        <h2 tabindex="-1" autofocus>予約の詳細</h2>
+        <span class="cal-add" id="dCal" hidden><a class="btn small" id="dCalAdd">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>カレンダーに追加</a></span>
+      </div>
       <dl class="summary">
         <dt>部屋</dt><dd id="dRoom"></dd>
         <dt>日付</dt><dd id="dDate"></dd>
@@ -168,10 +172,6 @@
         <dt>予約者</dt><dd id="dName"></dd>
         <dt id="dMemoDt">備考</dt><dd id="dMemo"></dd>
       </dl>
-      <div class="cal-add" id="dCal" hidden>
-        <a class="btn small" id="dCalAdd">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>カレンダーに追加</a>
-      </div>
       <div id="dOps">
         <label class="field"><span>編集用パスワード（予約時に設定した4桁）<span class="req" aria-hidden="true">*</span></span>
           <input id="dPin" class="pin-input" type="text" inputmode="numeric" autocomplete="one-time-code" data-1p-ignore data-lpignore="true" data-bwignore autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="4桁の数字">
