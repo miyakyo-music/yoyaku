@@ -1127,6 +1127,11 @@
               text(d, x + 4, y + 11, FS);
               text(`(${w})`, x + 4 + textWidth(d, FS), y + 11, FS, { color: w === '土' ? '.11 .31 .85' : w === '日' ? '.78 .16 .16' : '0 0 0' });
             }
+          } else if (c.k === 'time') {
+            // 開始を右揃えにして「〜」の位置をそろえる
+            const s0 = hm(r.start), sw = textWidth('00:00', FS);
+            text(s0, x + 4 + sw - textWidth(s0, FS), y + 11, FS);
+            text(`〜${hm(r.end)}`, x + 4 + sw, y + 11, FS);
           } else {
             text(fit(cellOf(r, c.k), c.w - 8, FS), x + 4, y + 11, FS);
           }
@@ -1211,7 +1216,10 @@
       const w = wdOf(r.date);
       const cells = cols.map((c) => (c.k === 'date'
         ? `<td class="d">${first ? `${crossYear ? slash(r.date) : slash(r.date).slice(5)}<span class="${w === '土' ? 'sat' : w === '日' ? 'sun' : ''}">(${w})</span>` : ''}</td>`
-        : `<td class="c-${c.k}">${esc(cellOf(r, c.k))}</td>`)).join('');
+        : c.k === 'time'
+          // 開始を右揃えにして「〜」の位置をそろえる（「9:25」と「10:00」で桁数が違うため）
+          ? `<td class="c-time"><span class="t-s">${hm(r.start)}</span>〜${hm(r.end)}</td>`
+          : `<td class="c-${c.k}">${esc(cellOf(r, c.k))}</td>`)).join('');
       return `<tr class="${first ? 'day' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${cells}</tr>`;
     }).join('');
     return `<table class="list-table${opt.clickable ? ' clickable' : ''}"><thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
