@@ -1196,6 +1196,15 @@
     return new Blob(chunks, { type: 'application/pdf' });
   }
 
+  /**
+   * 画面の一覧に出す短い部屋名（特徴タグの（）は詳細で見せる）。ただし、同じ名前の部屋が複数あるとき
+   * （練習室6 の電子ピアノ5台など）は、見分けられるようにタグを残す
+   */
+  function shortRoom(id) {
+    const r = state.data.rooms.find((x) => x.id === id);
+    if (!r) return id;
+    return state.data.rooms.filter((x) => x.name === r.name).length > 1 ? roomName(id) : r.name;
+  }
   /** 項目の中身（日付以外） */
   function cellOf(r, k) {
     return k === 'time' ? `${hm(r.start)}〜${hm(r.end)}` : k === 'room' ? roomName(r.roomId) : k === 'name' ? r.name : k === 'aff' ? r.affiliation : k === 'memo' ? r.memo : '';
@@ -1219,7 +1228,7 @@
         : c.k === 'time'
           // 開始を右揃えにして「〜」の位置をそろえる（「9:25」と「10:00」で桁数が違うため）
           ? `<td class="c-time"><span class="t-s">${hm(r.start)}</span>〜${hm(r.end)}</td>`
-          : `<td class="c-${c.k}">${esc(cellOf(r, c.k))}</td>`)).join('');
+          : `<td class="c-${c.k}">${esc(c.k === 'room' && opt.clickable ? shortRoom(r.roomId) : cellOf(r, c.k))}</td>`)).join('');
       return `<tr class="${first ? 'day' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${cells}</tr>`;
     }).join('');
     return `<table class="list-table${opt.clickable ? ' clickable' : ''}"><thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
