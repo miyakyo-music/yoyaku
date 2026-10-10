@@ -643,19 +643,18 @@
     const byRoom = new Map(rooms.map((r) => [r.id, 0]));
     for (const r of list) byRoom.set(r.roomId, (byRoom.get(r.roomId) || 0) + toMin(r.end) - toMin(r.start));
     const roomRows = rooms.filter((r) => r.restriction !== '使用停止').map((r) => ({ name: r.name + (r.tags ? `（${r.tags}）` : ''), min: byRoom.get(r.id) || 0 }));
-    const rmax = Math.max(1, ...roomRows.map((x) => x.min));
     $('stRooms').innerHTML = roomRows.map((x) => {
       const r = openMin ? (x.min / openMin) * 100 : 0;
       const pct = r && r < 10 ? r.toFixed(1) : Math.round(r); // 小さい割合は小数1けたまで
-      return `<div class="bar"><span class="bn">${esc(x.name)}</span><span class="bt"><i style="width:${(x.min / rmax) * 100}%"></i></span><span class="bv">${hoursText(x.min)}・${pct}%</span></div>`;
+      // 棒の長さは右の％と同じ（利用時間のうち埋まっていた割合。0〜100％）
+      return `<div class="bar"><span class="bn">${esc(x.name)}</span><span class="bt"><i style="width:${Math.min(100, r)}%"></i></span><span class="bv">${hoursText(x.min)}・${pct}%</span></div>`;
     }).join('');
     const byEq = new Map();
     const eqOf = new Map(rooms.map((r) => [r.id, r.equipment || 'その他']));
     for (const r of list) { const e = eqOf.get(r.roomId) || 'その他'; byEq.set(e, (byEq.get(e) || 0) + toMin(r.end) - toMin(r.start)); }
     const eqRows = [...byEq.entries()].sort((a, b) => b[1] - a[1]);
-    const emax = Math.max(1, ...eqRows.map((x) => x[1]));
     $('stEquip').innerHTML = eqRows.length ? eqRows.map(([name, min]) =>
-      `<div class="bar"><span class="bn">${esc(name)}</span><span class="bt"><i style="width:${(min / emax) * 100}%"></i></span><span class="bv">${hoursText(min)}・${total ? Math.round((min / total) * 100) : 0}%</span></div>`).join('')
+      `<div class="bar"><span class="bn">${esc(name)}</span><span class="bt"><i style="width:${total ? (min / total) * 100 : 0}%"></i></span><span class="bv">${hoursText(min)}・${total ? Math.round((min / total) * 100) : 0}%</span></div>`).join('')
       : '<p class="help">この期間の予約はありません。</p>';
   }
   for (const b of document.querySelectorAll('[data-period]')) {
