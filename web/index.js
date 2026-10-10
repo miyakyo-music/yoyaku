@@ -1449,6 +1449,17 @@
     let syncing = false;
 
     const setScroll = (i, smooth) => el.scrollTo({ top: i * WHEEL_ITEM, behavior: smooth ? 'smooth' : 'auto' });
+    // 指定した段へ、吸い付き（scroll-snap）を止めてから一気に動かす。iPhone の Safari は、前に止まっていた段を覚えていて、
+    // 予約画面が開く動きの最中などに、その段へ勝手に戻すことがある（前回の「23時」に戻り、触れたときにその値が入っていた）
+    let jumps = 0, settleTimer = 0;
+    function jump(i) {
+      el.style.scrollSnapType = 'none';
+      el.scrollTop = i * WHEEL_ITEM;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.style.scrollSnapType = '';
+        if (syncing) el.scrollTop = index * WHEEL_ITEM;
+      }));
+    }
     function paint() {
       raf = 0;
       const pos = el.scrollTop / WHEEL_ITEM;
@@ -1465,7 +1476,8 @@
         it.classList.toggle('sel', i === now);
       });
       if (syncing) {
-        if (now === index) syncing = false; // 指定した位置に着いた
+        // 合わせ直しの間（開いてから少しの間）は値を書き戻さず、別の段へ戻されたら指定した段へ動かし直す
+        if (now !== index && jumps < 20) { jumps++; jump(index); }
         return;
       }
       if (now !== index && now >= 0 && now < items.length) {
@@ -1478,7 +1490,17 @@
       }
     }
     el.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
-    for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) el.addEventListener(type, () => { syncing = false; }, { passive: true });
+    // 触れたら合わせ直しをやめて、指の動きに任せる。まだ指定した段に着いていなければ、先にそこへ動かす
+    // （ずれた段のまま触れると、その段の値が書き込まれてしまうため）
+    for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) {
+      el.addEventListener(type, () => {
+        if (syncing && index >= 0 && Math.round(el.scrollTop / WHEEL_ITEM) !== index) {
+          el.style.scrollSnapType = '';
+          el.scrollTop = index * WHEEL_ITEM;
+        }
+        syncing = false;
+      }, { passive: true });
+    }
     // 数字を押すと、その数字まで回る
     let dragY = null, startTop = 0, moved = false;
     el.addEventListener('click', (e) => {
@@ -1528,9 +1550,20 @@
         // 予約画面が閉じている間は回せない（位置が 0 のまま読めてしまい、値を書き戻すおそれがある）ので、開いてから合わせる
         if (!el.offsetParent) return;
         syncing = true;
-        setScroll(Math.max(0, index), false);
-        // 位置がすぐに反映されないことがあるので、次の描画でも合わせ直す
-        requestAnimationFrame(() => { if (syncing) setScroll(Math.max(0, index), false); });
+        jumps = 0;
+        jump(Math.max(0, index));
+        // 開く動き（0.4秒ほど）が終わって落ち着くまで見張り、指定した段にいることを確かめてから、指で回した値を受け付ける
+        clearTimeout(settleTimer);
+        const settle = (tries) => {
+          if (!syncing) return;
+          if (el.offsetParent && Math.round(el.scrollTop / WHEEL_ITEM) !== index && tries < 5) {
+            jump(index);
+            settleTimer = setTimeout(() => settle(tries + 1), 300);
+            return;
+          }
+          syncing = false;
+        };
+        settleTimer = setTimeout(() => settle(0), 700);
         paint();
       },
       focus() { el.focus(); },
