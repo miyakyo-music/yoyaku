@@ -1,13 +1,8 @@
 /* 予約表（index.html）の見た目。HTML から <link> で読み込む */
 :root {
-  --bg: #f4f6f8;
   --surface: #ffffff;
-  --text: #1f2933;
-  --muted: #66727f;
   --line: #e3e7ec;
   --line-strong: #b8c1cb;
-  --accent: #2563eb;
-  --accent-weak: #e8f0ff;
   /* 予約の帯の色（iOS のシステムカラーに近いオレンジと青を、白地に薄く敷いた色） */
   --res: rgba(255, 149, 0, .16); /* 半透明にして、下の罫線や縞模様が透けて見えるようにする */
   --res-border: #ff9500;
@@ -18,9 +13,6 @@
   --closed: #e4e7eb;
   --closed-text: #55606c;
   --past: rgba(120, 130, 145, .13);
-  --danger: #cf3f3f;
-  --sat: #2563eb;
-  --sun: #cf3f3f;
   --label-w: 150px;
   --hour-w: 96px;
   --row-h: 40px;
@@ -46,7 +38,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- ヘッダー ---------- */
 .topbar {
-  flex: none; background: var(--surface); border-bottom: 1px solid var(--line);
+  flex: none;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -54,7 +46,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
 h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tools { display: flex; gap: 6px; align-items: center; margin-left: auto; }
-.admin-link { font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
+.admin-link { font-size: 12px; text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
 @media (hover: hover) { .admin-link:hover { color: var(--accent); border-color: var(--accent); } }
 /* 管理者モードで、未対応の不具合報告があるときの件数 */
 .admin-link { position: relative; }
@@ -68,7 +60,6 @@ h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-ove
   font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
   flex: none; height: 26px; padding: 0 7px; border: 0; border-radius: 13px; background: none; cursor: pointer;
 }
-.status svg { flex: none; }
 @media (hover: hover) { .status:hover { background: #eef1f5; color: var(--text); } }
 .status:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* 読み込み中は、↻ の代わりに iOS と同じ「くるくる」（8本の線が濃い順に並び、1本ずつ送るように回る）を出す。
@@ -80,13 +71,12 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
 @media (prefers-reduced-motion: reduce) { body.loading .status .ic-spinner { animation-duration: 1.6s; } }
 /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
 .notice {
-  margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 8px;
-  background: #e8f0ff; border: 1px solid #bcd0fb; color: #1e3a8a; font-size: 13px; font-weight: 600; line-height: 1.5;
+  margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; font-size: 13px; font-weight: 600; line-height: 1.5;
 }
 .notice svg { flex: none; margin-top: 2px; }
 .notice .ic-alert, .notice.important .ic-info { display: none; }
 .notice.important .ic-alert { display: inline; }
-.notice.important { background: #fdecec; border-color: #f3b5b5; color: #8f1d1d; }
+.notice.important { border-color: #f3b5b5; }
 /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
 /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
 .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
@@ -96,15 +86,13 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
 /* 試験運用中の帯 */
 .beta-band {
   flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 4px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left));
-  background: #fff7e0; border-bottom: 1px solid #f1dfa6; color: #6b4e00; font-size: 12px;
+  padding: 4px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left)); color: #6b4e00; font-size: 12px;
 }
 .beta-label { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .beta-label svg, .beta-report svg { flex: none; }
 .beta-label .narrow-text { display: none; }
 .beta-report {
-  flex: none; display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; color: #6b4e00;
-  background: #fff; border: 1px solid #e8cf86; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+  flex: none; display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; color: #6b4e00; padding: 2px 8px; cursor: pointer; white-space: nowrap;
 }
 @media (hover: hover) { .beta-report:hover { background: #fffbef; } }
 .btn {
@@ -113,13 +101,13 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
 }
 @media (hover: hover) { .btn:hover { background: #f3f5f8; } .btn.primary:hover { background: #1d4fd0; } }
 .btn:disabled { opacity: .55; cursor: default; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.btn.primary { background: var(--accent); border-color: var(--accent); font-weight: 600; }
+.btn.danger { background: var(--danger); border-color: var(--danger); font-weight: 600; }
 .seg { display: inline-flex; }
 .seg .btn { border-radius: 0; margin-left: -1px; }
 .seg .btn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
 .seg .btn:last-child { border-radius: 0 8px 8px 0; }
-.seg .btn[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); font-weight: 700; position: relative; z-index: 1; }
+.seg .btn[aria-pressed="true"] { border-color: var(--accent); position: relative; z-index: 1; }
 input[type="date"], select {
   height: 34px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface);
   font-size: 16px; /* 16px未満だとiOS Safariでフォーカス時に画面が拡大される */
@@ -134,13 +122,13 @@ input[type="date"], select {
 }
 /* 一覧・部屋別の日付（期間）は日付欄と表を見ればわかるので出さない。カレンダーの「○年○月」だけ出す */
 .range-label.redundant { display: none; }
-.free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; color: #1e7a43; font-weight: 700; }
+.free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; }
 .tl-label .nm-line { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 .tl-label .nm-line .nm { flex: none; }
 .tl-label .free-until { font-size: 11px; color: #1e7a43; font-weight: 600; white-space: nowrap; }
 /* 日付欄: 曜日付きの表示の上に、透明にした標準の日付入力を重ねる（押すと標準のカレンダーが開く） */
 .datenav { display: inline-flex; align-items: center; gap: 6px; }
-.btn.arrow { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.btn.arrow { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 @media (hover: hover) { .btn.arrow:hover { color: var(--text); } }
 .date-field { position: relative; display: inline-flex; }
 /* 予約画面の日付欄（ほかの入力欄と同じ高さ・幅） */
@@ -178,7 +166,7 @@ input[type="date"], select {
 body.loading .main > * { opacity: .65; transition: opacity .2s; }
 .tl { width: max-content; min-width: 100%; }
 /* 重なり順: 予約ブロックの色 < 現在時刻線(2) < 予約ブロックの文字(3) < ドラッグ中の枠(5) < 部屋名の列(6) < 時刻見出し(7) */
-.tl-head { display: flex; position: sticky; top: 0; z-index: 7; background: var(--surface); border-bottom: 1px solid var(--line-strong); }
+.tl-head { display: flex; position: sticky; z-index: 7; border-bottom: 1px solid var(--line-strong); }
 .tl-corner, .tl-label {
   position: sticky; left: 0; z-index: 6; flex: none; width: var(--label-w);
   background: var(--surface); border-right: 1px solid var(--line-strong);
@@ -189,7 +177,7 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
   width: var(--hour-w); flex: none; font-size: 12px; font-weight: 600; color: var(--muted);
   padding: 6px 0 0 4px; height: 28px; border-left: 1px solid var(--line-strong);
 }
-.tl-scale span.now { color: var(--accent); background: var(--accent-weak); }
+.tl-scale span.now { color: var(--accent); }
 /* 時間軸を縮めて時刻の文字が入らないときは、2時間おき・3時間おきに表示する */
 .tl.narrow .tl-scale span { font-size: 11px; padding-left: 2px; }
 .tl.narrow .tl-scale span:nth-child(even) { color: transparent; }
@@ -210,7 +198,6 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 .tl-label .sub { display: flex; gap: 4px; margin-top: 2px; }
 /* 部屋（日付）の行を1行おきにごく薄く色付けし、横に長い行を目で追いやすくする */
 .tl-row:nth-child(odd) .tl-label, .tl-row:nth-child(odd) .tl-track { background-color: #f7f9fb; }
-.tl-row.today .tl-label { background: #f0f6ff; }
 .tl-row.week-start { border-top: 2px solid var(--line-strong); }
 /* 現在時刻の線は行の区切り線の上まで伸ばしているので、部屋名の列の下に回ったときに区切り線の所から透けないよう、
    部屋名の列で区切り線の部分も覆う */
@@ -231,8 +218,7 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 .tag.t-ep { background: #e3eefc; color: #2457a1; }
 .tl-label .sub { flex-wrap: wrap; }
 .admin-mode {
-  font-size: 11px; font-weight: 700; color: #9b2c2c; background: #fde8e8; border: 1px solid #f3b5b5;
-  border-radius: 6px; padding: 2px 6px; cursor: pointer; white-space: nowrap;
+  font-size: 11px; font-weight: 700; padding: 2px 6px; cursor: pointer; white-space: nowrap;
 }
 .limited-mode, .tag.t-limited { color: #5b3a9b; background: #efe8fb; border-color: #d4c3f2; }
 /* 複数部屋の選択 */
@@ -250,7 +236,7 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
   display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 15px;
   font-size: 13px; cursor: pointer; background: var(--surface); white-space: nowrap;
 }
-.rp-chip input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.rp-chip input:checked + span { border-color: var(--accent); color: #fff; font-weight: 600; }
 .rp-chip input:disabled + span { cursor: default; opacity: .85; }
 .rp-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tl-track {
@@ -323,8 +309,7 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 .blk.res:focus-visible::after { box-shadow: inset 0 0 0 2px var(--accent) !important; }
 @media (hover: hover) { .blk.res:hover::after { filter: brightness(.96); } }
 .ghost {
-  position: absolute; top: 1px; bottom: 1px; z-index: 5; border-radius: 9px; pointer-events: none; /* 予約の帯と同じ位置・角丸 */
-  background: rgba(37, 99, 235, .18); border: 2px solid var(--accent); color: var(--accent);
+  position: absolute; top: 1px; bottom: 1px; z-index: 5; border-radius: 9px; pointer-events: none; border: 2px solid var(--accent); color: var(--accent);
   font-size: 11px; font-weight: 700; padding: 1px 6px; white-space: nowrap; overflow: visible;
   display: flex; align-items: center; /* 時間の表示を枠の上下中央に */
 }
@@ -346,16 +331,14 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 .site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
 
 .zoom-reset {
-  font: inherit; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-weak);
-  border: 1px solid var(--accent); border-radius: 12px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
+  font: inherit; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-weak); padding: 2px 8px; cursor: pointer; white-space: nowrap;
 }
-.link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
 /* ---------- カレンダー（月表示） ---------- */
 /* 1日あたり48px未満にはせず、それより狭い画面では横スクロール */
 /* 1日48px未満にはしない。予約者名が長くても列は広げず、セルの中で省略する */
 .month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); border-left: 1px solid var(--line); width: 100%; min-width: calc(48px * 7 + 1px); }
-.month .dow { position: sticky; top: 0; z-index: 1; background: var(--surface); text-align: center; font-size: 12px; font-weight: 700; padding: 6px 0; border-bottom: 1px solid var(--line-strong); border-right: 1px solid var(--line); }
+.month .dow { position: sticky; z-index: 1; background: var(--surface); text-align: center; font-size: 12px; font-weight: 700; padding: 6px 0; border-bottom: 1px solid var(--line-strong); border-right: 1px solid var(--line); }
 .mc { min-width: 0; min-height: 104px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 4px; cursor: pointer; overflow: hidden; }
 @media (hover: hover) { .mc:hover { background: #f6f9ff; } }
 .mc.other { background: #fafbfc; color: #a3acb6; }
@@ -373,11 +356,10 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 
 /* ---------- ダイアログ ---------- */
 dialog {
-  border: none; border-radius: 14px; padding: 0; width: min(480px, calc(100vw - 20px));
+  border: none; padding: 0; width: min(480px, calc(100vw - 20px));
   max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px);
   /* 中身が横にはみ出しても横には動かさない（縦スクロールのみ） */
-  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, .25); color: var(--text); background: var(--surface);
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; color: var(--text);
 }
 #bookDialog { width: min(520px, calc(100vw - 20px)); }
 dialog h2:focus { outline: none; }
@@ -387,16 +369,14 @@ dialog::backdrop { background: rgba(15, 23, 42, .45); }
 .dialog-fallback dialog[open] { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; z-index: 100; }
 .dialog-backdrop { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(15, 23, 42, .45); z-index: 99; }
 .dialog-fallback.modal-open .dialog-backdrop { display: block; }
-dialog form, dialog .body { padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
-dialog h2 { font-size: 17px; margin: 0; }
-.summary { display: grid; grid-template-columns: 4.5em 1fr; gap: 6px 8px; margin: 0; padding: 10px 12px; background: var(--bg); border-radius: 10px; align-items: center; }
+dialog form, dialog .body { display: flex; flex-direction: column; gap: 12px; }
+dialog h2 { margin: 0; }
+.summary { display: grid; grid-template-columns: 4.5em 1fr; gap: 6px 8px; margin: 0; padding: 10px 12px; align-items: center; }
 .summary dt { color: var(--muted); font-size: 12px; }
 .summary dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 /* PC で予約の帯にマウスを乗せたときの詳細カード（予約の詳細画面と同じ項目・同じ書き方で、帯と同じガラス風） */
 .hovercard {
-  position: fixed; z-index: 50; left: 0; top: 0; will-change: transform; /* 位置は transform で動かす（マウスに軽くついてくるように） */ width: 260px; max-width: calc(100vw - 16px); padding: 10px 12px; border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(255, 255, 255, .92)); color: var(--text); pointer-events: none;
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .08), 0 8px 24px rgba(0, 0, 0, .14), 0 2px 6px rgba(0, 0, 0, .06);
+  position: fixed; z-index: 50; left: 0; top: 0; will-change: transform; /* 位置は transform で動かす（マウスに軽くついてくるように） */ width: 260px; max-width: calc(100vw - 16px); padding: 10px 12px; color: var(--text); pointer-events: none;
   font-size: 12px; line-height: 1.45;
 }
 .hovercard .hc-time { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -445,30 +425,28 @@ dialog h2 { font-size: 17px; margin: 0; }
 .error { margin: 0; font-size: 13px; color: var(--danger); font-weight: 600; }
 .error:empty { display: none; }
 .actions {
-  display: flex; justify-content: flex-end; gap: 8px; margin: 4px -18px -16px; padding: 10px 18px 16px;
-  position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  display: flex; justify-content: flex-end; gap: 8px;
+  position: sticky; bottom: 0;
 }
-.actions .btn { height: 40px; min-width: 88px; }
+.actions .btn { min-width: 88px; }
 .actions .btn.primary, .actions .btn.danger { white-space: normal; line-height: 1.2; }
 .actions .spacer { flex: 1; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
 .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
-.box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.box { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
 .repeat-summary { margin: 0; font-size: 13px; font-weight: 600; }
-.conflicts { margin: 0; padding: 8px 10px 8px 26px; background: #fff3f3; border-radius: 8px; font-size: 13px; max-height: 140px; overflow: auto; }
+.conflicts { margin: 0; padding: 8px 10px 8px 26px; font-size: 13px; max-height: 140px; overflow: auto; }
 .conflicts:empty { display: none; }
 .mylist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.mylist button { width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px 10px; cursor: pointer; }
+.mylist button { width: 100%; text-align: left; cursor: pointer; }
 .mylist b { display: block; }
 .mylist span { font-size: 12px; color: var(--muted); }
 
 .toast {
-  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
-  background: #1f2933; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); color: #fff; padding: 10px 16px; font-size: 14px;
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 200;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.toast.error { background: var(--danger); }
 
 /* スマートフォン: ヘッダーを固定の格子配置にして、折り返しで崩れないようにする */
 @media (max-width: 600px) {
@@ -487,7 +465,6 @@ dialog h2 { font-size: 17px; margin: 0; }
   .brand { flex: 1 1 0; min-width: 0; overflow: hidden; overflow: clip; overflow-y: visible; } /* 上下は切らない（「管理」の件数バッジを出すため） */
   .brand h1 { min-width: 0; flex: 0 1 auto; }
   .admin-mode .lg { display: none; }
-  .brand { gap: 4px; }
   .brand .admin-mode { font-size: 10px; padding: 1px 4px; }
   .brand .admin-link { padding: 0 4px; }
   .topbar { overflow-x: clip; } /* 万一はみ出しても、画面全体が横にずれないようにする */
@@ -504,8 +481,7 @@ dialog h2 { font-size: 17px; margin: 0; }
   .tl-corner { padding: 0 5px; }
   .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
   .legend, .status #statusText { display: none; }
-  .status { width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 50%; background: #f1f3f6; color: var(--text); }
-  .status svg { width: 16px; height: 16px; }
+  .status { width: 30px; height: 30px; padding: 0; justify-content: center; background: #f1f3f6; color: var(--text); }
   .notice-row { order: 3; flex: 1 0 100%; }
   .beta-label .wide-text { display: none; }
   .beta-label .narrow-text { display: inline; }
@@ -748,7 +724,6 @@ html.dark .field select, html.dark .field .time select { background-image: url("
   .selects { align-items: stretch; }
 }
 
-
 /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
 /* 左に 2px あけて、ランプの周りの光の輪が部屋名の欄の左端で切れないようにする */
 .lamp { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
@@ -834,7 +809,6 @@ dialog .btn { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 .room-quick .rq b { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .room-quick .rq small { font-size: 11px; color: var(--muted); line-height: 1.3; }
-.room-quick .rq:active small { color: inherit; }
 /* 設備ごとに、表のタグと同じ色をごく薄く敷く（UP=オレンジ、GP=緑、電子=青、大=紫） */
 .room-quick .rq.t-up { background: rgba(255, 149, 0, .09); } .room-quick .rq.t-up small { color: #8a5a00; }
 .room-quick .rq.t-gp { background: rgba(52, 199, 89, .1); } .room-quick .rq.t-gp small { color: #22693f; }
@@ -906,15 +880,13 @@ html.dark .btn.danger {
   box-shadow: inset 0 0 0 1px rgba(255, 150, 140, .4), inset 0 -1.5px 2px rgba(255, 170, 160, .4);
 }
 html.dark .seg { background-color: #1c1c1e; box-shadow: none; }
-html.dark .seg::before { background-color: #3a3a3c; box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .14); }
+html.dark .seg::before { background-color: #3a3a3c; }
 html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
 html.dark dialog, html.dark .hovercard { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6); }
 html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
-html.dark dialog, html.dark .refract dialog { background: rgba(28, 28, 30, .94); color: var(--text); }
-html.dark .actions { background: linear-gradient(180deg, rgba(28, 28, 30, 0), rgba(28, 28, 30, .94) 30%); }
+html.dark dialog, html.dark .refract dialog { color: var(--text); }
 html.dark .field input:focus, html.dark .field select:focus, html.dark .field textarea:focus { background-color: rgba(118, 118, 128, .32); }
 html.dark .box .field input, html.dark .box .field select, html.dark .rp-name, html.dark .rp-chip span { background-color: rgba(118, 118, 128, .3); }
-html.dark .hovercard, html.dark .refract .hovercard { background: rgba(44, 44, 46, .88); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .15), 0 10px 30px rgba(0, 0, 0, .5); }
 html.dark .mc.other { background: #151517; color: #636366; }
 html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
 html.dark .admin-link, html.dark .brand .admin-link, html.dark .status { color: #e5e5ea; }

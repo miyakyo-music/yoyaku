@@ -1,14 +1,8 @@
 /* 管理画面（admin.html）の見た目。HTML から <link> で読み込む */
 :root {
-  --bg: #f4f6f8;
   --surface: #ffffff;
-  --text: #1f2933;
-  --muted: #66727f;
   --line: #e3e7ec;
   --line-strong: #b8c1cb;
-  --accent: #2563eb;
-  --accent-weak: #e8f0ff;
-  --danger: #cf3f3f;
   --warn-bg: #fff7e0;
   --warn-text: #6b4e00;
   color-scheme: light;
@@ -17,8 +11,7 @@
 [hidden] { display: none !important; }
 html { overflow-x: auto; }
 body {
-  margin: 0; min-width: 320px; /* これより狭い画面では画面全体を横スクロール */
-  background: var(--bg); color: var(--text);
+  margin: 0; min-width: 320px; color: var(--text);
   font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
   font-size: 14px; -webkit-text-size-adjust: 100%;
 }
@@ -26,7 +19,7 @@ button, input, select { font: inherit; color: inherit; }
 a { color: var(--accent); }
 
 .topbar {
-  position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 10;
   padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
@@ -37,13 +30,13 @@ h1 { font-size: 17px; margin: 0; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 80px; }
 
 .btn {
-  height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px;
+  height: 36px; padding: 0 14px;
   background: var(--surface); cursor: pointer; white-space: nowrap; text-decoration: none;
   display: inline-flex; align-items: center; justify-content: center;
 }
 @media (hover: hover) { .btn:hover { background: #f3f5f8; } .btn.primary:hover { background: #1d4fd0; } }
 .btn:disabled { opacity: .55; cursor: default; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.primary { background: var(--accent); border-color: var(--accent); font-weight: 600; }
 .btn.small { height: 30px; padding: 0 10px; font-size: 13px; }
 .btn.icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
 .btn.danger-text { color: var(--danger); }
@@ -53,7 +46,7 @@ h1 { font-size: 17px; margin: 0; }
 .site-foot > * + *::before { content: "・"; margin: 0 6px; color: var(--muted); text-decoration: none; display: inline-block; }
 .site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
 .admin-foot { margin-top: 24px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.card { padding: 18px; }
 .card + .card { margin-top: 16px; }
 h2 { font-size: 16px; margin: 0 0 4px; }
 h3 { font-size: 14px; margin: 0 0 8px; }
@@ -61,14 +54,12 @@ h3 { font-size: 14px; margin: 0 0 8px; }
 
 /* タブの列: 下線は内側に描いて縦にはみ出さないようにし、狭い画面では横方向だけスクロールさせる */
 .tabs {
-  display: flex; gap: 4px; margin-bottom: 16px; box-shadow: inset 0 -1px 0 var(--line-strong);
+  display: flex; margin-bottom: 16px;
   overflow-x: auto; overflow-y: hidden; touch-action: pan-x; overscroll-behavior-x: contain; scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar { display: none; }
-.tabs button {
-  flex: none; border: 0; background: none; padding: 10px 14px; cursor: pointer; white-space: nowrap; color: var(--muted); font-weight: 600;
+.tabs button { border: 0; background: none; cursor: pointer; white-space: nowrap;
 }
-.tabs button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
 .tabs .dot { color: var(--danger); margin-left: 4px; }
 /* 未対応の不具合報告の件数 */
 .badge {
@@ -90,7 +81,7 @@ input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent)
 .time { display: flex; align-items: center; gap: 4px; color: var(--text); }
 /* 時刻は数字を中央に寄せ、数字に合った幅にする（予約画面と同じ見た目） */
 .time select, .suffix select {
-  flex: none; width: 64px; padding: 0 18px 0 6px; text-align: center; text-align-last: center;
+  flex: none; width: 64px; text-align: center; text-align-last: center;
   -webkit-appearance: none; appearance: none;
   background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 7px center;
 }
@@ -102,10 +93,10 @@ input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent)
 .weekdays label, .check {
   display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer;
 }
-.weekdays label { border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; }
+.weekdays label { padding: 6px 10px; }
 .weekdays input, .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 
-.savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.savebar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; flex-wrap: wrap; }
 .dirty { color: var(--danger); font-size: 13px; font-weight: 600; }
 .notice-edit { display: flex; gap: 6px; }
 .notice-edit input { flex: 1; min-width: 0; }
@@ -115,10 +106,10 @@ input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent)
 .pw-reveal { flex: none; height: auto; padding: 0 10px; font-size: 13px; min-width: 56px; }
 .pw-row .btn { height: 38px; flex: none; min-width: 56px; }
 #viewPwBox summary { cursor: pointer; }
-.copy-row input { flex: 1; min-width: 0; color: var(--text); background: #f6f8fa; }
+.copy-row input { flex: 1; min-width: 0; color: var(--text); }
 .copy-row .btn { height: 38px; flex: none; }
-.msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-line; }
-.msg.error { background: #fff0f0; color: var(--danger); font-weight: 600; }
+.msg { margin: 12px 0 0; padding: 10px 12px; font-size: 13px; line-height: 1.6; white-space: pre-line; }
+.msg.error { color: var(--danger); font-weight: 600; }
 .msg.warn { background: var(--warn-bg); color: var(--warn-text); }
 .msg:empty { display: none; }
 
@@ -129,8 +120,8 @@ input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent)
   display: grid; gap: 8px;
   grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.3fr) 132px minmax(0, 1fr) 64px;
 }
-.room { align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
-.room.new { border-color: #9cc0f5; background: #f7faff; }
+.room { align-items: start; padding: 8px; }
+.room.new { border-color: #9cc0f5; }
 /* 左端の番号の列をつまむと、ドラッグで並べ替えられる（指でも操作できるよう、列全体をつかめる） */
 .room .no {
   color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 0;
@@ -170,10 +161,10 @@ body.sorting, body.sorting * { cursor: grabbing !important; }
 }
 
 /* 休館・利用停止の一覧（狭い画面では表を横スクロール） */
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { border-collapse: collapse; width: 100%; min-width: 560px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
-th { background: #f7f8fa; color: var(--muted); font-weight: 600; font-size: 12px; }
+th, td { text-align: left; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
 td.reason { white-space: normal; min-width: 140px; }
 tr.past td { color: #9aa3ad; }
 .sat { color: #2563eb; }
@@ -190,10 +181,10 @@ input[type="date"].in, .field input[type="date"] {
 input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 /* 不具合報告 */
 .bug-list { display: flex; flex-direction: column; gap: 10px; }
-.bug { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.bug { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .bug.done { opacity: .6; }
 .bug-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-.bug-head select { height: 30px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; font-size: 13px; margin-left: auto; }
+.bug-head select { height: 30px; border: 1px solid var(--line-strong); border-radius: 6px; font-size: 13px; margin-left: auto; }
 .bug-msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
 .bug-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .bug details pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 11px; margin: 6px 0 0; }
@@ -209,8 +200,7 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 .login .btn.primary { align-self: flex-end; min-width: 120px; height: 40px; }
 
 .toast {
-  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
-  background: #1f2933; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); color: #fff; padding: 10px 16px; font-size: 14px;
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100vw - 32px); z-index: 100;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -230,7 +220,6 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   .topbar .app-name, .topbar .lg, .tabs .lg { display: none; }
   /* タブは短い名前にして、5つとも横スクロールなしで見えるようにする */
   .tabs { gap: 0; justify-content: space-between; }
-  .tabs button { padding: 10px 8px; font-size: 14px; }
   .topbar .btn.small { padding: 0 8px; }
   /* 部屋は1行に畳み、押した部屋だけ開いて編集する */
   .rooms { gap: 6px; }
@@ -256,7 +245,7 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   .table-wrap tr {
     display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px;
     grid-template-areas: "date time del" "room reason del";
-    padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 10px;
   }
   .table-wrap td { padding: 0; border: 0; white-space: normal; min-width: 0; font-size: 14px; }
   .table-wrap td:nth-child(1) { grid-area: date; font-weight: 600; }
@@ -394,7 +383,6 @@ html.dark .btn.primary {
   box-shadow: inset 0 0 0 1px rgba(130, 195, 255, .45), inset 0 -1.5px 2px rgba(150, 210, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .18);
 }
 @media (hover: hover) { html.dark .btn.primary:hover { background-color: #4a99f7; } }
-html.dark .btn.danger { background-color: #f2473d; color: #fff; }
 html.dark .tabs { background: #1c1c1e; box-shadow: none; }
 html.dark .tabs.has-thumb::before, html.dark .tabs button[aria-selected="true"] { background: #3a3a3c; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
 html.dark .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
