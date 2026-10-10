@@ -96,8 +96,11 @@
         <label class="check"><input type="checkbox" id="bSeries"><span>同じまとめ予約のうち、この日以降の分もまとめて変更する</span></label>
         <p class="hint" id="bSeriesHint" hidden>時間・氏名／団体名・学籍番号／所属・備考をまとめて変更します。日付と部屋はそれぞれのままです。</p>
       </div>
-      <label class="field" id="bRoomField">部屋<select id="bRoom"></select></label>
       <div class="field" id="bRoomQuickField" hidden><span>部屋を選んでください<span class="req" aria-hidden="true">*</span></span><div class="room-quick" id="bRoomQuick"></div></div>
+      <div class="room-date">
+        <label class="field" id="bRoomField">部屋<select id="bRoom"></select></label>
+        <div class="field">日付<label class="date-field b-date"><span class="date-display" id="bDateDisplay" aria-hidden="true"></span><input type="date" id="bDate" aria-label="日付"></label></div>
+      </div>
       <div class="box" id="bMultiBox">
         <label class="check"><input type="checkbox" id="bMulti"><span>他の部屋も同時に予約する</span></label>
         <div id="bMultiArea" hidden>
@@ -105,7 +108,6 @@
           <div class="room-picker" id="bRoomPicker"></div>
         </div>
       </div>
-      <div class="field">日付<label class="date-field b-date"><span class="date-display" id="bDateDisplay" aria-hidden="true"></span><input type="date" id="bDate" aria-label="日付"></label></div>
       <div class="grid2">
         <div class="field">開始<div class="time"><select id="bStartH" aria-label="開始（時）"></select>:<select id="bStartM" aria-label="開始（分）"></select></div></div>
         <div class="field">終了<div class="time"><select id="bEndH" aria-label="終了（時）"></select>:<select id="bEndM" aria-label="終了（分）"></select></div></div>
