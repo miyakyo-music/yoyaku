@@ -6,4 +6,4 @@
  *                 空欄にすると高速キャッシュを使わず、予約表は GAS から直接読む（今まで通りの動き）。
  */
 window.GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwq8wtllGrITwNSLkfmBKNYXLwnh-LbF58fUbW1fYr_SLi4tArg2Irlp__zbOtUgQ/exec';
-window.CACHE_API_URL = '';
+window.CACHE_API_URL = 'https://yoyaku-cache.kuridanho.workers.dev';
