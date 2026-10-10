@@ -820,6 +820,13 @@
   });
   document.addEventListener('pointerdown', (e) => { if (!$('xWdPop').hidden && !$('xWdPick').contains(e.target)) toggleWd(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('xWdPop').hidden) { toggleWd(false); $('xWdBtn').focus(); } });
+  // 並び順（押すたびに古い順・新しい順を切り替える）
+  $('xSort').addEventListener('click', () => {
+    const desc = $('xSort').dataset.dir !== 'desc';
+    $('xSort').dataset.dir = desc ? 'desc' : 'asc';
+    $('xSort').textContent = desc ? '新しい順' : '古い順';
+    refilter();
+  });
   // 重要な予定（押すたびに入・切）
   $('xColor').addEventListener('click', () => {
     $('xColor').setAttribute('aria-pressed', String($('xColor').getAttribute('aria-pressed') !== 'true'));
@@ -865,7 +872,9 @@
     const order = new Map(state.data.rooms.map((r, i) => [r.id, i]));
     const filter = exportFilter();
     const list = (await fetchForExport(from, to)).filter((r) => (!want || want.has(r.roomId)) && (!filter || filter.test(r)));
-    list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start) || (order.get(a.roomId) ?? 999) - (order.get(b.roomId) ?? 999));
+    // 並び: 古い順（日付・開始時刻）か新しい順。同じ時刻の中は、どちらも部屋の並び順
+    const dir = $('xSort').dataset.dir === 'desc' ? -1 : 1;
+    list.sort((a, b) => dir * (a.date + a.start).localeCompare(b.date + b.start) || (order.get(a.roomId) ?? 999) - (order.get(b.roomId) ?? 999));
     const now = new Date();
     return {
       from, to, ids, list,
@@ -1289,7 +1298,7 @@
     if (seq !== historySeq) return;
     const { list } = data;
     const cond = exportFilter();
-    head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span>${esc(cond.label)}</span>` : '') +
+    head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span class="cond">${esc(cond.label)}</span>` : '') +
       (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
     shownList = list;
     // 画面では備考を出さない（行を押すと、その予約の情報を全部開く）
