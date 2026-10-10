@@ -49,15 +49,37 @@
 
     <section id="adminView" hidden>
       <nav class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="settings" aria-selected="true">一般<span class="dot" id="dotSettings" hidden>●</span></button>
-        <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
+        <button type="button" role="tab" data-tab="closures" aria-selected="true">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
         <button type="button" role="tab" data-tab="stats" aria-selected="false">利用<span class="lg">状況</span></button>
-        <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotRooms" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotSetup" hidden>●</span></button>
       </nav>
 
+      <!-- 休館・利用停止 -->
+      <div class="card" data-panel="closures">
+        <h2>休館・利用停止 <button type="button" class="info" aria-label="説明" data-tip="調律・入試・清掃などで予約を受け付けない日時。追加・削除はすぐ保存されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
+        <form id="closureForm" class="add-form" novalidate>
+          <div class="field f-date">日付<label class="date-field"><span class="date-display" id="cDateDisplay" aria-hidden="true"></span><input id="cDate" type="date" aria-label="日付"></label></div>
+          <div class="field f-room">対象<div class="multi" id="cRoomPick"><button type="button" class="multi-btn" id="cRoomBtn" aria-haspopup="true" aria-expanded="false" aria-label="対象">全室</button><div class="multi-pop" id="cRoomPop" hidden></div></div></div>
+          <label class="check f-allday"><input type="checkbox" id="cAllDay" checked>終日</label>
+          <div class="field f-time" id="cTimeField" hidden>時間帯<div class="time"><select id="cStartH" class="in"></select>:<select id="cStartM" class="in"></select>〜<select id="cEndH" class="in"></select>:<select id="cEndM" class="in"></select></div></div>
+          <label class="field f-reason">理由<input id="cReason" maxlength="50" placeholder="例：ピアノ調律"></label>
+          <button type="submit" class="btn primary f-submit" id="addClosureBtn">追加</button>
+        </form>
+        <p class="msg error" id="closureError"></p>
+        <p class="msg warn" id="closureWarn"></p>
+        <div style="display:flex;align-items:center;margin:18px 0 8px"><h3 style="margin:0">登録済み</h3><span class="spacer"></span><label class="check"><input type="checkbox" id="showPast">過去の分も表示</label></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>日付</th><th>対象</th><th>時間帯</th><th>理由</th><th></th></tr></thead>
+            <tbody id="closureList"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 設定（パスワード・パスキー・練習室。練習室の構成はまず変えないので一番下） -->
       <!-- 利用時間・制限 -->
-      <div class="card" data-panel="settings">
+      <div class="card" data-panel="setup" hidden>
         <h2>一般 <button type="button" class="info" aria-label="説明" data-tip="保存すると、利用者の画面には最大1分後に反映されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
         <form id="settingsForm" class="form-grid" novalidate>
           <label class="field full">予約表のタイトル<input id="sTitle" maxlength="40"></label>
@@ -80,29 +102,6 @@
         <p class="msg warn" id="settingsWarn"></p>
       </div>
 
-      <!-- 休館・利用停止 -->
-      <div class="card" data-panel="closures" hidden>
-        <h2>休館・利用停止 <button type="button" class="info" aria-label="説明" data-tip="調律・入試・清掃などで予約を受け付けない日時。追加・削除はすぐ保存されます。すでに入っている予約は、自動では取り消されません。">i</button></h2>
-        <form id="closureForm" class="add-form" novalidate>
-          <div class="field f-date">日付<label class="date-field"><span class="date-display" id="cDateDisplay" aria-hidden="true"></span><input id="cDate" type="date" aria-label="日付"></label></div>
-          <div class="field f-room">対象<div class="multi" id="cRoomPick"><button type="button" class="multi-btn" id="cRoomBtn" aria-haspopup="true" aria-expanded="false" aria-label="対象">全室</button><div class="multi-pop" id="cRoomPop" hidden></div></div></div>
-          <label class="check f-allday"><input type="checkbox" id="cAllDay" checked>終日</label>
-          <div class="field f-time" id="cTimeField" hidden>時間帯<div class="time"><select id="cStartH" class="in"></select>:<select id="cStartM" class="in"></select>〜<select id="cEndH" class="in"></select>:<select id="cEndM" class="in"></select></div></div>
-          <label class="field f-reason">理由<input id="cReason" maxlength="50" placeholder="例：ピアノ調律"></label>
-          <button type="submit" class="btn primary f-submit" id="addClosureBtn">追加</button>
-        </form>
-        <p class="msg error" id="closureError"></p>
-        <p class="msg warn" id="closureWarn"></p>
-        <div style="display:flex;align-items:center;margin:18px 0 8px"><h3 style="margin:0">登録済み</h3><span class="spacer"></span><label class="check"><input type="checkbox" id="showPast">過去の分も表示</label></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>日付</th><th>対象</th><th>時間帯</th><th>理由</th><th></th></tr></thead>
-            <tbody id="closureList"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 設定（パスワード・パスキー・練習室。練習室の構成はまず変えないので一番下） -->
       <div class="card" data-panel="setup" hidden>
         <h2>限定公開の部屋 <button type="button" class="info" aria-label="説明" data-tip="予約制限が「限定公開」の部屋を使う人にだけ、このパスワードと入口の URL を伝えてください。管理用パスワードとは別物で、知っていても設定の変更や他人の予約の取消はできません。">i</button></h2>
         <form id="limitedForm" class="form-grid" novalidate>
@@ -157,6 +156,28 @@
       </div>
 
       <!-- 不具合報告 -->
+      <!-- 予約の一覧（admin.js の「予約の一覧」。期間・部屋を選んで CSV に保存・印刷する） -->
+      <div class="card" data-panel="stats" hidden>
+        <h2>予約の一覧 <button type="button" class="info" aria-label="説明" data-tip="選んだ期間・部屋の予約を、印刷したり、CSV・Excel・PDF のファイルに書き出したりできます。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
+        <form id="exportForm" class="add-form" novalidate>
+          <div class="field f-date">開始日<label class="date-field"><span class="date-display" id="xFromDisplay" aria-hidden="true"></span><input id="xFrom" type="date" aria-label="開始日"></label></div>
+          <div class="field f-date">終了日<label class="date-field"><span class="date-display" id="xToDisplay" aria-hidden="true"></span><input id="xTo" type="date" aria-label="終了日"></label></div>
+          <div class="field f-room">部屋<div class="multi" id="xRoomPick"><button type="button" class="multi-btn" id="xRoomBtn" aria-haspopup="true" aria-expanded="false" aria-label="部屋">全室</button><div class="multi-pop" id="xRoomPop" hidden></div></div></div>
+          <div class="f-actions">
+            <button type="button" class="btn" id="xPrintBtn">印刷</button>
+            <div class="multi" id="xFmtPick">
+              <button type="button" class="btn primary" id="xFmtBtn" aria-haspopup="true" aria-expanded="false">エクスポート</button>
+              <div class="multi-pop fmt-pop" id="xFmtPop" hidden>
+                <button type="button" data-fmt="csv">CSV<small>Excel・Numbers などで開ける表</small></button>
+                <button type="button" data-fmt="xlsx">Excel<small>.xlsx</small></button>
+                <button type="button" data-fmt="pdf">PDF<small>印刷と同じ表を A4 で</small></button>
+              </div>
+            </div>
+          </div>
+        </form>
+        <p class="msg error" id="exportError"></p>
+      </div>
+
       <!-- 利用状況（admin.js の「利用状況」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
       <div class="card" data-panel="stats" hidden>
         <div class="stats-head">
