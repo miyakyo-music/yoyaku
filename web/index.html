@@ -776,11 +776,16 @@
 
   /* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
   /* 左に 2px あけて、ランプの周りの光の輪が部屋名の欄の左端で切れないようにする */
-  .lamp { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
-  .lamp.lamp-free { background: #34c759; box-shadow: 0 0 0 2px rgba(52, 199, 89, .22), 0 0 6px rgba(52, 199, 89, .6); }
-  .lamp.lamp-soon { background: #ffcc00; box-shadow: 0 0 0 2px rgba(255, 204, 0, .25); }
-  .lamp.lamp-busy { background: #ff9500; box-shadow: 0 0 0 2px rgba(255, 149, 0, .22); }
-  .lamp.lamp-off { background: #c7c7cc; }
+  .lamp { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
+  /* ランプは小さな点に、輪郭のないごく弱いぼかしを添える（部屋の数だけ並ぶので、強く光ると画面がうるさくなる）。
+     いちばん多い「空き」の緑は薄めにし、「使用中」の赤が少し目に入るようにする（信号に見立てる） */
+  .lamp.lamp-free { background: #4cbb6c; opacity: .7; box-shadow: 0 0 4px rgba(76, 187, 108, .45); }
+  .lamp.lamp-soon { background: #e5b52a; opacity: .85; box-shadow: 0 0 4px rgba(229, 181, 42, .45); }
+  .lamp.lamp-busy { background: #e0544b; opacity: .9; box-shadow: 0 0 4px rgba(224, 84, 75, .45); }
+  .lamp.lamp-off { background: #c7c7cc; opacity: .7; }
+  html.dark .lamp.lamp-free { background: #3fae60; box-shadow: 0 0 5px rgba(63, 174, 96, .5); }
+  html.dark .lamp.lamp-busy { background: #e5564d; box-shadow: 0 0 5px rgba(229, 86, 77, .5); }
+  html.dark .lamp.lamp-off { background: #636366; }
 
   /* ---------- スマホ（幅 600px 以下）では、新規予約は右下に浮かぶ丸い「＋」ボタンにする ---------- */
   .fab { display: none; }
