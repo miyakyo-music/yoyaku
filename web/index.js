@@ -1753,7 +1753,10 @@
     $('dPin').value = mine ? (load_(LS.profile, {}).pin || '') : '';
     // カレンダーに追加（終わっていない予約だけ）
     $('dCal').hidden = ended;
-    if (!ended) $('dCalGoogle').href = googleCalendarUrl(r, room);
+    if (!ended) {
+      $('dCalGoogle').href = googleCalendarUrl(r, room);
+      $('dCalIcs').href = icsUrl(r, room) || '#';
+    }
     $('detailDialog').showModal();
   }
 
@@ -1828,7 +1831,16 @@
     });
     return 'https://calendar.google.com/calendar/render?' + q.toString();
   }
-  /** iPhone のカレンダーに読み込めるファイル（.ics）を作って開く。開始15分前に知らせる */
+  /**
+   * iPhone 用: 高速キャッシュ（Cloudflare）の /ics の URL。Safari でこの URL を開くと、ダウンロードを挟まずに
+   * 「カレンダーに追加」の画面がそのまま出る。高速キャッシュを使っていないときは '' を返し、下のファイル作成に切り替える
+   */
+  function icsUrl(r, room) {
+    if (!window.CACHE_API_URL) return '';
+    const q = new URLSearchParams({ id: r.id, room: room ? roomText(room) : r.roomId, date: r.date, start: r.start, end: r.end, site: location.origin + location.pathname });
+    return window.CACHE_API_URL.replace(/\/$/, '') + '/ics?' + q.toString();
+  }
+  /** iPhone のカレンダーに読み込めるファイル（.ics）を作って開く（高速キャッシュがないときの予備）。開始15分前に知らせる */
   function downloadIcs(r, room) {
     const icsText = (t) => String(t).replace(/[\\;,]/g, (c) => '\\' + c);
     const ics = [
@@ -1848,9 +1860,11 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
-  $('dCalIcs').addEventListener('click', () => {
+  $('dCalIcs').addEventListener('click', (e) => {
     const r = state.detail;
-    if (r) downloadIcs(r, state.rooms.find((x) => x.id === r.roomId));
+    if (!r || $('dCalIcs').getAttribute('href') !== '#') return; // URL があれば、そのまま開く
+    e.preventDefault();
+    downloadIcs(r, state.rooms.find((x) => x.id === r.roomId));
   });
 
   // ---------------- アプリのように使う（ホーム画面に追加したとき。sw.js） ----------------
