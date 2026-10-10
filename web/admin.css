@@ -521,11 +521,16 @@ html.dark .field select, html.dark select.in, html.dark .bug-head select, html.d
 }
 .chip-btn[aria-haspopup]::after { content: ''; flex: none; width: 7px; height: 7px; margin: -3px 0 0 4px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); opacity: .55; }
 .chip-btn.on { background: rgba(0, 122, 255, .14); color: var(--accent); font-weight: 600; }
+/* 並び順: 件数のすぐ右に、文字だけのボタンで置く（押すたびに古い順・新しい順） */
+.sort-btn { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 30px; padding: 0 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.sort-btn::before { content: '⇅'; }
+@media (hover: hover) { .sort-btn:hover { background: var(--fill-field); } }
 html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
 .chip-btn:focus-visible, .chip-btn[aria-expanded="true"] { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
 .hx-bar { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: .5px solid var(--sep); }
-#xResultHead { flex: 1; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--muted); }
-#xResultHead b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; }
+#xResultHead { flex: 0 1 auto; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--muted); }
+#xResultHead b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hx-out { display: flex; gap: 8px; margin-left: auto; }
 /* 印刷・PDF に入れる項目 */
 .cols-pop { min-width: 200px; padding: 10px; gap: 2px; }
@@ -582,6 +587,7 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
 /* スマホ: 一覧はカードにせず、日付の見出しの下に1件を1行で「時間｜部屋｜氏名」と並べる。長いものは「…」で縮め、
    学籍番号・備考などは行を押したときの詳細で見せる */
 @media (max-width: 600px) {
+  #xResultHead .cond { display: none; } /* 条件は検索窓・丸いボタンで見えている */
   #xResult .table-wrap tbody { display: block; }
   #xResult .table-wrap tr, html.dark #xResult .table-wrap tr {
     grid-template-columns: 6.6em var(--room-w, 6em) minmax(0, 1fr); grid-template-areas: "d d d" "t room name";
