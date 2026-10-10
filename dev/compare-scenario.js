@@ -73,6 +73,10 @@
   out[out.length - 1][4] = r.ok && [JSON.stringify(r.closures), r.warnings.join('|')];
   rec('afterClosure', await c('createReservation', Object.assign({}, base, { roomId: 'room_01', start: '10:00', end: '11:00' })));
   await c('adminSaveClosures', { adminPassword: A, closures: [] });
+  // 1分あたりの書き込みの上限（GAS は30件、Cloudflare は60件）に台本が当たらないよう、ここで数え直す
+  const minuteKey = 'writes_' + Math.floor(Date.now() / 60000);
+  CacheService.getScriptCache().remove(minuteKey);
+  devCf.core.kdel(minuteKey);
   // 限定公開
   r = await c('adminGetData', { adminPassword: A });
   await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { limitedPassword: 'secret1' }) });
