@@ -20,7 +20,23 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>管理画面</title>
-<link rel="stylesheet" href="admin.css">
+<!-- 見た目は部品ごとのファイル（web/admin/*.css）。あとのファイルが前のファイルを上書きするので、並び順を変えない（fallback.css は最後） -->
+<link rel="stylesheet" href="admin/tokens.css">
+<link rel="stylesheet" href="admin/page.css">
+<link rel="stylesheet" href="admin/topbar.css">
+<link rel="stylesheet" href="admin/button.css">
+<link rel="stylesheet" href="admin/tabs.css">
+<link rel="stylesheet" href="admin/bugs.css">
+<link rel="stylesheet" href="admin/field.css">
+<link rel="stylesheet" href="admin/rooms.css">
+<link rel="stylesheet" href="admin/closures.css">
+<link rel="stylesheet" href="admin/history.css">
+<link rel="stylesheet" href="admin/login.css">
+<link rel="stylesheet" href="admin/toast.css">
+<link rel="stylesheet" href="admin/info.css">
+<link rel="stylesheet" href="admin/stats.css">
+<link rel="stylesheet" href="admin/settings.css">
+<link rel="stylesheet" href="admin/fallback.css">
 </head>
 <body>
   <header class="topbar">
@@ -162,7 +178,7 @@
       </div>
 
       <!-- 不具合報告 -->
-      <!-- 予約履歴（admin.js の「予約履歴」。期間・部屋・検索で絞って一覧を出し、印刷・エクスポートする） -->
+      <!-- 予約履歴（admin/history.js・admin/export.js。期間・部屋・検索で絞って一覧を出し、印刷・エクスポートする） -->
       <div class="card" data-panel="history">
         <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="期間・部屋・曜日・検索で絞った予約の一覧です。条件を変えるとすぐ一覧が変わります。印刷や、CSV・Excel・PDF への書き出しも、この一覧と同じ条件で行います。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
         <form id="exportForm" class="hx-form" novalidate>
@@ -205,7 +221,7 @@
         </div>
       </div>
 
-      <!-- 統計（admin.js の「統計」。予約表と同じ getSchedule で読んで、この画面で集計する） -->
+      <!-- 統計（admin/stats.js。予約表と同じ getSchedule で読んで、この画面で集計する） -->
       <div class="card" data-panel="stats" hidden>
         <div class="stats-head">
           <h2 style="margin:0">統計</h2>
@@ -253,6 +269,21 @@
 
 <script src="config.js"></script>
 <script src="api.js"></script>
-<script src="admin.js"></script>
+<!-- 動きは部品ごとのファイル（web/admin/*.js）。上から順に読み込み、一番外側の名前（state など）を共有する。boot.js は最後 -->
+<script src="admin/core.js"></script>
+<script src="admin/login.js"></script>
+<script src="admin/tabs.js"></script>
+<script src="admin/rooms.js"></script>
+<script src="admin/settings.js"></script>
+<script src="admin/pickers.js"></script>
+<script src="admin/closures.js"></script>
+<script src="admin/passwords.js"></script>
+<script src="admin/info.js"></script>
+<script src="admin/stats.js"></script>
+<script src="admin/history.js"></script>
+<script src="admin/export.js"></script>
+<script src="admin/bugs.js"></script>
+<script src="admin/passkey.js"></script>
+<script src="admin/boot.js"></script>
 </body>
 </html>

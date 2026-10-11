@@ -1,0 +1,176 @@
+// 予約表: 予約の詳細（変更・取消・カレンダーに追加）
+'use strict';
+
+/** 予約の詳細を閉じる（その帯が見えていれば、帯へ縮んで戻る） */
+function closeDetail() {
+  const dlg = $('detailDialog');
+  if (!dlg.open) return;
+  morph(dlg, () => dlg.close(), () => bandEl(state.detail && state.detail.id));
+}
+
+// ---------------- 詳細ダイアログ ----------------
+function personText(r) { return r.affiliation ? `${r.name}（${r.affiliation}）` : r.name; }
+
+function openDetail(id) {
+  const r = visibleReservations().find((x) => x.id === id);
+  if (!r) return;
+  if (r.pending) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
+  state.detail = r;
+  const room = roomById(r.roomId);
+  $('dRoom').textContent = room ? roomText(room) : r.roomId;
+  $('dDate').textContent = fullDateLabel(r.date);
+  $('dTime').textContent = `${hm(r.start)} 〜 ${hm(r.end)}（${durationLabel(toMin(r.end) - toMin(r.start))}）`;
+  $('dName').textContent = personText(r);
+  $('dMemo').textContent = r.memo;
+  $('dMemo').hidden = $('dMemoDt').hidden = !r.memo;
+  $('dError').textContent = '';
+
+  const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
+  const mine = isMine(r.id);
+  const admin = isAdminMode();
+  // 編集用パスワード欄は「編集用パスワードが設定された予約」を管理者モード以外で操作するときだけ出す
+  $('dOps').hidden = ended || admin || !r.hasPin;
+  $('dEdit').hidden = $('dCancel').hidden = ended;
+  $('dCancel').disabled = $('dEdit').disabled = false;
+  $('dSeriesArea').hidden = ended || !r.groupId;
+  $('dSeries').checked = false;
+  const notes = [];
+  if (ended) notes.push('この予約は終了しています。');
+  if (r.groupId) notes.push('まとめて登録された予約（くり返し・複数部屋）の1件です。');
+  if (mine) notes.push('この端末で作成した予約です。');
+  if (!ended && admin) notes.push('管理者モード: 編集用パスワードなしで変更・取消できます。');
+  if (!admin && room && room.restriction === ADMIN_ONLY && !ended) notes.push('この部屋の予約の変更・取消は管理者のみ行えます。');
+  $('dNote').hidden = !notes.length;
+  $('dNote').textContent = notes.join(' ');
+  $('dPin').value = mine ? (load_(LS.profile, {}).pin || '') : '';
+  // カレンダーに追加（終わっていない予約だけ）
+  $('dCal').hidden = ended;
+  // コピー（まとめて予約ができる人だけ。終わった予約もコピーできる）
+  $('dCopy').hidden = !(isAdminMode() || !state.settings.bulkRequiresAdmin) || !room || room.restriction === STOPPED;
+  if (!ended) {
+    // Android は Google カレンダーの追加画面、それ以外（iPhone など）はカレンダーのファイルの URL を開く
+    const add = $('dCalAdd');
+    if (IS_ANDROID) { add.href = googleCalendarUrl(r, room); add.target = '_blank'; add.rel = 'noopener'; }
+    else { add.href = icsUrl(r, room) || '#'; add.removeAttribute('target'); }
+  }
+  $('detailDialog').showModal();
+}
+
+$('dCopy').addEventListener('click', () => {
+  const r = state.detail;
+  $('detailDialog').close();
+  openBooking({ mode: 'create', copyFrom: r });
+});
+
+function editFromDetail() {
+  const pin = $('dPin').value.trim();
+  if (!$('dOps').hidden && !pin) { $('dError').textContent = '変更するには編集用パスワードを入力してください。'; $('dPin').focus(); return; }
+  $('detailDialog').close();
+  openBooking({ mode: 'edit', reservation: state.detail, pin });
+}
+
+async function submitCancel(e) {
+  e.preventDefault();
+  const pin = $('dPin').value.trim();
+  const err = $('dError');
+  if (!$('dOps').hidden && !pin) { err.textContent = '編集用パスワードを入力してください。'; $('dPin').focus(); return; }
+  const series = !$('dSeriesArea').hidden && $('dSeries').checked;
+  if (!confirm(series ? '同じまとめ予約のうち、この日以降の分をすべて取り消しますか？' : 'この予約を取り消しますか？')) return;
+
+  const r = state.detail;
+  const scope = series ? 'following' : 'single';
+  // サーバーの結果を待たずに画面から消す（失敗したら元に戻す）
+  const targets = series
+    ? visibleReservations().filter((x) => x.groupId === r.groupId && x.date >= r.date)
+    : [r];
+  targets.forEach((x) => state.hidden.set(x.id, x.date));
+  $('detailDialog').close();
+  render();
+  try {
+    const res = await api('cancelReservation', { id: r.id, pin, scope });
+    if (!res || !res.ok) throw Object.assign(new Error((res && res.message) || '取り消しに失敗しました。'), { code: res && res.code });
+    removeMine(res.cancelledIds);
+    toast(res.cancelledIds.length > 1 ? `${res.cancelledIds.length}件の予約を取り消しました` : '予約を取り消しました');
+    invalidate(series ? undefined : [r.date]); // くり返し予約は他の日にもまたがるのですべて取り直す
+    load({ force: true });
+  } catch (ex) {
+    targets.forEach((x) => state.hidden.delete(x.id)); // 画面を取消前の状態に戻す
+    if (ex instanceof AuthError) { render(); return; }
+    const message = errMessage(ex);
+    if (ex.code === 'NOT_FOUND') {
+      removeMine([r.id]);
+      toast(message);
+      invalidate([r.date]);
+      load({ force: true });
+      return;
+    }
+    render();
+    toast(message, 'error');
+    if (!anyDialogOpen()) {
+      openDetail(r.id);
+      $('dPin').value = pin;
+      $('dError').textContent = message;
+    }
+  }
+}
+
+// ---------------- カレンダーに追加 ----------------
+// ボタンは1つ。iPhone はカレンダーのファイル（.ics）の URL を開くと標準のカレンダーに入る。Android は標準が Google カレンダーなので、その追加画面を開く
+// 予約者の名前などは入れず、部屋と時間だけを書く（Google の URL に個人の情報を載せないため）
+// 題名は部屋の名前だけ（設備のかっこ書きは付けない）。例: 練習室1の予約
+const calRoom = (r, room) => (room ? room.name : r.roomId);
+function calTitle(r, room) { return `${calRoom(r, room)}の予約`; }
+const CAL_PLACE = '宮城教育大学 音楽棟';
+/** 日本時間の日付と時刻を、カレンダーの書式（世界標準時 YYYYMMDDTHHMMSSZ）にする */
+function calStamp(date, hhmm) {
+  const [y, mo, d] = date.split('-').map(Number);
+  const [h, mi] = hhmm.split(':').map(Number);
+  return new Date(Date.UTC(y, mo - 1, d, h - 9, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+function googleCalendarUrl(r, room) {
+  const q = new URLSearchParams({
+    action: 'TEMPLATE', text: calTitle(r, room),
+    dates: `${calStamp(r.date, r.start)}/${calStamp(r.date, r.end)}`,
+    location: CAL_PLACE, details: location.origin + location.pathname,
+  });
+  return 'https://calendar.google.com/calendar/render?' + q.toString();
+}
+/**
+ * iPhone 用: 高速キャッシュ（Cloudflare）の /ics の URL。Safari でこの URL を開くと、ダウンロードを挟まずに
+ * 「カレンダーに追加」の画面がそのまま出る。高速キャッシュを使っていないときは '' を返し、下のファイル作成に切り替える
+ */
+function icsUrl(r, room) {
+  if (!window.CACHE_API_URL) return '';
+  const q = new URLSearchParams({ id: r.id, room: calRoom(r, room), date: r.date, start: r.start, end: r.end, site: location.origin + location.pathname });
+  return window.CACHE_API_URL.replace(/\/$/, '') + '/ics?' + q.toString();
+}
+/** iPhone のカレンダーに読み込めるファイル（.ics）を作って開く（高速キャッシュがないときの予備）。開始15分前に知らせる */
+function downloadIcs(r, room) {
+  const icsText = (t) => String(t).replace(/[\\;,]/g, (c) => '\\' + c);
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//miyakyo-music//yoyaku//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${r.id}@miyakyo-music.github.io`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+    `DTSTART:${calStamp(r.date, r.start)}`, `DTEND:${calStamp(r.date, r.end)}`,
+    `SUMMARY:${icsText(calTitle(r, room))}`, `LOCATION:${icsText(CAL_PLACE)}`,
+    `DESCRIPTION:${icsText(location.origin + location.pathname)}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:練習室の予約', 'TRIGGER:-PT15M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR', '',
+  ].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `練習室予約_${r.date}.ics`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
+$('dCalAdd').addEventListener('click', (e) => {
+  const r = state.detail;
+  if (!r || $('dCalAdd').getAttribute('href') !== '#') return; // URL があれば、そのまま開く
+  e.preventDefault();
+  downloadIcs(r, state.rooms.find((x) => x.id === r.roomId));
+});
+
+$('detailForm').addEventListener('submit', submitCancel);
+$('dEdit').addEventListener('click', editFromDetail);

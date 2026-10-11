@@ -1,0 +1,88 @@
+/* 予約表: 入力欄・選択欄・日付欄・パスワード欄 */
+input[type="date"], select {
+  height: 34px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface);
+  font-size: 16px; /* 16px未満だとiOS Safariでフォーカス時に画面が拡大される */
+}
+.date-field { position: relative; display: inline-flex; }
+/* 予約画面の日付欄（ほかの入力欄と同じ高さ・幅） */
+.b-date { display: flex; width: 100%; }
+.b-date .date-display { width: 100%; height: 40px; color: var(--text); }
+.date-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 16px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  border: 0;
+  border-radius: 11px;
+  /* 全部を丸いカプセルにすると安っぽく見えるので、角丸の四角に */
+  background-color: var(--glass);
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), box-shadow .18s, background-color .18s;
+}
+.date-display svg { flex: none; margin-left: auto; opacity: .55; }
+.date-field input[type="date"] {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+  border: 0; opacity: 0; cursor: pointer; font-size: 16px;
+}
+/* Chrome/Edge: 欄のどこを押してもカレンダーが開くよう、カレンダーボタンを欄全体に広げる */
+.date-field input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: auto; height: auto; opacity: 0; cursor: pointer;
+}
+.date-field:focus-within .date-display {
+  outline-offset: 1px;
+  outline: 0;
+  box-shadow: var(--glass-rim), 0 0 0 2px var(--accent);
+}
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.field input, .field select { height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-size: 16px; color: var(--text); background: var(--surface); width: 100%; }
+/* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
+.field input[type="date"] {
+  -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%;
+  text-align: left; line-height: 38px;
+}
+.field input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.field textarea {
+  min-height: 110px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+  font-size: 16px; color: var(--text); background: var(--surface); width: 100%; resize: vertical;
+}
+.field input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* 編集用パスワードは password 型にせず伏字表示にする（ブラウザのパスワード提案・保存の対象にしないため） */
+.pin-input { -webkit-text-security: disc; text-security: disc; letter-spacing: .1em; }
+.pin-input::placeholder { letter-spacing: normal; }
+.pin-input.revealed { -webkit-text-security: none; text-security: none; }
+/* パスワード欄と「表示」ボタン */
+.pw-row { display: flex; gap: 6px; align-items: stretch; }
+.pw-row input { flex: 1; min-width: 0; }
+.pw-reveal {
+  flex: none;
+  height: auto;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 11px;
+}
+.field input, .field select, .field textarea, .b-date .date-display {
+  border: 0; border-radius: 11px; background-color: var(--fill-field); box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none; background-image: none;
+}
+.field .time select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E");
+  padding: 0 26px 0 8px;
+}
+/* 選択欄の矢印: 端末ごとの標準の矢印は位置がまちまちなので使わず、部屋・時刻とも右から 12px の位置に同じ矢印を描く */
+.field select, .field .time select {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center;
+}
+.field select { padding-right: 32px; }
+html.dark .field select, html.dark .field .time select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"); }
+.field input:focus, .field select:focus, .field textarea:focus { outline: 0; background-color: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent); }
+.date-field.disabled { opacity: .5; pointer-events: none; }
+.field select:disabled { opacity: .5; }
+html.dark .field input:focus, html.dark .field select:focus, html.dark .field textarea:focus { background-color: rgba(118, 118, 128, .32); }

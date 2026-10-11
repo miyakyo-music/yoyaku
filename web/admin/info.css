@@ -1,0 +1,23 @@
+/* 管理画面: i ボタン（見ればわかることは書かず、どうしても要る説明だけをここに入れる）と吹き出し */
+.info {
+  /* macOS の「info.circle」に似せる: 細い線の丸に、立った細めの i。色は薄い灰色で控えめに。どこでも同じ大きさ（12px） */
+  display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box;
+  width: 12px; height: 12px; margin: 0 0 0 4px; padding: 0; vertical-align: middle; position: relative; top: -1px;
+  border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--muted); opacity: .65;
+  font-size: 0; cursor: help;
+}
+/* 中の「i」は文字ではなく点と棒で描く（文字だと端末のフォントによって上下左右にずれるため） */
+.info::before, .info::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); background: currentColor; }
+.info::before { top: 1.75px; width: 1.5px; height: 1.5px; border-radius: 50%; }
+.info::after { top: 4.25px; width: 1.25px; height: 4px; border-radius: .5px; }
+@media (hover: hover) {
+  .info:hover { opacity: 1; }
+}
+.info[aria-expanded="true"] { opacity: 1; color: var(--accent); }
+/* 吹き出し: macOS の説明（ヘルプタグ）に似せた、小さく控えめな札。マウスの少し右下に出る */
+.tip-pop {
+  position: absolute; z-index: 50; max-width: min(280px, calc(100vw - 24px)); padding: 4px 8px; border-radius: 6px;
+  background: rgba(246, 246, 246, .98); color: #1d1d1f; font-size: 12px; font-weight: 400; line-height: 1.45;
+  box-shadow: 0 0 0 .5px rgba(0, 0, 0, .18), 0 2px 8px rgba(0, 0, 0, .14); pointer-events: none;
+}
+html.dark .tip-pop { background: rgba(50, 50, 52, .98); color: #f5f5f7; box-shadow: 0 0 0 .5px rgba(255, 255, 255, .14), 0 2px 10px rgba(0, 0, 0, .5); }

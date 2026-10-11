@@ -1,0 +1,275 @@
+/* 予約表: 一覧・部屋別の表（時間軸・部屋名の列・予約の帯・休館・仮の帯・空室ランプ・フッタ・帯の動き） */
+@media (max-width: 600px) {
+  :root { --label-w: 84px; --hour-w: 62px; --row-h: 42px; }
+}
+.tl-label .nm-line { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+.tl-label .nm-line .nm { flex: none; }
+.tl-label .free-until { font-size: 11px; color: #1e7a43; font-weight: 600; white-space: nowrap; }
+.main { flex: 1; overflow: auto; position: relative; z-index: 0; background: var(--surface); -webkit-overflow-scrolling: touch; }
+/* z-index: 0 で表の中身をこの箱の中に閉じ込める（iPad の Safari で、縞模様の行や部屋名の列がスクロールバーの上に描かれて、バーが途切れて見えたため） */
+/* 2本指の操作は時間軸の拡大・縮小に使うので、ページ自体の拡大は止める */
+.main.has-tl { touch-action: pan-x pan-y; }
+body.loading .main > * { opacity: .65; transition: opacity .2s; }
+.tl { width: max-content; min-width: 100%; }
+/* 重なり順: 予約ブロックの色 < 現在時刻線(2) < 予約ブロックの文字(3) < ドラッグ中の枠(5) < 部屋名の列(6) < 時刻見出し(7) */
+.tl-head { display: flex; position: sticky; z-index: 7; border-bottom: 1px solid var(--line-strong); }
+.tl-corner, .tl-label {
+  position: sticky; left: 0; z-index: 6; flex: none; width: var(--label-w);
+  background: var(--surface); border-right: 1px solid var(--line-strong);
+}
+.tl-corner { font-size: 11px; color: var(--muted); padding: 0 6px; display: flex; align-items: center; height: 28px; }
+.tl-scale { display: flex; flex: none; }
+.tl-scale span {
+  width: var(--hour-w); flex: none; font-size: 12px; font-weight: 600; color: var(--muted);
+  padding: 6px 0 0 4px; height: 28px; border-left: 1px solid var(--line-strong);
+}
+.tl-scale span.now { color: var(--accent); }
+/* 時間軸を縮めて時刻の文字が入らないときは、2時間おき・3時間おきに表示する */
+.tl.narrow .tl-scale span { font-size: 11px; padding-left: 2px; }
+.tl.narrow .tl-scale span:nth-child(even) { color: transparent; }
+.tl.tiny .tl-scale span:nth-child(even) { color: var(--muted); }
+.tl.tiny .tl-scale span:not(:nth-child(3n+1)) { color: transparent; }
+.tl.narrow .tl-scale span.now:not(:nth-child(even)), .tl.tiny .tl-scale span.now:nth-child(3n+1) { color: var(--accent); }
+.tl-scale span:last-child { box-shadow: inset -1px 0 0 var(--line-strong); }
+.tl-row { display: flex; border-bottom: 1px solid var(--line); }
+.tl-label {
+  padding: 2px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--row-h);
+  overflow: hidden;
+  /* 現在時刻の線は行の区切り線の上まで伸ばしているので、部屋名の列の下に回ったときに区切り線の所から透けないよう、
+   部屋名の列で区切り線の部分も覆う */
+  box-shadow: 0 1px 0 var(--line);
+}
+/* 列幅の計測中だけ、部屋名を折り返さずに本来の幅で並べる */
+.tl.measuring .tl-corner, .tl.measuring .tl-label { width: max-content; }
+.tl.measuring .tl-label .nm { display: block; white-space: nowrap; }
+.tl-label .nm {
+  font-size: 13px; font-weight: 600; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+.tl-label .sub {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+/* 部屋（日付）の行を1行おきにごく薄く色付けし、横に長い行を目で追いやすくする */
+.tl-row:nth-child(odd) .tl-label, .tl-row:nth-child(odd) .tl-track { background-color: #f7f9fb; }
+.tl-row.week-start { border-top: 2px solid var(--line-strong); }
+.tl-row.week-start .tl-label { box-shadow: 0 1px 0 var(--line), 0 -2px 0 var(--line-strong); }
+.tl-label[data-room], .tl-label[data-date] { cursor: pointer; }
+.tl-label[data-room]:focus-visible, .tl-label[data-date]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (hover: hover) {
+  .tl-label[data-room]:hover, .tl-label[data-date]:hover { background: #f6f9ff; }
+  .tl-label[data-room]:hover .nm, .tl-label[data-date]:hover .nm { color: var(--accent); text-decoration: underline; }
+}
+.tag { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; line-height: 15px; font-weight: 600; background: #eceff3; color: #4a5562; white-space: nowrap; }
+.tag.t-admin { background: #fde8e8; color: #9b2c2c; }
+/* 部屋の特徴タグ（大・GP・UP・電子P など） */
+.tag.t-large { background: #ece5fb; color: #5b3aa8; }
+.tag.t-gp { background: #e1f3e8; color: #22693f; }
+.tag.t-up { background: #fdf0d9; color: #8a5a00; }
+.tag.t-ep { background: #e3eefc; color: #2457a1; }
+.tag.t-limited { color: #5b3a9b; background: #efe8fb; border-color: #d4c3f2; }
+.tl-track {
+  /* 高さは行に合わせて伸ばす（部屋名の欄が文字の大きさの都合で少し高くなっても、帯が行の上下中央からずれないように） */
+  position: relative; flex: none; align-self: stretch; min-height: var(--row-h);
+  width: calc(var(--hour-w) * var(--hours));
+  background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px);
+  background-size: var(--hour-w) 100%, calc(var(--hour-w) / 2) 100%;
+  box-shadow: inset -1px 0 0 var(--line-strong); /* 時間軸の右端（終了時刻ちょうど）の線 */
+  cursor: crosshair; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.tl-track.stopped, .tl-row:nth-child(odd) .tl-track.stopped { background-color: var(--closed); cursor: not-allowed; }
+/* 時間軸を縮めたときは30分の線を省き、線が詰まって見づらくならないようにする */
+.tl.narrow .tl-track { background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px); background-size: var(--hour-w) 100%; }
+.past { position: absolute; top: 0; bottom: 0; left: 0; background: var(--past); pointer-events: none; z-index: 0; }
+/* 現在時刻の線は半透明にし、予約の帯の色より前・帯の文字より後ろに置く（文字を横切らない） */
+/* 行の区切り線（下の1px、週の区切りは上の2px）の上まで伸ばし、途切れずに1本の線に見せる */
+.now-line { position: absolute; top: 0; bottom: -1px; width: 2px; margin-left: -1px; background: #e5484d; opacity: .6; pointer-events: none; z-index: 2; }
+.tl-row.week-start .now-line { top: -2px; }
+.blk {
+  position: absolute; top: 1px; bottom: 1px; border-radius: 9px; /* z-index を付けない（中の文字を現在時刻の線より前に出すため） */
+  overflow: hidden; overflow: clip; /* clip は中の文字の sticky を妨げない（未対応ブラウザは hidden） */
+  padding: 0 6px 0 10px; font-size: 11px; line-height: 1.2; cursor: pointer; min-width: 3px;
+  display: flex; flex-direction: column; justify-content: center; /* 名前と学番を帯の上下中央に */
+}
+/* ブロックの左側がスクロールで部屋名の列に隠れても、予約者名は見えている部分の左端に留まる。
+   名前と学籍番号はひとまとめにして動かし、左端をそろえたまま一緒に隠れるようにする */
+.blk .txt, .blk.closed > span {
+  display: block; width: fit-content; max-width: 100%; min-width: 0;
+  position: sticky; left: calc(var(--label-w) + 4px); z-index: 3;
+}
+.blk b, .blk span { display: block; white-space: nowrap; overflow: hidden; }
+.blk b { font-weight: 600; font-size: 11.5px; }
+.blk span { font-weight: 400; font-size: 10.5px; opacity: .8; }
+/* 予約を送信中（サーバーの結果待ち）の表示 */
+.blk.res.pending { opacity: .7; }
+/* 送信中の点線は帯の色の層（::after）の枠として描き、角丸に沿わせる（outline は Safari で角丸に沿わない） */
+.blk.res.pending::after { border: 1px dashed var(--mine-border); }
+/* iOS のカレンダー風: 枠線なしの薄い塗り＋左端の丸い縦線 */
+/* 左に透明な 1px の余白を取り、時刻の縦の罫線（各時刻のすぐ右に 1px で引かれる）に帯がかぶらないようにする。
+   右には余白を取らない（取ると、終わりの時刻の線との間にだけ 1px のすき間ができ、始まりと終わりで見え方がそろわないため） */
+.blk.res {
+  color: var(--res-text);
+  border: 0 solid transparent;
+  border-width: 0 0 0 1px;
+  /* 光の輪の色（帯の左の線と同じ色。重要な予定の色 c-red なども流れ込む） */
+  --bk-c: var(--res-border);
+}
+.blk.res.mine {
+  color: var(--mine-text);
+  --bk-c: var(--mine-border);
+}
+/* 帯の色（控えめなガラス風）: 上ほど明るい白をほぼ不透明に重ね、その上に半透明の色を敷く。
+   上端の光の筋・細い縁・ごく薄い影でガラスの板のように見せる（ぼかしは使わない） */
+.blk.res::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(255, 149, 0, .3), 0 1px 2px rgba(150, 80, 0, .1);
+}
+.blk.res.mine::after {
+  background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(0, 122, 255, .3), 0 1px 2px rgba(0, 60, 150, .1);
+}
+.blk.res::before {
+  content: ""; position: absolute; left: 4px; top: 5px; bottom: 5px; width: 3px; border-radius: 2px; background: var(--res-border);
+  z-index: 1;
+}
+.blk.res.mine::before { background: var(--mine-border); }
+.blk.res.ended { opacity: .6; }
+.blk.closed {
+  background: var(--closed) repeating-linear-gradient(135deg, transparent 0 6px, rgba(0, 0, 0, .05) 6px 12px);
+  color: var(--closed-text); cursor: default; border: 1px dashed var(--line-strong);
+}
+.blk.off { background: var(--closed); border: 0; border-radius: 0; top: 0; bottom: 0; cursor: default; }
+/* 押した予約の青い枠: 帯の色の層（::after）の内側に描き、色の部分とぴったり重ねる。
+   帯の外側に描くと、左右の透明な 1px の余白のぶんだけ枠と色がずれ、上下では隣の行の線にかぶるため */
+.blk:focus-visible { outline: none; }
+.blk:not(.res):focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.blk.res:focus-visible::after { box-shadow: inset 0 0 0 2px var(--accent) !important; }
+@media (hover: hover) {
+  .blk.res:hover::after { filter: brightness(.96); }
+}
+.ghost {
+  position: absolute; top: 1px; bottom: 1px; z-index: 5; border-radius: 9px; pointer-events: none; border: 2px solid var(--accent); color: var(--accent);
+  font-size: 11px; font-weight: 700; padding: 1px 6px; white-space: nowrap; overflow: visible;
+  display: flex; align-items: center; /* 時間の表示を枠の上下中央に */
+}
+/* 予約画面を開いている間の仮予約の帯（点線で、まだ確定していないことを示す） */
+.ghost.pick {
+  pointer-events: auto; cursor: pointer; border-style: dashed; background: rgba(37, 99, 235, .14);
+  display: flex; align-items: center; justify-content: center; padding: 0 2px; overflow: visible;
+}
+.ghost.pick.fading { opacity: 0; transition: opacity .3s; }
+/* 既存の予約を動かしている間: もとの帯は薄く、行き先に影（重なる・過去などで動かせない所は赤） */
+.ghost.move { background: rgba(37, 99, 235, .16); }
+.ghost.move.bad { border-color: var(--danger); color: var(--danger); background: rgba(255, 59, 48, .12); }
+.blk.res.moving-src { opacity: .35; }
+body.moving, body.moving * { cursor: grabbing !important; }
+.ghost.pick b { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
+.ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
+.empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+.main-foot { position: sticky; left: 0; margin: 0; padding: 14px 12px calc(18px + env(safe-area-inset-bottom)); font-size: 12px; color: var(--muted); }
+.main-foot p { margin: 0; }
+.foot-text { text-align: center; margin-bottom: 6px !important; }
+/* フッタ: 版・不具合を報告・プライバシーポリシー（中央に小さく1行） */
+.site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 0; font-size: 12px; color: var(--muted); }
+.site-foot > * + *::before { content: "・"; margin: 0 6px; color: var(--muted); text-decoration: none; display: inline-block; }
+.site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
+.zoom-reset {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-weak);
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 999px;
+}
+/* 重要な予定の色（管理者・限定公開の人だけが付けられる）。帯の色の変数を、その帯だけ置き換える */
+.c-red { --res: rgba(255, 59, 48, .2); --res-border: #ff3b30; --res-text: #8a1710; --mine: var(--res); --mine-border: var(--res-border); --mine-text: var(--res-text); }
+.c-purple { --res: rgba(175, 82, 222, .2); --res-border: #af52de; --res-text: #5b1d7a; --mine: var(--res); --mine-border: var(--res-border); --mine-text: var(--res-text); }
+.c-green { --res: rgba(52, 199, 89, .22); --res-border: #28a745; --res-text: #135c25; --mine: var(--res); --mine-border: var(--res-border); --mine-text: var(--res-text); }
+.blk.res.c-red, .blk.res.c-purple, .blk.res.c-green { font-weight: 600; }
+@media (max-width: 600px) {
+  .tl-label .nm { font-size: 12px; }
+  /* 部屋名の列を細くする（左上は「部屋」「リセット」だけ、余白も詰める） */
+  .tl-corner .lg, .zoom-reset .lg { display: none; }
+  .tl-label { padding: 2px 4px 2px 5px; }
+  .tl-corner { padding: 0 5px; }
+  .tl-label .tag { font-size: 9px; line-height: 13px; padding: 0 4px; }
+}
+/* 余白は padding ではなく見えない箱で取る（padding だとブラウザによって貼り付き位置の基準が変わるため） */
+.main::before { content: ""; display: block; height: var(--hdr-h); }
+.tl-head {
+  top: var(--hdr-h);
+  background: rgba(255, 255, 255, .8);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.tl-corner { background: #fff; } /* 横に送った時刻が透けないよう、左上だけは不透明 */
+.tl-scale span.now { background: rgba(0, 122, 255, .08); }
+.tl-row.today .tl-label { background: #eef5ff; }
+.ghost { background: rgba(0, 122, 255, .16); }
+.ghost.pick, .ghost.draft { background: rgba(0, 122, 255, .12); }
+/* ---------- 空室ランプ: 今日の一覧で、部屋名の前に今の状態を光る点で示す ---------- */
+/* 空室の表示は、点ではなく部屋名の欄の左端の細い縦の帯にする（予約の帯の左の縦線と同じ形）。
+   帯は欄の上下いっぱいに置き、部屋名とタグはその右で左端をそろえる */
+.lbl-lamp { display: block; min-width: 0; padding-left: 6px; }
+.lbl-body { display: flex; flex-direction: column; min-width: 0; }
+.tl-label .lamp { position: absolute; left: 3px; top: 7px; bottom: 7px; width: 3px; height: auto; margin: 0; border-radius: 2px; box-shadow: none; }
+/* 左に 2px あけて、ランプの周りの光の輪が部屋名の欄の左端で切れないようにする */
+.lamp { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; }
+/* ランプは小さな点に、輪郭のないごく弱いぼかしを添える（部屋の数だけ並ぶので、強く光ると画面がうるさくなる）。
+   いちばん多い「空き」の緑は薄めにし、「使用中」の赤が少し目に入るようにする（信号に見立てる） */
+.lamp.lamp-free { background: #4cbb6c; opacity: .7; box-shadow: 0 0 4px rgba(76, 187, 108, .45); }
+.lamp.lamp-soon { background: #e5b52a; opacity: .85; box-shadow: 0 0 4px rgba(229, 181, 42, .45); }
+.lamp.lamp-busy { background: #e0544b; opacity: .9; box-shadow: 0 0 4px rgba(224, 84, 75, .45); }
+.lamp.lamp-off { background: #c7c7cc; opacity: .7; }
+html.dark .lamp.lamp-free { background: #3fae60; box-shadow: 0 0 5px rgba(63, 174, 96, .5); }
+html.dark .lamp.lamp-busy { background: #e5564d; box-shadow: 0 0 5px rgba(229, 86, 77, .5); }
+html.dark .lamp.lamp-off { background: #636366; }
+html.dark .c-red { --res: rgba(255, 69, 58, .3); --res-border: #ff453a; --res-text: #ffb4ae; }
+html.dark .c-purple { --res: rgba(191, 90, 242, .3); --res-border: #bf5af2; --res-text: #e6c2fa; }
+html.dark .c-green { --res: rgba(48, 209, 88, .28); --res-border: #30d158; --res-text: #b6f2c4; }
+html.dark .main, html.dark .tl-label, html.dark .tl-corner { background: var(--surface); }
+html.dark .tl-head { background: rgba(28, 28, 30, .9); }
+html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #222224; }
+html.dark .tl-row.today .tl-label { background: #10243d; }
+/* 部屋名の列の下の区切り線は、ダークでは半透明の色だと後ろの現在時刻の赤い線が透けるので、同じ見た目の不透明な色で引く */
+html.dark .tl-label { box-shadow: 0 1px 0 #2b2b2d; }
+html.dark .tl-row.week-start .tl-label { box-shadow: 0 1px 0 #2b2b2d, 0 -2px 0 #404043; }
+html.dark .tl-scale span.now { background: rgba(10, 132, 255, .16); }
+html.dark .blk.res::after { background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(255, 159, 10, .35), 0 1px 2px rgba(0, 0, 0, .5); }
+html.dark .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(10, 132, 255, .4), 0 1px 2px rgba(0, 0, 0, .5); }
+html.dark .blk.closed { background: #2c2c2e repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .05) 6px 12px); }
+html.dark .tag { background: rgba(255, 255, 255, .1); color: #d1d1d6; }
+html.dark .tag.t-up { background: rgba(255, 159, 10, .2); color: #ffc66b; }
+html.dark .tag.t-gp { background: rgba(48, 209, 88, .18); color: #7ee29a; }
+html.dark .tag.t-ep { background: rgba(10, 132, 255, .2); color: #8cc4ff; }
+html.dark .tag.t-large { background: rgba(191, 90, 242, .22); color: #dcaef7; }
+html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
+/* 動きの仕上げ（予約表の後ろの淡い色と、帯の光沢・影も試したが、2026-10-11 に見送った） */
+/* 予約が取れた瞬間（index/book-send.js の celebrate が .booked を付ける）: 少し膨らんで戻り、帯の色の光の輪が広がって消える。中の色も一瞬明るくなる */
+.blk.res.booked { animation: booked-pop .75s cubic-bezier(.3, 1.5, .5, 1) var(--bk-delay, 0ms) both; }
+.blk.res.booked::after { animation: booked-flash .9s ease-out var(--bk-delay, 0ms) both; }
+@keyframes booked-pop {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--bk-c) 55%, transparent); }
+  35% { transform: scale(1.06); }
+  100% { transform: scale(1); box-shadow: 0 0 0 9px color-mix(in srgb, var(--bk-c) 0%, transparent); }
+}
+@keyframes booked-flash { 0% { filter: none; } 25% { filter: brightness(1.15) saturate(1.5); } 100% { filter: none; } }
+/* 日付の切り替え（index/timeline.js の render が slide-next / slide-prev を付ける）: 表の時間の部分だけを、進む向きから滑り込ませる（部屋名の列は動かさない） */
+.tl-track.slide-next { animation: slide-in-next .34s cubic-bezier(.2, .8, .3, 1) both; }
+.tl-track.slide-prev { animation: slide-in-prev .34s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes slide-in-next { from { transform: translateX(32px); opacity: .15; } to { transform: none; opacity: 1; } }
+@keyframes slide-in-prev { from { transform: translateX(-32px); opacity: .15; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .blk.res.booked, .blk.res.booked::after, .tl-track.slide-next, .tl-track.slide-prev { animation: none; }
+}

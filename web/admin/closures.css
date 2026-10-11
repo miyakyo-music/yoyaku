@@ -1,0 +1,54 @@
+/* 管理画面: 休館・利用停止の一覧と追加の欄 */
+/* 休館・利用停止の一覧（狭い画面では表を横スクロール） */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th, td {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  border-bottom: .5px solid var(--sep);
+}
+th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  background: rgba(118, 118, 128, .08);
+}
+td.reason { white-space: normal; min-width: 140px; }
+tr.past td { color: #9aa3ad; }
+/* 時間帯の欄が出入りしても崩れないよう、各欄の幅を個別に決めて下端で揃える */
+.add-form { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.add-form .f-date { flex: 0 0 auto; min-width: 0; }
+.add-form .f-room { flex: 1 1 140px; } /* スマホでは日付の右に並べる（長い部屋名は端が省略される） */
+.add-form .f-allday { flex: none; height: 38px; }
+.add-form .f-time { flex: 0 0 auto; }
+.add-form .f-time select { width: 64px; flex: none; }
+.add-form .f-reason { flex: 2 1 120px; }
+.add-form .f-submit { flex: none; height: 38px; }
+/* 休館・利用停止の一覧は、表を横にスクロールさせず、1件ずつのカードにする */
+@media (max-width: 600px) {
+  .table-wrap { border: 0; overflow: visible; }
+  .table-wrap table { min-width: 0; display: block; }
+  .table-wrap thead { display: none; }
+  .table-wrap tbody { display: flex; flex-direction: column; gap: 6px; }
+  .table-wrap tr {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px;
+    grid-template-areas: "date time del" "room reason del";
+    padding: 8px 10px;
+  }
+  .table-wrap td { padding: 0; border: 0; white-space: normal; min-width: 0; font-size: 14px; }
+  .table-wrap td:nth-child(1) { grid-area: date; font-weight: 600; }
+  .table-wrap td:nth-child(2) { grid-area: room; color: var(--muted); font-size: 13px; }
+  .table-wrap td:nth-child(3) { grid-area: time; }
+  .table-wrap td:nth-child(4) { grid-area: reason; color: var(--muted); font-size: 13px; }
+  .table-wrap td:nth-child(5) { grid-area: del; }
+  .table-wrap td.empty { grid-column: 1 / -1; }
+}
+.table-wrap { border: 0; box-shadow: 0 0 0 .5px var(--sep); border-radius: 18px; }
+@media (max-width: 600px) {
+  .table-wrap { box-shadow: none; }
+  .table-wrap tr { border: 0; background: rgba(118, 118, 128, .07); border-radius: 18px; }
+}
+html.dark .table-wrap tr { background: rgba(255, 255, 255, .05); }
+html.dark th { background: rgba(255, 255, 255, .06); }

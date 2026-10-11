@@ -42,7 +42,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             path = "/index.html"
         if path == "/config.js":
             body = DEV_CONFIG
-        elif path in ("/gas/Code.gs", "/cache/store.js", "/dev/gas-stub.js", "/dev/cf-stub.js", "/dev/seed.js", "/dev/fixed-time.js", "/dev/fingerprint.js", "/dev/compare-scenario.js"):
+        elif path in ("/gas/Code.gs", "/cache/store.js", "/dev/gas-stub.js", "/dev/cf-stub.js", "/dev/seed.js", "/dev/fixed-time.js", "/dev/fingerprint.js", "/dev/css-swap.js", "/dev/compare-scenario.js"):
             body = (ROOT / path.lstrip("/")).read_bytes()
         else:
             file = (WEB / path.lstrip("/")).resolve()

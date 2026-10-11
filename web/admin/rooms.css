@@ -1,0 +1,83 @@
+/* 管理画面: 練習室の一覧（スマホでは1部屋を1行に畳む） */
+/* 部屋: 1部屋 = 1行（狭い画面では2段に折り返す） */
+.rooms { display: flex; flex-direction: column; gap: 8px; }
+/* 見出し行と各行は同じ列幅定義を使い、列位置を一致させる（すべて上端揃え） */
+.room, .rooms-head {
+  display: grid; gap: 8px;
+  grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.3fr) 132px minmax(0, 1fr) 64px;
+}
+.room { align-items: start; padding: 8px; }
+.room.new { border-color: #9cc0f5; }
+/* 左端の番号の列をつまむと、ドラッグで並べ替えられる（指でも操作できるよう、列全体をつかめる） */
+.room .no {
+  color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 0;
+  align-self: stretch; min-height: 38px; justify-content: center; border-radius: 6px;
+  cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.room .no .grip { font-size: 14px; line-height: 1; letter-spacing: -1px; color: #9aa3ad; }
+@media (hover: hover) {
+  .room .no:hover { background: var(--bg); color: var(--text); }
+}
+.room.dragging { box-shadow: 0 8px 24px rgba(15, 23, 42, .18); border-color: var(--accent); position: relative; z-index: 2; }
+.room.dragging .no { cursor: grabbing; background: var(--accent-weak, #e8f0ff); color: var(--accent); }
+body.sorting, body.sorting * { cursor: grabbing !important; }
+.room .ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 3px; }
+.rooms-head { padding: 0 9px 4px; font-size: 12px; color: var(--muted); }
+/* 1行に並べると欄が狭くなる幅では2段、スマホ幅では4段にする */
+.room .lbl { display: none; }
+@media (max-width: 900px) {
+  .rooms-head { display: none; }
+  .room {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "no name tags eq" "no restr note ops";
+  }
+  .room .no { grid-area: no; }
+  .room .c-name { grid-area: name; }
+  .room .c-tags { grid-area: tags; }
+  .room .c-eq { grid-area: eq; }
+  .room .c-restr { grid-area: restr; }
+  .room .c-note { grid-area: note; }
+  .room .ops { grid-area: ops; padding-top: 19px; }
+  .room .lbl { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+}
+@media (max-width: 600px) {
+  .room {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "no sum sum" "no name name" "no tags tags" "no eq restr" "no note note" "no ops ops";
+  }
+  .room .ops { padding-top: 0; }
+}
+.room-sum { display: none; }
+/* 部屋は1行に畳み、押した部屋だけ開いて編集する */
+@media (max-width: 600px) {
+  .rooms { gap: 6px; }
+  .room { padding: 6px 8px; row-gap: 0; }
+  .room.open { row-gap: 8px; border-color: var(--accent); }
+  .room:not(.open) > :not(.no):not(.room-sum) { display: none; }
+  .room-sum {
+    grid-area: sum; display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%;
+    border: 0; background: none; padding: 6px 0; text-align: left; cursor: pointer; font-size: 15px;
+  }
+  .room-sum .s-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-sum .chip { flex: none; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #eef2f7; color: var(--muted); }
+  .room-sum .chip.warn { background: #fff4e5; color: #9a5b00; }
+  .room-sum .s-eq { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .room-sum .chev { flex: none; color: var(--muted); transition: transform .15s; }
+  .room.open .room-sum .chev { transform: rotate(180deg); }
+  .room .no { min-height: 0; }
+}
+.room { border: 0; background: rgba(118, 118, 128, .07); border-radius: 14px; }
+.room.new { background: rgba(0, 122, 255, .08); }
+.room input, .room select { background-color: rgba(255, 255, 255, .95); }
+.room.open { background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 1.5px var(--accent), 0 8px 20px rgba(0, 0, 0, .06); }
+.room.open input, .room.open select { background-color: var(--fill-field); }
+.room.dragging { background: #fff; }
+.room-sum .chip { background: rgba(255, 255, 255, .9); }
+html.dark .room { background: rgba(255, 255, 255, .05); }
+html.dark .room.new { background: rgba(10, 132, 255, .14); }
+html.dark .room input, html.dark .room select { background-color: rgba(118, 118, 128, .3); }
+html.dark .room.open { background: #2c2c2e; box-shadow: 0 0 0 1.5px var(--accent), 0 8px 20px rgba(0, 0, 0, .4); }
+html.dark .room.open input, html.dark .room.open select { background-color: rgba(118, 118, 128, .3); }
+html.dark .room.dragging { background: #2c2c2e; }
+html.dark .room-sum .chip { background: rgba(255, 255, 255, .1); color: #d1d1d6; }
+html.dark .room-sum .chip.warn { background: rgba(255, 159, 10, .2); color: #ffc66b; }

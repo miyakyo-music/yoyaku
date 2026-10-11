@@ -1,0 +1,52 @@
+/* 管理画面: ボタン（予約表のボタンと同じガラス。高さ 36px は予約表の 34px と違う） */
+.btn {
+  height: 36px;
+  padding: 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 11px;
+  font-weight: 500;
+  background-color: var(--glass);
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), background-color .18s;
+}
+@media (hover: hover) {
+  .btn:hover { background: #f3f5f8; }
+  .btn.primary:hover { background: #1d4fd0; }
+}
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); font-weight: 600; }
+.btn.small { height: 30px; padding: 0 10px; font-size: 13px; }
+.btn.icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+.btn.danger-text { color: var(--danger); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn:active { transform: scale(1.03); }
+@media (hover: hover) {
+  .btn:hover { background-color: var(--glass-strong); }
+  .btn.primary:hover { background-color: rgba(0, 110, 235, .95); }
+}
+.btn.primary {
+  color: #fff; background-color: rgba(0, 122, 255, .96);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 50%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 0 0 .5px rgba(0, 60, 160, .25), 0 1px 3px rgba(0, 60, 160, .2);
+}
+.btn:focus-visible { outline: 0; box-shadow: var(--glass-rim), 0 0 0 2px var(--accent); }
+@media (hover: hover) {
+  html.dark .btn:hover { background-color: var(--glass-strong); }
+}
+html.dark .btn.primary {
+  background-color: #3b8ff5;
+  background-image: radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 60%);
+  box-shadow: inset 0 0 0 1px rgba(130, 195, 255, .45), inset 0 -1.5px 2px rgba(150, 210, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+@media (hover: hover) {
+  html.dark .btn.primary:hover { background-color: #4a99f7; }
+}

@@ -1,0 +1,119 @@
+/* 管理画面: 予約履歴（条件・一覧・行の詳細・エクスポートの形式・印刷用の表） */
+.hx-range .date-field input[type="date"] {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
+}
+/* 予約履歴: 1段目に期間と検索、2段目に条件の丸いボタン、その下に件数と印刷・エクスポート */
+.hx-form { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.hx-top { display: flex; flex-wrap: wrap; gap: 10px; }
+.hx-range { display: flex; align-items: center; gap: 2px; flex: none; border-radius: 11px; background: var(--fill-field); }
+.hx-range .date-display { background: none; padding: 0 10px; }
+.hx-tilde { color: var(--muted); font-size: 14px; }
+.hx-search {
+  flex: 1 1 220px; min-width: 0; height: 38px; padding: 0 12px 0 34px; border: 0; border-radius: 11px; font: inherit; font-size: 16px;
+  color: var(--text); background: var(--fill-field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='7' cy='7' r='5.2' fill='none' stroke='%238e8e93' stroke-width='1.6'/%3E%3Cpath d='M11 11l3.6 3.6' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 11px center;
+  -webkit-appearance: none; appearance: none;
+}
+.hx-search:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
+.hx-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.hx-chips .multi-pop { right: auto; left: 0; }
+.chip-btn {
+  display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 12px; border: 0; border-radius: 16px;
+  background: var(--fill-field); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap;
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+}
+.chip-btn[aria-haspopup]::after { content: ''; flex: none; width: 7px; height: 7px; margin: -3px 0 0 4px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); opacity: .55; }
+.chip-btn.on { background: rgba(0, 122, 255, .14); color: var(--accent); font-weight: 600; }
+/* 並び順: 件数のすぐ右に、文字だけのボタンで置く（押すたびに古い順・新しい順） */
+.sort-btn { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 30px; padding: 0 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.sort-btn::before { content: '⇅'; }
+@media (hover: hover) {
+  .sort-btn:hover { background: var(--fill-field); }
+}
+html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
+.chip-btn:focus-visible, .chip-btn[aria-expanded="true"] { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
+.hx-bar { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: .5px solid var(--sep); }
+#xResultHead { flex: 0 1 auto; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--muted); }
+#xResultHead b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hx-out { display: flex; gap: 8px; margin-left: auto; }
+/* 印刷・PDF に入れる項目 */
+.cols-pop { min-width: 200px; padding: 10px; gap: 2px; }
+.cols-title { margin: 0 4px 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.cols-pop .check:first-child { border-bottom: 0; margin-bottom: 0; border-radius: 8px; }
+#xColsList { display: flex; flex-direction: column; gap: 2px; }
+#xColsGo { margin-top: 8px; }
+/* 印刷用の表（admin/export.js の printList が作る）。ふだんは隠し、印刷のときはこれだけを出す。色は画面の明暗にかかわらず白地に黒 */
+#printArea { display: none; }
+@media print {
+  html, body { background: #fff !important; color: #000 !important; }
+  body::before, body::after { display: none !important; }
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block; color: #000; font-size: 10pt; }
+  #printArea h1 { margin: 0 0 4pt; font-size: 14pt; }
+  #printArea .meta { display: flex; flex-wrap: wrap; gap: 2pt 12pt; margin: 0 0 8pt; font-size: 9pt; }
+  #printArea .meta span { margin-left: auto; color: #555; }
+  #printArea table { width: 100%; min-width: 0; border-collapse: collapse; }
+  #printArea thead { display: table-header-group; } /* ページが変わっても見出しをくり返す */
+  #printArea th, #printArea td { padding: 3pt 5pt; border-bottom: .5pt solid #c8c8c8; color: #000; font-size: 9.5pt; text-align: left; vertical-align: top; white-space: normal; }
+  #printArea th { border-bottom: 1pt solid #000; font-weight: 700; }
+  #printArea tr { break-inside: avoid; }
+  #printArea tr.day td { border-top: 1pt solid #777; }
+  #printArea td.d, #printArea td.c-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #printArea .sat { color: #1d4ed8; }
+  #printArea .sun { color: #c62828; }
+}
+/* 画面に出す一覧の表（日の変わり目に線。備考は折り返す） */
+#xResult { margin-top: 10px; }
+#xResult .list-table td { font-variant-numeric: tabular-nums; }
+.list-table .t-s { display: inline-block; min-width: 2.8em; text-align: right; font-variant-numeric: tabular-nums; }
+#xResult .list-table tr.day td { border-top: 1px solid var(--line-strong); }
+/* 行を押すと、その予約の情報を全部その下に開く */
+#xResult .list-table.clickable tr[data-i] { cursor: pointer; }
+@media (hover: hover) {
+  #xResult .list-table.clickable tr[data-i]:hover td { background: var(--fill-field); }
+}
+#xResult .list-table tr.open td { background: rgba(0, 122, 255, .07); }
+#xResult .list-table tr.detail td { padding: 6px 12px 14px; white-space: normal; background: rgba(0, 122, 255, .07); }
+.res-detail { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 16px; margin: 0; font-size: 13px; }
+.res-detail div { display: contents; }
+.res-detail dt { color: var(--muted); }
+.res-detail dd { margin: 0; overflow-wrap: anywhere; }
+.res-detail .none { color: var(--muted); }
+.swatch { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 3px; vertical-align: -1px; }
+.swatch.c-red { background: #ff3b30; }
+.swatch.c-purple { background: #af52de; }
+.swatch.c-green { background: #34c759; }
+/* エクスポートの形式の一覧 */
+.fmt-pop { min-width: 220px; }
+.fmt-pop button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: none; font: inherit; font-size: 15px; font-weight: 600; color: var(--text); text-align: left; cursor: pointer;
+}
+.fmt-pop button small { font-size: 12px; font-weight: 400; color: var(--muted); }
+@media (hover: hover) {
+  .fmt-pop button:hover { background: var(--fill-field); }
+}
+/* スマホ: 一覧はカードにせず、日付の見出しの下に1件を1行で「時間｜部屋｜氏名」と並べる。長いものは「…」で縮め、
+   学籍番号・備考などは行を押したときの詳細で見せる */
+@media (max-width: 600px) {
+  #xResultHead .cond { display: none; } /* 条件は検索窓・丸いボタンで見えている */
+  #xResult .table-wrap tbody { display: block; }
+  #xResult .table-wrap tr, html.dark #xResult .table-wrap tr {
+    grid-template-columns: 6.6em var(--room-w, 6em) minmax(0, 1fr); grid-template-areas: "d d d" "t room name";
+    gap: 0 8px; padding: 0 2px; border-radius: 0; background: none; border-bottom: .5px solid var(--sep);
+  }
+  #xResult .table-wrap td { font-size: 13.5px; line-height: 1.3; padding: 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #xResult .table-wrap td.d { grid-area: d; padding: 12px 0 4px; font-size: 13px; font-weight: 600; }
+  #xResult .table-wrap td.d:empty { display: none; }
+  #xResult .table-wrap td:nth-child(2) { grid-area: t; color: var(--text); }
+  #xResult .table-wrap td:nth-child(3) { grid-area: room; color: var(--text); white-space: normal; text-overflow: clip; }
+  #xResult .table-wrap td:nth-child(3) .tg { white-space: nowrap; }
+  #xResult .table-wrap td:nth-child(4) { grid-area: name; color: var(--muted); }
+  #xResult .table-wrap td:nth-child(5) { display: none; }
+  #xResult .table-wrap tr.day { border-top: 0; }
+  #xResult .table-wrap tr.detail { display: block; padding: 0 0 8px; border-bottom: .5px solid var(--sep); }
+  #xResult .table-wrap tr.detail td { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 400; white-space: normal; overflow: visible; }
+  #xResult .table-wrap tr.open td { background: none; }
+  #xResult .table-wrap tr.open { border-bottom: 0; }
+  #xResult .list-table tr.day td { border-top: 0; }
+}

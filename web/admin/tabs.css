@@ -1,0 +1,54 @@
+/* 管理画面: タブ（ガラスの溝の中を白いつまみが滑る） */
+/* タブの列: 下線は内側に描いて縦にはみ出さないようにし、狭い画面では横方向だけスクロールさせる */
+.tabs {
+  display: flex; margin-bottom: 16px;
+  overflow-x: auto; overflow-y: hidden; touch-action: pan-x; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 9px;
+  color: var(--text);
+  font-weight: 500;
+  transition: background-color .25s, box-shadow .25s;
+}
+.tabs .dot { color: var(--danger); margin-left: 4px; }
+@media (max-width: 600px) {
+  .tabs .lg { display: none; }
+  /* タブは短い名前にして、5つとも横スクロールなしで見えるようにする */
+  .tabs { gap: 0; justify-content: space-between; }
+}
+/* タブ: ガラスの溝の中の白いつまみ */
+.tabs {
+  box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), inset 0 -1px 0 rgba(255, 255, 255, .6);
+  background: rgba(118, 118, 128, .1);
+  border-radius: 11px;
+  padding: 2px;
+  gap: 0;
+  /* 予約表の表示の切り替えと同じく、白いつまみが選んだタブへ滑る（JS が位置を入れたら .has-thumb） */
+  position: relative;
+}
+.tabs button[aria-selected="true"] {
+  color: var(--text); font-weight: 600; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+  box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
+}
+.tabs.has-thumb::before {
+  content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x); width: var(--thumb-w); border-radius: 9px;
+  background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+  box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
+  transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
+}
+.tabs.no-anim::before { transition: none; }
+.tabs.has-thumb button { position: relative; z-index: 1; }
+.tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
+@media (max-width: 600px) {
+  .tabs button { padding: 7px 4px; font-size: 13px; }
+}
+html.dark .tabs { background: #1c1c1e; box-shadow: none; }
+html.dark .tabs.has-thumb::before, html.dark .tabs button[aria-selected="true"] { background: #3a3a3c; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
+html.dark .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }

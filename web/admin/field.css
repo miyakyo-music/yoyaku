@@ -1,0 +1,103 @@
+/* 管理画面: 入力欄・選択欄・時刻と数値の欄・曜日・日付欄・部屋を複数選べる欄・パスワード欄 */
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.field input, .field select, input.in, select.in {
+  height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+  font-size: 16px; /* 16px未満だとiOS Safariでフォーカス時に画面が拡大される */
+  color: var(--text); background: var(--surface); width: 100%; min-width: 0;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.form-grid .full { grid-column: 1 / -1; }
+/* 時刻・数値の欄は内容に合った固定幅にし、単位（分・回など）はすぐ横に置く */
+.time { display: flex; align-items: center; gap: 4px; color: var(--text); }
+/* 時刻は数字を中央に寄せ、数字に合った幅にする（予約画面と同じ見た目） */
+.time select, .suffix select {
+  flex: none; width: 64px; text-align: center; text-align-last: center;
+  -webkit-appearance: none; appearance: none;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 7px center;
+}
+.suffix { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; font-size: 14px; }
+/* 数値の欄も数字を中央に寄せ、4桁が入る程度の幅にする（増減の矢印は出さない） */
+.suffix input { flex: none; width: 76px; padding: 0 6px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+.suffix input::-webkit-inner-spin-button, .suffix input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.weekdays { display: flex; flex-wrap: wrap; gap: 6px; }
+.weekdays label, .check {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer;
+}
+.weekdays label { padding: 6px 10px; }
+.weekdays input, .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.notice-edit { display: flex; gap: 6px; }
+.notice-edit input { flex: 1; min-width: 0; }
+.notice-edit select { flex: none; width: auto; }
+.copy-row, .pw-row { display: flex; gap: 6px; align-items: center; }
+.pw-row input { flex: 1; min-width: 0; }
+.pw-reveal { flex: none; height: auto; padding: 0 10px; font-size: 13px; min-width: 56px; }
+.pw-row .btn { height: 38px; flex: none; min-width: 56px; }
+#viewPwBox summary { cursor: pointer; }
+.copy-row input { flex: 1; min-width: 0; color: var(--text); }
+.copy-row .btn { height: 38px; flex: none; }
+/* 日付の欄: 曜日付きの表示の上に、透明な本物の日付欄を重ねる（予約表の予約画面と同じ作り） */
+.date-field { position: relative; display: flex; }
+.date-display {
+  display: flex; align-items: center; height: 38px; padding: 0 12px; border-radius: 11px; background: var(--fill-field);
+  color: var(--text); font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.date-field:focus-within .date-display { box-shadow: 0 0 0 2px var(--accent); }
+/* iPhone Safari の日付欄は既定の見た目だと固有の幅を持ち、指定した幅を無視してはみ出すため、見た目を解除する */
+input[type="date"].in, .field input[type="date"] {
+  -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%;
+  text-align: left; line-height: 36px;
+}
+input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.field .date-field input[type="date"] {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
+}
+.date-field input[type="date"]::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; opacity: 0; cursor: pointer; }
+/* 対象（複数選べる）: 選択欄と同じ見た目のボタンを押すと、部屋のチェックの一覧が下に開く */
+.multi { position: relative; }
+.multi-btn {
+  display: block; width: 100%; height: 38px; padding: 0 32px 0 12px; border: 0; border-radius: 11px; text-align: left;
+  font: inherit; font-size: 16px; color: var(--text); background-color: var(--fill-field); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.multi-btn:focus-visible, .multi-btn[aria-expanded="true"] { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
+.multi-pop {
+  position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; min-width: 100%; width: max-content; max-width: min(320px, calc(100vw - 32px));
+  max-height: min(360px, 55vh); overflow-y: auto; overscroll-behavior: contain; padding: 6px; border-radius: 12px;
+  display: flex; flex-direction: column; gap: 2px; background: var(--pop-bg);
+  box-shadow: 0 0 0 .5px rgba(0, 0, 0, .12), 0 8px 24px rgba(0, 0, 0, .16);
+}
+.multi-pop[hidden] { display: none; }
+/* カードはぼかし（backdrop-filter）でそれぞれ独立した重なりになるので、一覧を開いている間はそのカードごと手前に出す（下のカードに潜らないように） */
+.card:has(.multi-pop:not([hidden])) { position: relative; z-index: 5; }
+.multi-pop .check { padding: 7px 8px; border-radius: 8px; color: var(--text); font-size: 15px; cursor: pointer; }
+@media (hover: hover) {
+  .multi-pop .check:hover { background: var(--fill-field); }
+}
+.multi-pop .check:first-child { border-bottom: .5px solid var(--sep); border-radius: 8px 8px 0 0; margin-bottom: 2px; }
+/* 短い欄（時刻・数値）は2つずつ並べ、長い欄だけ1行を使う */
+@media (max-width: 600px) {
+  .form-grid { gap: 12px 10px; }
+  .form-grid .m-full { grid-column: 1 / -1; }
+  .weekdays { gap: 4px; flex-wrap: nowrap; }
+  .weekdays label { flex: 1; justify-content: center; gap: 3px; padding-left: 0; padding-right: 0; }
+}
+.field input, .field select, input.in, select.in { border: 0; border-radius: 11px; background-color: var(--fill-field); }
+.time select, .suffix select { background-color: var(--fill-field); }
+input:focus, select:focus { outline: 0; box-shadow: 0 0 0 2px var(--accent); background-color: #fff; }
+.copy-row input { background: var(--fill-field); }
+.weekdays label { border: 0; background: var(--fill-field); border-radius: 9px; }
+/* 選択欄の矢印: 標準の矢印は欄が広いと右端に寄りすぎるので、予約表と同じく右から 12px の位置に描く */
+.field select, select.in, .notice-edit select {
+  -webkit-appearance: none; appearance: none; padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+/* 時刻・数値の欄は幅が狭いので、数字を中央に置いたまま矢印を詰める */
+.time select, .suffix select { padding: 0 18px 0 6px; background-position: right 7px center; }
+html.dark input:focus, html.dark select:focus { background-color: rgba(118, 118, 128, .32); }
+html.dark .field select, html.dark select.in, html.dark .notice-edit select, html.dark .time select, html.dark .suffix select, html.dark .multi-btn {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E");
+}

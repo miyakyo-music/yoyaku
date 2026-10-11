@@ -1,0 +1,11 @@
+/* 予約表: ぼかしが使えない環境と、端末の「透明度を下げる」設定のときの代わりの見た目。
+   ほかの部品の指定を上書きするので、いちばん最後に読み込む */
+/* ぼかしに対応していない環境・「透明度を下げる」設定の端末では、半透明をやめて不透明な面にする */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .topbar, dialog, .hovercard { background: #fff; }
+  .btn:not(.primary):not(.danger), .date-display, .selects select, .admin-link { background-color: #ececf0; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .topbar, dialog, .hovercard, .tl-head, .tl-corner { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .btn:not(.primary):not(.danger), .date-display, .selects select, .admin-link { background-color: #ececf0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

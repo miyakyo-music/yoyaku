@@ -20,7 +20,7 @@ window.__fp = function () {
   const hash = (s) => { let x = 5381; for (let i = 0; i < s.length; i++) x = ((x << 5) + x + s.charCodeAt(i)) | 0; return x; };
   const styleStr = (cs) => { let s = ''; for (let i = 0; i < cs.length; i++) { const p = cs[i]; if (p.startsWith('--')) continue; s += p + ':' + cs.getPropertyValue(p) + ';'; } return s; };
   for (const el of document.querySelectorAll('body *')) {
-    if (el.closest(SKIP)) continue;
+    if (el.closest(SKIP) || /^(SCRIPT|STYLE|LINK)$/.test(el.tagName)) continue; // 読み込むファイルの数は見た目に関係ない
     const r = el.getBoundingClientRect();
     let s = el.tagName + '.' + (el.getAttribute('class') || '') + '#' + el.id + '|' + styleStr(getComputedStyle(el));
     s += '|B' + styleStr(getComputedStyle(el, '::before')) + '|A' + styleStr(getComputedStyle(el, '::after'));
@@ -34,9 +34,22 @@ window.__fp = function () {
 
 // 予約表・管理画面の決まった状態を作ってから指紋をとる
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// 読み込みが終わるのを待ち、続いている動き（小窓が開く・つまみが滑るなど）を最後まで進めてから測る。
+// 動きの途中で測ると、同じコードでも測るたびに結果が変わったため（くり返す動き＝くるくる は進めない）
+async function settle() {
+  for (let i = 0; i < 60 && document.body.classList.contains('loading'); i++) await wait(100);
+  await wait(500);
+  if (document.getAnimations) {
+    for (const a of document.getAnimations()) {
+      try { if (a.effect && a.effect.getComputedTiming().iterations !== Infinity) a.finish(); } catch (e) { /* 終われない動きはそのまま */ }
+    }
+  }
+  await wait(80);
+}
 window.__runState = async function (name) {
-  for (let i = 0; i < 40 && document.body.classList.contains('loading'); i++) await wait(100); // 読み込み中が終わるまで待つ
-  await wait(400);
+  await settle();
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close()); // 前の状態の小窓を閉じてから始める
+  await settle();
   document.activeElement && document.activeElement.blur && document.activeElement.blur();
   const segs = document.querySelectorAll('.seg .btn');
   if (segs.length && !name.startsWith('admin') && name !== 'room' && name !== 'month') { segs[0].click(); await wait(700); }
@@ -50,7 +63,7 @@ window.__runState = async function (name) {
   const m = document.getElementById('main'); if (m) { m.scrollLeft = 0; m.scrollTop = 0; }
   window.scrollTo(0, 0);
   const st = document.getElementById('statusText'); if (st) st.textContent = '0:00 更新'; // 時刻で幅が変わるので固定
-  await wait(300);
+  await settle();
   return window.__fp();
 };
 

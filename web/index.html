@@ -37,10 +37,28 @@
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>練習室予約</title>
-<link rel="stylesheet" href="index.css">
+<!-- 見た目は部品ごとのファイル（web/index/*.css）。あとのファイルが前のファイルを上書きするので、並び順を変えない（fallback.css は最後） -->
+<link rel="stylesheet" href="index/tokens.css">
+<link rel="stylesheet" href="index/page.css">
+<link rel="stylesheet" href="index/button.css">
+<link rel="stylesheet" href="index/field.css">
+<link rel="stylesheet" href="index/topbar.css">
+<link rel="stylesheet" href="index/timeline.css">
+<link rel="stylesheet" href="index/month.css">
+<link rel="stylesheet" href="index/dialog.css">
+<link rel="stylesheet" href="index/book.css">
+<link rel="stylesheet" href="index/detail.css">
+<link rel="stylesheet" href="index/my.css">
+<link rel="stylesheet" href="index/search.css">
+<link rel="stylesheet" href="index/bug.css">
+<link rel="stylesheet" href="index/hovercard.css">
+<link rel="stylesheet" href="index/toast.css">
+<link rel="stylesheet" href="index/fab.css">
+<link rel="stylesheet" href="index/morph.css">
+<link rel="stylesheet" href="index/fallback.css">
 </head>
 <body>
-  <!-- 画面の本体（小窓を開くと少し暗くなる。index.css の .page） -->
+  <!-- 画面の本体（小窓を開くと少し暗くなる。index/page.css の .page） -->
   <div class="page" id="page">
   <!-- 試験運用中の帯（版の名前に beta が含まれる間だけ出す。正式版では自動で消え、「不具合を報告」はフッタだけになる） -->
   <div class="beta-band" id="betaBand" hidden>
@@ -303,6 +321,30 @@
 
 <script src="config.js"></script>
 <script src="api.js"></script>
-<script src="index.js"></script>
+<!-- 動きは部品ごとのファイル（web/index/*.js）。上から順に読み込み、一番外側の名前（state など）を共有する。boot.js は最後 -->
+<script src="index/core.js"></script>
+<script src="index/data.js"></script>
+<script src="index/glass.js"></script>
+<script src="index/morph.js"></script>
+<script src="index/timeline.js"></script>
+<script src="index/month.js"></script>
+<script src="index/timeline-touch.js"></script>
+<script src="index/zoom.js"></script>
+<script src="index/move.js"></script>
+<script src="index/hovercard.js"></script>
+<script src="index/time-wheel.js"></script>
+<script src="index/book.js"></script>
+<script src="index/book-send.js"></script>
+<script src="index/detail.js"></script>
+<script src="index/my.js"></script>
+<script src="index/access.js"></script>
+<script src="index/topbar.js"></script>
+<script src="index/search.js"></script>
+<script src="index/favorites.js"></script>
+<script src="index/notice.js"></script>
+<script src="index/dialog.js"></script>
+<script src="index/live.js"></script>
+<script src="index/bug.js"></script>
+<script src="index/boot.js"></script>
 </body>
 </html>

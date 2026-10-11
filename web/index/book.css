@@ -1,0 +1,144 @@
+/* 予約表: 予約画面（時刻のホイール・部屋の一覧・まとめて予約・予約のコピー・重要な予定の色） */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* 予約のコピー: コピー先の曜日（複数選べる）。日付の日から1週間のうち、選んだ曜日の日に予約する */
+.wd-chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wd-chips button {
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--fill-field, rgba(118, 118, 128, .12));
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  cursor: pointer;
+  position: relative;
+}
+.wd-chips button small { font-size: 10px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wd-chips button.sun { color: var(--sun); }
+.wd-chips button.sat { color: var(--sat); }
+.wd-chips button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.wd-chips button[aria-pressed="true"] small { color: rgba(255, 255, 255, .85); }
+.wd-chips button:disabled { opacity: .35; cursor: default; }
+.color-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.color-pick button {
+  height: 38px; border: 0; border-radius: 10px; background: var(--fill-field); color: var(--text); font: inherit; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+}
+.color-pick i { width: 12px; height: 12px; border-radius: 50%; background: var(--res-border); }
+.color-pick button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent); font-weight: 600; }
+/* 予約画面の「部屋」と「日付」: 横幅が足りれば1行に並べ、足りなければ縦に積む（部屋を一覧から選ぶ間は日付だけで1行） */
+.room-date { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+/* 氏名と学籍番号は、スマホでは入力例が切れないよう縦に並べる */
+@media (max-width: 600px) {
+  .grid2.person { grid-template-columns: 1fr; }
+}
+/* 開始・終了の時刻: 数字に合った幅で中央揃え */
+.time { display: flex; align-items: center; gap: 6px; }
+/* 時刻のホイール（index/time-wheel.js の makeWheel）。真ん中の帯に入った数字が選ばれた値 */
+:root { --wheel-rows: 5; }
+@media (max-height: 760px) {
+  :root { --wheel-rows: 3; } /* 画面が低い端末（多くのスマホ）では3段にして、予約画面を短くする */
+}
+.time.has-wheel {
+  gap: 0; position: relative; border-radius: 11px; background: var(--fill-field); overflow: hidden;
+  font-size: 19px; font-weight: 600; color: var(--text);
+}
+.time.has-wheel::before {
+  content: ""; position: absolute; left: 5px; right: 5px; top: 50%; height: 34px; transform: translateY(-50%);
+  border-radius: 9px; background: rgba(118, 118, 128, .14); pointer-events: none;
+}
+.twheel {
+  flex: 1; min-width: 0; height: calc(34px * var(--wheel-rows)); overflow-y: auto; overscroll-behavior: contain;
+  scroll-snap-type: y mandatory; scrollbar-width: none; position: relative; outline: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  touch-action: pan-y; cursor: grab; -webkit-user-select: none; user-select: none;
+}
+.twheel::-webkit-scrollbar { display: none; }
+.twheel.dragging { cursor: grabbing; scroll-snap-type: none; }
+.twheel:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 10px; }
+.twheel .pad { height: calc(34px * (var(--wheel-rows) - 1) / 2); }
+.twheel .item {
+  height: 34px; display: flex; align-items: center; justify-content: center; scroll-snap-align: center;
+  font-size: 19px; font-weight: 400; font-variant-numeric: tabular-nums; color: var(--text); cursor: pointer;
+}
+.twheel .item.sel { font-weight: 600; }
+.time select {
+  /* 時・分の欄で列の幅いっぱいを使い、ほかの入力欄と左右の端をそろえる */
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  padding: 0 22px 0 8px;
+  text-align: center;
+  text-align-last: center;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 7px center;
+  border: 0;
+  border-radius: 11px;
+  background-color: var(--fill-field);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-image: none;
+}
+.duration { font-size: 13px; font-weight: 600; margin: -4px 0 0; }
+.repeat-summary { margin: 0; font-size: 13px; font-weight: 600; }
+.time select:focus { outline: 0; background-color: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent); }
+/* 「新規予約」から開いたときの部屋の一覧（押すといつもの選択欄に戻る） */
+.room-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.room-quick .rq {
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px; min-height: 48px; padding: 6px 8px;
+  border: 0; border-radius: 11px; text-align: center; font: inherit; color: var(--text); background: var(--fill-field); cursor: pointer;
+}
+.room-quick .rq b { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.room-quick .rq small { font-size: 11px; color: var(--muted); line-height: 1.3; }
+/* 設備ごとに、表のタグと同じ色をごく薄く敷く（UP=オレンジ、GP=緑、電子=青、大=紫） */
+.room-quick .rq.t-up { background: rgba(255, 149, 0, .09); }
+.room-quick .rq.t-up small { color: #8a5a00; }
+.room-quick .rq.t-gp { background: rgba(52, 199, 89, .1); }
+.room-quick .rq.t-gp small { color: #22693f; }
+.room-quick .rq.t-ep { background: rgba(0, 122, 255, .08); }
+.room-quick .rq.t-ep small { color: #2457a1; }
+.room-quick .rq.t-large { background: rgba(175, 82, 222, .09); }
+.room-quick .rq.t-large small { color: #5b3aa8; }
+html.dark .room-quick .rq.t-up { background: rgba(255, 159, 10, .13); }
+html.dark .room-quick .rq.t-up small { color: #ffc66b; }
+html.dark .room-quick .rq.t-gp { background: rgba(48, 209, 88, .12); }
+html.dark .room-quick .rq.t-gp small { color: #7ee29a; }
+html.dark .room-quick .rq.t-ep { background: rgba(10, 132, 255, .14); }
+html.dark .room-quick .rq.t-ep small { color: #8cc4ff; }
+html.dark .room-quick .rq.t-large { background: rgba(191, 90, 242, .15); }
+html.dark .room-quick .rq.t-large small { color: #dcaef7; }
+.room-quick .rq.t-up:active, .room-quick .rq.t-gp:active, .room-quick .rq.t-ep:active, .room-quick .rq.t-large:active { background: var(--accent); }
+.room-quick .rq:active small { color: #fff !important; }
+@media (hover: hover) {
+  .room-quick .rq:hover { background: var(--accent-weak); }
+}
+.room-quick .rq:active { background: var(--accent); color: #fff; }
+/* 複数の部屋を選ぶ欄（他の部屋も同時に予約・予約のコピー）: 新規予約の部屋の一覧を小さくしたもの。押すと選択・解除。
+   同じ名前の部屋（練習室6 など）は、先頭の「全◯室」でまとめて選べる */
+.room-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; max-height: 172px; overflow-y: auto; overscroll-behavior: contain; padding: 1px; }
+.room-grid .rq { min-height: 40px; padding: 4px 4px; border-radius: 9px; position: relative; }
+.room-grid .rq b { font-size: 13px; }
+.room-grid .rq small { font-size: 10px; }
+.room-grid .rq.rq-group { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.room-quick .rq[aria-pressed="true"], html.dark .room-quick .rq[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.room-quick .rq[aria-pressed="true"] small, html.dark .room-quick .rq[aria-pressed="true"] small { color: rgba(255, 255, 255, .88); }
+.room-quick .rq:disabled { cursor: default; opacity: .75; }
+/* 元の予約の部屋・日には小さな点を付ける */
+.rq.orig::after, .wd-chips button.orig::after { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .55; }
+/* 予約のコピー */
+.copy-box { display: flex; flex-direction: column; gap: 10px; }
+.copy-src { margin: 0; font-size: 13px; color: var(--muted); }
+.wd-row { display: flex; align-items: center; gap: 4px; }
+.wd-row .wd-chips { flex: 1; min-width: 0; gap: 4px; }
+.wd-nav { flex: none; width: 26px; height: 44px; border: 0; border-radius: 8px; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.wd-nav:disabled { opacity: .3; cursor: default; }
+html.dark .time.has-wheel::before { background: rgba(255, 255, 255, .1); }

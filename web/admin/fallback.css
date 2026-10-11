@@ -1,0 +1,4 @@
+/* 管理画面: 端末の「透明度を下げる」設定のときの代わりの見た目（最後に読み込む） */
+@media (prefers-reduced-transparency: reduce) {
+  .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
+}
