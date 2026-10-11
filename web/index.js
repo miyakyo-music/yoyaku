@@ -2817,26 +2817,19 @@
   for (const dlg of dialogs) dlg.addEventListener('close', () => hideSecrets(dlg));
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
-  // 小窓が開いている間は、画面の本体を少し奥へ下げる（index.css の html.dlg-open .page）
-  // 上部は、閉じたあと後ろの画面が元の大きさに戻りきるまで不透明のままにする（hdr-solid。戻る途中に半透明に戻すと、
+  // 小窓が開いている間は、画面の本体を少し暗くする（index.css の html.dlg-open .page）
+  // 上部は、閉じたあと暗さが戻りきるまで不透明のままにする（hdr-solid。戻る途中に半透明に戻すと、
   // iPhone の Safari で上部のぼかしが効かず、表が透けて見えた）
   let solidTimer = 0;
   const syncDepth = () => {
     const open = anyDialogOpen(), root = document.documentElement;
     root.classList.toggle('dlg-open', open);
-    // 画面の高さのほとんどを占める小窓（新規予約など）では縮めない。上下に後ろの画面の端が細くのぞいて、境目が目立ったため
-    if (open) root.classList.toggle('dlg-tall', dialogs.some((d) => d.open && d.offsetHeight > window.innerHeight * 0.8));
     clearTimeout(solidTimer);
     if (open) root.classList.add('hdr-solid');
-    else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 520); // 縮みが戻る 0.46秒＋少し
+    else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 360); // 暗さが戻る 0.3秒＋少し
   };
   const depthWatch = new MutationObserver(syncDepth);
-  // 開いたあとで中身が増えて背が伸びる小窓（検索の結果・自分の予約の一覧など）も、伸びた時点で縮めるのをやめる
-  const tallWatch = new ResizeObserver(() => { if (anyDialogOpen()) syncDepth(); });
-  for (const d of dialogs) {
-    depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
-    tallWatch.observe(d);
-  }
+  for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
   // ---------------- 自動更新（操作の邪魔をしない） ----------------
   const IDLE_MS = 3000; // 最後の操作からこの時間が過ぎるまでは、画面を描き直さない
   let lastActive = 0;
