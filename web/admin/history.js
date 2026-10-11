@@ -216,9 +216,8 @@ function syncPicks() {
   const all = $('xSelAll');
   const n = Math.min(shownList.length, SHOW_MAX);
   if (all) { all.checked = n > 0 && pickedIds.size === n; all.indeterminate = pickedIds.size > 0 && pickedIds.size < n; }
-  for (const el of document.querySelectorAll('#xResultHead .pick-n')) el.textContent = `${pickedIds.size}件を選択`;
   $('xDelBtn').disabled = !pickedIds.size;
-  $('xDelBtn').innerHTML = pickedIds.size ? `<span class="del-n">${pickedIds.size}件を</span>削除` : '削除';
+  $('xDelBtn').innerHTML = pickedIds.size ? `${pickedIds.size}件を削除` : '削除';
 }
 $('xDelBtn').addEventListener('click', async () => {
   if (!pickedIds || !pickedIds.size) return;
@@ -261,8 +260,7 @@ async function showHistory() {
   const { list } = data;
   const cond = exportFilter();
   head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span class="cond">${esc(cond.label)}</span>` : '') +
-    (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '') +
-    (pickedIds ? '<span class="pick-n"></span>' : '');
+    (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
   shownList = list;
   if (pickedIds) { const ids = new Set(list.slice(0, SHOW_MAX).map((r) => r.id)); for (const id of [...pickedIds]) if (!ids.has(id)) pickedIds.delete(id); lastPick = -1; } // 条件で見えなくなった予約は選ばない
   // 画面では備考を出さない（行を押すと、その予約の情報を全部開く）

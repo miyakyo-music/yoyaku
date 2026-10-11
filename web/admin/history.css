@@ -57,7 +57,6 @@ html.dark #xResult .list-table thead th { background: linear-gradient(rgba(255, 
 .hx-out { display: flex; gap: 8px; margin-left: auto; }
 .hx-del { flex: none; margin-left: auto; }
 #xSelect::before { content: none; }
-#xResultHead .pick-n { color: var(--accent); font-weight: 600; white-space: nowrap; }
 #xSelect[aria-pressed="true"] { font-weight: 600; }
 /* 選ぶ状態: 先頭に印の欄。選んだ行は薄い青。Shift で間を選ぶとき文字が選択されないようにする */
 #xResult .list-table.selecting { -webkit-user-select: none; user-select: none; }
@@ -165,7 +164,6 @@ html.dark #xResult .list-table tr.picked td { background: rgba(10, 132, 255, .2)
   #xResult .table-wrap .selecting { margin-top: -10px; }
   #xResult .table-wrap .selecting thead tr { border-bottom: .5px solid var(--sep); } /* 留まっているとき、後ろを通る一覧と分ける */
   #xResult .table-wrap .selecting thead th.sel { padding: 0 0 8px; line-height: 18px; }
-  #xDelBtn .del-n { display: none; } /* 選んだ件数は左に出ているので、ボタンは「削除」だけ（幅が足りない） */
   #xResult .table-wrap tr.day { border-top: 0; }
   #xResult .table-wrap tr.detail { display: block; padding: 0 0 8px; border-bottom: .5px solid var(--sep); }
   #xResult .table-wrap tr.detail td { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 400; white-space: normal; overflow: visible; }
