@@ -29,7 +29,7 @@ function renderMonth() {
       const max = 4;
       html += '<ul>' + list.slice(0, max).map((r) =>
         `<li class="${Object.prototype.hasOwnProperty.call(mine, r.id) ? 'mine' : ''}${RES_COLORS.includes(r.color) ? ' c-' + r.color : ''}" title="${esc(hm(r.start))}〜${esc(hm(r.end))} ${esc(r.affiliation)} ${esc(r.name)}">` +
-        `${esc(hm(r.start))} ${esc(r.name || r.affiliation)}</li>`).join('') +
+        `<span class="nm">${esc(r.name || r.affiliation)}</span><time>${esc(hm(r.start))}</time></li>`).join('') +
         (list.length > max ? `<li class="more">ほか${list.length - max}件</li>` : '') + '</ul>';
     } else if (list.length) {
       const own = list.filter((r) => Object.prototype.hasOwnProperty.call(mine, r.id)).length;

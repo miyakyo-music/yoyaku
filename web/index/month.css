@@ -1,40 +1,55 @@
-/* 予約表: カレンダー（月表示） */
-/* 1日あたり48px未満にはせず、それより狭い画面では横スクロール */
+/* 予約表: カレンダー（月表示）。iPad のカレンダーの月表示に寄せる */
 /* 1日48px未満にはしない。予約者名が長くても列は広げず、セルの中で省略する */
-.month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); border-left: 1px solid var(--line); width: 100%; min-width: calc(48px * 7 + 1px); }
+.month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); width: 100%; min-width: calc(48px * 7); }
 .month .dow {
   position: sticky;
   z-index: 1;
   background: var(--surface);
-  text-align: center;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line-strong);
-  border-right: 1px solid var(--line);
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
   top: var(--hdr-h);
 }
-.mc { min-width: 0; min-height: 104px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 4px; cursor: pointer; overflow: hidden; }
+.mc { min-width: 0; min-height: 112px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 6px 4px; cursor: pointer; overflow: hidden; }
+.mc.sat { border-right: 0; }
+/* 土日の列はわずかに沈める */
+.mc.sun, .mc.sat { background: rgba(120, 120, 128, .06); }
 @media (hover: hover) {
-  .mc:hover { background: #f6f9ff; }
+  .mc:hover { background: rgba(0, 122, 255, .05); }
 }
-.mc.other { background: #fafbfc; color: #a3acb6; }
+.mc.other { color: var(--muted); }
+.mc.other .n { opacity: .55; }
 .mc.closed-day { background: var(--closed); }
-.mc.selected { box-shadow: inset 0 0 0 2px var(--accent); }
-.mc .d { font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; gap: 4px; }
-.mc.today .d .n { background: var(--accent); color: #fff; border-radius: 10px; padding: 0 6px; }
-.mc .d small { font-weight: 400; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mc ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 11px; line-height: 1.35; }
-.mc li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 3px; padding: 0 3px; margin-bottom: 1px; background: var(--res); color: var(--res-text); }
-.mc li.mine { background: var(--mine); color: var(--mine-text); }
-.mc li.more { background: none; color: var(--muted); }
-.mc .count { margin-top: 6px; font-size: 12px; color: var(--res-text); font-weight: 600; }
+.mc.selected .n { background: rgba(120, 120, 128, .2); }
+.mc .d { font-size: 18px; line-height: 26px; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 4px; }
+.mc .d .n { min-width: 26px; height: 26px; padding: 0 4px; border-radius: 13px; text-align: center; font-variant-numeric: tabular-nums; }
+.mc.today .d .n { background: var(--accent); color: #fff; font-weight: 600; }
+.mc .d small { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 11px; line-height: 1.5; }
+/* 予定: 左に細い色の棒＋名前、右に開始時刻 */
+.mc li { display: flex; align-items: baseline; gap: 4px; padding-left: 6px; position: relative; color: var(--text); }
+.mc li::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2.5px; border-radius: 2px; background: var(--res-border); }
+.mc li.mine::before { background: var(--mine-border); }
+.mc li[class*="c-"] { font-weight: 700; color: var(--res-text); }
+.mc li .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc li time { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mc li.more { padding-left: 0; color: var(--muted); }
+.mc li.more::before { content: none; }
+.mc .count { margin-top: 6px; font-size: 12px; color: var(--muted); }
 @media (max-width: 600px) {
-  .mc { min-height: 72px; padding: 2px; }
-  .mc li { font-size: 10px; }
+  .mc { min-height: 76px; padding: 3px 2px; }
+  .mc .d { font-size: 14px; line-height: 22px; }
+  .mc .d .n { min-width: 22px; height: 22px; border-radius: 11px; }
+  .mc li { font-size: 10px; padding-left: 4px; }
+  /* 狭い画面では時刻だけ */
+  .mc li .nm { display: none; }
+  .mc li time { color: inherit; }
 }
-html.dark .month .dow { background: var(--surface); }
-html.dark .mc.other { background: #151517; color: #636366; }
+html.dark .mc.sun, html.dark .mc.sat { background: rgba(255, 255, 255, .04); }
+html.dark .mc.closed-day { background: var(--closed); }
 .month.slide-next { animation: slide-in-next .34s cubic-bezier(.2, .8, .3, 1) both; }
 .month.slide-prev { animation: slide-in-prev .34s cubic-bezier(.2, .8, .3, 1) both; }
 @media (prefers-reduced-motion: reduce) {
