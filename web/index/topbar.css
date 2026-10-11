@@ -50,6 +50,12 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
 }
 .notice svg { flex: none; margin-top: 2px; }
 .notice .ic-alert, .notice.important .ic-info { display: none; }
+/* お知らせは1行に収め、はみ出す分は「…」。押すと全文の小窓（index/notice.js） */
+.notice { align-items: center; }
+.notice svg { margin-top: 0; }
+#noticeText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notice.overflow { cursor: pointer; }
+.notice-full { margin: 0; font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 .notice.important .ic-alert { display: inline; }
 .notice.important { border-color: #f3b5b5; }
 /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */

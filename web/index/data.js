@@ -233,6 +233,7 @@ function applySettings() {
   }
   $('notice').classList.toggle('editable', isAdminMode());
   $('notice').title = isAdminMode() ? '押すとお知らせを変更できます' : '';
+  if (typeof markNoticeOverflow === 'function') markNoticeOverflow();
   $('adminMode').hidden = !isAdminMode();
 
   const eq = $('equipFilter');
