@@ -1,0 +1,82 @@
+/* 予約表・管理画面の共通: ボタンを Safari（macOS 26）のツールバーと同じ質感にそろえる。
+   各画面の button.css・dialog.css などより後に読み込み、形と質感だけを上書きする（大きさは各画面のまま）。
+   ・形は両端が半円のカプセル（タブの溝とつまみも）
+   ・面: ライトはほぼ不透明の白を淡く広い影で浮かせる。ダークは灰色の半透明
+   ・縁は細い光の輪。上端が一番明るく、下端にもかすかな照り返し
+   ・青（決定）と赤（取消・削除）は同じ縁と照りを付けた色ガラス */
+:root {
+  --sf-glass: rgba(255, 255, 255, .92);
+  --sf-hover: rgba(0, 0, 0, .05);
+  --sf-rim: inset 0 1px 0 #fff, inset 0 0 0 .5px rgba(255, 255, 255, .8);
+  --sf-ring: 0 0 0 .5px rgba(0, 0, 0, .05);
+  --sf-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 4px 16px rgba(0, 0, 0, .09);
+  --sf-trough: rgba(118, 118, 128, .12);
+}
+html.dark {
+  --sf-glass: rgba(72, 72, 76, .5);
+  --sf-hover: rgba(255, 255, 255, .1);
+  --sf-rim: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 -1px 0 rgba(255, 255, 255, .1), inset 0 0 0 1px rgba(255, 255, 255, .12);
+  --sf-ring: 0 0 0 .5px rgba(0, 0, 0, .6);
+  --sf-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+  --sf-trough: rgba(118, 118, 128, .24);
+}
+/* 灰色のボタン（:where で強さを下げ、上部のカプセルの中のボタンなど各画面の個別の指定を優先させる） */
+.btn:where(:not(.primary, .danger)), html.dark dialog .btn:not(.primary):not(.danger) {
+  border-radius: 999px; background-color: var(--sf-glass); background-image: none;
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-shadow);
+}
+@media (hover: hover) {
+  .btn:where(:not(.primary, .danger)):hover, html.dark .btn:where(:not(.primary, .danger)):hover, html.dark dialog .btn:not(.primary):not(.danger):hover {
+    background-color: var(--sf-glass); background-image: linear-gradient(var(--sf-hover), var(--sf-hover));
+  }
+}
+/* 青い色ガラス（新規予約・予約確定など） */
+.btn.primary, .btn.primary:hover {
+  border-radius: 999px; color: #fff; font-weight: 600; background-color: #0a74ff;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .06) 50%, rgba(0, 40, 140, .1));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 1px rgba(170, 215, 255, .5), inset 0 0 0 .5px rgba(255, 255, 255, .25),
+    0 0 0 .5px rgba(0, 60, 170, .3), 0 2px 4px rgba(0, 70, 200, .18), 0 5px 14px rgba(0, 110, 255, .28);
+}
+html.dark .btn.primary, html.dark .btn.primary:hover {
+  background-color: #2a84f5;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%, rgba(0, 30, 90, .14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -1px 1px rgba(150, 205, 255, .45), inset 0 0 0 1px rgba(130, 195, 255, .3),
+    0 0 0 .5px rgba(0, 0, 0, .5), 0 4px 14px rgba(10, 110, 255, .3);
+}
+@media (hover: hover) {
+  .btn.primary:hover { background-color: #1a80ff; }
+  html.dark .btn.primary:hover { background-color: #3a8ef7; }
+}
+/* 赤い色ガラス（取消・削除） */
+.btn.danger, .btn.danger:hover {
+  border-radius: 999px; color: #fff; font-weight: 600; background-color: #ff3b30;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .06) 50%, rgba(120, 10, 0, .1));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 1px rgba(255, 200, 195, .5), inset 0 0 0 .5px rgba(255, 255, 255, .25),
+    0 0 0 .5px rgba(170, 20, 10, .3), 0 2px 4px rgba(200, 30, 20, .18), 0 5px 14px rgba(255, 59, 48, .26);
+}
+html.dark .btn.danger, html.dark .btn.danger:hover {
+  background-color: #f2473d;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%, rgba(90, 10, 0, .14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -1px 1px rgba(255, 180, 170, .45), inset 0 0 0 1px rgba(255, 150, 140, .3),
+    0 0 0 .5px rgba(0, 0, 0, .5), 0 4px 14px rgba(255, 69, 58, .28);
+}
+@media (hover: hover) {
+  .btn.danger:hover { background-color: #ff4d42; }
+}
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 小窓の下端の大きなボタンもカプセル */
+.actions .btn { border-radius: 999px; }
+/* タブ（自分の予約の切り替え・管理画面のタブ）: 灰色の溝とつまみをカプセルに */
+.pill-tabs, .tabs:not(.seg) { border-radius: 999px; padding: 3px; background: var(--sf-trough); box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06); }
+.pill-tabs button, .tabs:not(.seg) button { border-radius: 999px; }
+.pill-tabs button[aria-pressed="true"], .tabs:not(.seg) button[aria-selected="true"], .tabs.has-thumb::before {
+  background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .12);
+}
+.tabs.has-thumb::before { top: 3px; bottom: 3px; border-radius: 999px; }
+.tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
+html.dark .pill-tabs, html.dark .tabs:not(.seg) { background: var(--sf-trough); box-shadow: none; }
+html.dark .pill-tabs button[aria-pressed="true"], html.dark .tabs:not(.seg) button[aria-selected="true"], html.dark .tabs.has-thumb::before {
+  background: rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+html.dark .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
