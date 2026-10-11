@@ -15,9 +15,9 @@
 html.dark {
   --sf-glass: rgba(72, 72, 76, .5);
   --sf-hover: rgba(255, 255, 255, .1);
-  --sf-rim: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 -1px 0 rgba(255, 255, 255, .1), inset 0 0 0 1px rgba(255, 255, 255, .12);
+  --sf-rim: inset 0 .5px 0 rgba(255, 255, 255, .16), inset 0 0 0 .5px rgba(255, 255, 255, .07);
   --sf-ring: 0 0 0 .5px rgba(0, 0, 0, .6);
-  --sf-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+  --sf-shadow: 0 1px 4px rgba(0, 0, 0, .25);
   --sf-trough: rgba(118, 118, 128, .24);
 }
 /* 灰色のボタン（:where で強さを下げ、上部のカプセルの中のボタンなど各画面の個別の指定を優先させる） */
@@ -40,9 +40,8 @@ html.dark {
 }
 html.dark .btn.primary, html.dark .btn.primary:hover {
   background-color: #2a84f5;
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%, rgba(0, 30, 90, .14));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -1px 1px rgba(150, 205, 255, .45), inset 0 0 0 1px rgba(130, 195, 255, .3),
-    0 0 0 .5px rgba(0, 0, 0, .5), 0 4px 14px rgba(10, 110, 255, .3);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, 0) 55%);
+  box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(130, 195, 255, .2), 0 0 0 .5px rgba(0, 0, 0, .5), 0 1px 4px rgba(0, 0, 0, .25);
 }
 @media (hover: hover) {
   .btn.primary:hover { background-color: #1a80ff; }
@@ -57,9 +56,8 @@ html.dark .btn.primary, html.dark .btn.primary:hover {
 }
 html.dark .btn.danger, html.dark .btn.danger:hover {
   background-color: #f2473d;
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%, rgba(90, 10, 0, .14));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -1px 1px rgba(255, 180, 170, .45), inset 0 0 0 1px rgba(255, 150, 140, .3),
-    0 0 0 .5px rgba(0, 0, 0, .5), 0 4px 14px rgba(255, 69, 58, .28);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, 0) 55%);
+  box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(255, 150, 140, .2), 0 0 0 .5px rgba(0, 0, 0, .5), 0 1px 4px rgba(0, 0, 0, .25);
 }
 @media (hover: hover) {
   .btn.danger:hover { background-color: #ff4d42; }
@@ -77,6 +75,6 @@ html.dark .btn.danger, html.dark .btn.danger:hover {
 .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
 html.dark .pill-tabs, html.dark .tabs:not(.seg) { background: var(--sf-trough); box-shadow: none; }
 html.dark .pill-tabs button[aria-pressed="true"], html.dark .tabs:not(.seg) button[aria-selected="true"], html.dark .tabs.has-thumb::before {
-  background: rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .14); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .1);
 }
 html.dark .tabs.has-thumb button[aria-selected="true"] { background: none; box-shadow: none; }
