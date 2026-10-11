@@ -443,6 +443,7 @@ html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px 
 .topbar { --text-inset: 15px; }
 .brand h1 { padding-left: var(--text-inset); }
 .topbar .notice { padding-left: var(--text-inset); }
+.topbar .notice .ic-info { margin-left: -2px; } /* 拡声器の絵は枠の内側に約 2px の余白があるので、その分だけ左へ寄せて線の端をそろえる */
 @media (max-width: 600px) {
   .topbar { --text-inset: 11px; }
 }
