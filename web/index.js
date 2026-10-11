@@ -2825,14 +2825,18 @@
     const open = anyDialogOpen(), root = document.documentElement;
     root.classList.toggle('dlg-open', open);
     // 画面の高さのほとんどを占める小窓（新規予約など）では縮めない。上下に後ろの画面の端が細くのぞいて、境目が目立ったため
-    const top = dialogs.find((d) => d.open);
-    if (top) root.classList.toggle('dlg-tall', top.offsetHeight > window.innerHeight * 0.8);
+    if (open) root.classList.toggle('dlg-tall', dialogs.some((d) => d.open && d.offsetHeight > window.innerHeight * 0.8));
     clearTimeout(solidTimer);
     if (open) root.classList.add('hdr-solid');
     else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 520); // 縮みが戻る 0.46秒＋少し
   };
   const depthWatch = new MutationObserver(syncDepth);
-  for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
+  // 開いたあとで中身が増えて背が伸びる小窓（検索の結果・自分の予約の一覧など）も、伸びた時点で縮めるのをやめる
+  const tallWatch = new ResizeObserver(() => { if (anyDialogOpen()) syncDepth(); });
+  for (const d of dialogs) {
+    depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
+    tallWatch.observe(d);
+  }
   // ---------------- 自動更新（操作の邪魔をしない） ----------------
   const IDLE_MS = 3000; // 最後の操作からこの時間が過ぎるまでは、画面を描き直さない
   let lastActive = 0;
