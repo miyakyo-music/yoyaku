@@ -47,6 +47,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* 後ろを暗くするのも、幕（::backdrop）ではなく画面の本体で行う。幕は閉じた瞬間に消えるので、暗さがぱっと戻って見えたため */
 html.dlg-open .page { transform: scale(.965); border-radius: 16px; overflow: hidden; filter: brightness(.78); }
 html.dark.dlg-open .page { filter: brightness(.82); }
+/* ライトでは後ろの明るい背景がすき間から白く見えて目立つので、開いている間は本体の暗さより少し濃い灰色にする（ダークは黒のまま） */
+body { transition: background-color .3s ease; }
+html.dlg-open:not(.dark) body { background: #a7a7ad; }
 @media (prefers-reduced-motion: reduce) { html.dlg-open .page { transform: none; border-radius: 0; } }
 
 /* ---------- ヘッダー ---------- */
