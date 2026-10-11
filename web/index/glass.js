@@ -124,6 +124,8 @@ function updateChrome() {
   if (state.freeNow && (state.view !== 'day' || state.date !== todayStr())) state.freeNow = false;
   $('freeBtn').setAttribute('aria-pressed', String(!!state.freeNow));
   $('roomSelect').hidden = state.view === 'day';
+  // カレンダーからは新規予約を入れないので、新規予約のボタン（PC の上部・スマホの右下の＋）を出さない
+  $('newBtn').hidden = $('fabBtn').hidden = state.view === 'month';
   const label = $('rangeLabel');
   const d = parseDate(state.date);
   if (state.view === 'day') {

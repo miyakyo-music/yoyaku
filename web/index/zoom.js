@@ -56,10 +56,9 @@ let touch = null;
 const SCROLL_SETTLE_MS = 300;
 let lastScrollAt = 0;
 $('main').addEventListener('scroll', () => { lastScrollAt = Date.now(); clearPick(); }, { passive: true });
-// スマホの「＋」: 表の下のフッターが見えている分だけ持ち上げ、表の下端の上に乗せる。
-// カレンダーは持ち上げない（表が画面より短いと、日付のマスの上に乗ってしまう。代わりにフッターの下に＋の場所を空けておく）
+// スマホの「＋」: 表の下のフッターが見えている分だけ持ち上げ、表の下端の上に乗せる
 function liftFab() {
-  const foot = state.view === 'month' ? null : $('main').querySelector('.main-foot');
+  const foot = $('main').querySelector('.main-foot');
   const lift = foot ? Math.max(0, $('main').getBoundingClientRect().bottom - foot.getBoundingClientRect().top) : 0;
   $('fabBtn').style.setProperty('--fab-lift', `${Math.round(lift)}px`);
 }

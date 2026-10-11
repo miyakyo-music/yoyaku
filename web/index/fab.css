@@ -13,8 +13,6 @@
   }
   .fab:active { transform: scale(1.08); }
   #newBtn { display: none; }
-  /* カレンダー: 下までスクロールしたとき、＋が日付のマスやフッターの文字に重ならないよう、フッターの下に＋の分を空ける */
-  .month ~ .main-foot { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 }
 html.dark .fab {
   background-color: #3b8ff5;
