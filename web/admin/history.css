@@ -48,13 +48,12 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
 }
 html.dark .hx-bar { background: var(--surface); }
 html.dark #xResult .list-table thead th { background: linear-gradient(rgba(255, 255, 255, .06), rgba(255, 255, 255, .06)), var(--surface); }
-#xResultHead { flex: 0 1 auto; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--muted); }
+#xResultHead { flex: 0 1 auto; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; font-size: 13px; color: var(--muted); } /* 中の文字は、右の「古い順」「選択」と同じ高さに */
 #xResultHead b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hx-out { display: flex; gap: 8px; margin-left: auto; }
 .hx-del { flex: none; margin-left: auto; }
 #xSelect::before { content: none; }
 #xResultHead .pick-n { color: var(--accent); font-weight: 600; white-space: nowrap; }
-#xResult .list-table th.sel .pick-n { display: none; } /* PC では件数の横に出す（スマホは下の @media） */
 #xSelect[aria-pressed="true"] { font-weight: 600; }
 /* 選ぶ状態: 先頭に印の欄。選んだ行は薄い青。Shift で間を選ぶとき文字が選択されないようにする */
 #xResult .list-table.selecting { -webkit-user-select: none; user-select: none; }
@@ -158,11 +157,11 @@ html.dark #xResult .list-table tr.picked td { background: rgba(10, 132, 255, .2)
   #xResult .table-wrap tr.picked td, html.dark #xResult .table-wrap tr.picked td { background: none; }
   #xResult .table-wrap tr.picked::before { content: ''; grid-row: 2; grid-column: 1 / -1; align-self: stretch; margin: 0 -2px; background: rgba(0, 122, 255, .1); }
   html.dark #xResult .table-wrap tr.picked::before { background: rgba(10, 132, 255, .2); }
-  /* 選んだ件数は、すべて選ぶ印の右に出す（上の行は狭いので） */
-  #xResultHead .pick-n { display: none; }
-  #xResult .table-wrap .selecting thead th.sel { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 0 8px; }
+  /* すべて選ぶ印の行は、上の行のすぐ下に詰める（一覧の上の 10px をなくす。赤いボタンとの間は上の行の下の余白だけ） */
+  #xResult .table-wrap .selecting { margin-top: -10px; }
   #xResult .table-wrap .selecting thead tr { border-bottom: .5px solid var(--sep); } /* 留まっているとき、後ろを通る一覧と分ける */
-  #xResult .table-wrap .selecting thead th.sel .pick-n { display: inline; font-size: 13px; font-weight: 600; color: var(--muted); }
+  #xResult .table-wrap .selecting thead th.sel { padding: 0 0 8px; line-height: 18px; }
+  #xDelBtn .del-n { display: none; } /* 選んだ件数は左に出ているので、ボタンは「削除」だけ（幅が足りない） */
   #xResult .table-wrap tr.day { border-top: 0; }
   #xResult .table-wrap tr.detail { display: block; padding: 0 0 8px; border-bottom: .5px solid var(--sep); }
   #xResult .table-wrap tr.detail td { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 400; white-space: normal; overflow: visible; }

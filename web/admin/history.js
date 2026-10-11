@@ -137,7 +137,7 @@ function listTable({ from, to, list }, opt) {
     const sel = opt.select ? `<td class="sel"><input type="checkbox" tabindex="-1" aria-label="選ぶ"${opt.select.has(r.id) ? ' checked' : ''}></td>` : '';
     return `<tr class="${first ? 'day' : ''}${opt.select && opt.select.has(r.id) ? ' picked' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${sel}${cells}</tr>`;
   }).join('');
-  const selHead = opt.select ? '<th class="sel"><input type="checkbox" id="xSelAll" aria-label="すべて選ぶ"><span class="pick-n"></span></th>' : '';
+  const selHead = opt.select ? '<th class="sel"><input type="checkbox" id="xSelAll" aria-label="すべて選ぶ"></th>' : '';
   return `<table class="list-table${opt.clickable ? ' clickable' : ''}${opt.select ? ' selecting' : ''}"><thead><tr>${selHead}${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 }
 const COLOR_NAMES = { red: '赤', purple: '紫', green: '緑' };
@@ -216,9 +216,9 @@ function syncPicks() {
   const all = $('xSelAll');
   const n = Math.min(shownList.length, SHOW_MAX);
   if (all) { all.checked = n > 0 && pickedIds.size === n; all.indeterminate = pickedIds.size > 0 && pickedIds.size < n; }
-  for (const el of document.querySelectorAll('#xResultHead .pick-n, #xResultBody .pick-n')) el.textContent = `${pickedIds.size}件を選択`;
+  for (const el of document.querySelectorAll('#xResultHead .pick-n')) el.textContent = `${pickedIds.size}件を選択`;
   $('xDelBtn').disabled = !pickedIds.size;
-  $('xDelBtn').textContent = pickedIds.size ? `${pickedIds.size}件を削除` : '削除';
+  $('xDelBtn').innerHTML = pickedIds.size ? `<span class="del-n">${pickedIds.size}件を</span>削除` : '削除';
 }
 $('xDelBtn').addEventListener('click', async () => {
   if (!pickedIds || !pickedIds.size) return;
