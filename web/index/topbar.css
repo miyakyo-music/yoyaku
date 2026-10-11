@@ -438,3 +438,12 @@ html.dark .topbar .seg::before { background: rgba(255, 255, 255, .14); box-shado
 /* ライト: 表示の切り替えの溝まで白いと、白いつまみが見分けにくいので、溝だけ薄い灰色にする */
 html:not(.dark) .topbar .seg { background-color: rgba(118, 118, 128, .12); box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06); }
 html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .12); }
+/* タイトルとお知らせの文字の左端を、表示の切り替えの「一覧」の文字の左端にそろえる
+   （溝の余白 3px ＋ ボタンの内側の余白） */
+.topbar { --text-inset: 15px; }
+.brand h1 { padding-left: var(--text-inset); }
+.topbar .notice { padding-left: var(--text-inset); }
+.topbar .notice .ic-info { margin-left: -2px; } /* 拡声器の絵は枠の内側に約 2px の余白があるので、その分だけ左へ寄せて線の端をそろえる */
+@media (max-width: 600px) {
+  .topbar { --text-inset: 11px; }
+}
