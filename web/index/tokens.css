@@ -1,11 +1,6 @@
-/* 予約表: 共通の色と質感の名前（ライト・ダーク。--accent・--glass など）。
-   ガラス = 半透明の面＋背景のぼかし＋縁の光（上端の明るい線・下端の淡い反射）＋浮いた影。
-   屈折（像のゆがみ）は Chrome・Edge だけで足す（index/glass.js の「光の屈折」、html.refract）。Safari（iPhone）はぼかしのみ。
-   見た目を変えない整理をしたら、dev/fingerprint.js で前後を比べる */
+/* 予約表: 予約表だけの色と大きさの名前（ライト・ダーク）。両画面に共通の名前（--accent・--glass など）は shared/tokens.css。
+   屈折（像のゆがみ）は Chrome・Edge だけで足す（index/glass.js の「光の屈折」、html.refract）。Safari（iPhone）はぼかしのみ */
 :root {
-  --surface: #ffffff;
-  --line: #e3e7ec;
-  --line-strong: #b8c1cb;
   /* 予約の帯の色（iOS のシステムカラーに近いオレンジと青を、白地に薄く敷いた色） */
   --res: rgba(255, 149, 0, .16);
   /* 半透明にして、下の罫線や縞模様が透けて見えるようにする */
@@ -21,41 +16,14 @@
   --hour-w: 96px;
   --row-h: 40px;
   --hours: 15;
-  color-scheme: light;
-  --accent: #007aff;
-  --accent-weak: rgba(0, 122, 255, .1);
   --sat: #007aff;
-  --danger: #ff3b30;
   --sun: #e5352b;
-  --bg: #f2f2f7;
-  --text: #1c1c1e;
-  --muted: #6e6e73;
-  --sep: rgba(60, 60, 67, .16);
   --hdr-h: 0px;
   /* 上部（ガラスの帯）の高さ。予約表はこの下に潜り込む（JS で実測して入れる） */
-  /* ガラスの材質 */
-  --glass: rgba(255, 255, 255, .7);
-  --glass-strong: rgba(255, 255, 255, .8);
-  --glass-blur: blur(16px) saturate(180%);
-  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 40%);
-  --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .9), inset 0 0 0 .5px rgba(255, 255, 255, .35);
-  --glass-edge: 0 0 0 .5px rgba(0, 0, 0, .1);
-  --glass-lift: 0 1px 2px rgba(0, 0, 0, .05), 0 2px 8px rgba(0, 0, 0, .04);
-  --fill-field: rgba(118, 118, 128, .1);
-  /* ダイアログの入力欄 */
 }
 html.dark {
-  color-scheme: dark;
-  /* iOS の設定アプリのダークモードに合わせる: 背景は黒、表やカードは一段明るい #1c1c1e、ボタンは上端にだけ光のある濃い灰色 */
-  --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93;
-  --line: rgba(255, 255, 255, .07); --line-strong: rgba(84, 84, 88, .65); --sep: rgba(84, 84, 88, .6);
-  --accent: #0a84ff; --accent-weak: rgba(10, 132, 255, .18); --sat: #409cff; --sun: #ff6961; --danger: #ff453a;
+  --sat: #409cff; --sun: #ff6961;
   --res: rgba(255, 159, 10, .26); --res-border: #ff9f0a; --res-text: #ffd59a;
   --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
   --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
-  --glass: #262628; --glass-strong: #303033;
-  --glass-sheen: none;
-  --glass-rim: inset 0 .5px 0 rgba(255, 255, 255, .14); /* 上端だけのかすかな光（iOS の戻るボタンと同じ） */
-  --glass-edge: 0 0 0 .5px rgba(255, 255, 255, .05); --glass-lift: 0 0 0 0 transparent;
-  --fill-field: rgba(118, 118, 128, .24);
 }

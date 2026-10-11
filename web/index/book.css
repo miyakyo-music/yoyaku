@@ -1,4 +1,4 @@
-/* 予約表: 予約画面（時刻のホイール・部屋の一覧・まとめて予約・予約のコピー・重要な予定の色） */
+/* 予約表: 予約画面（時刻のホイール・部屋の一覧・まとめて予約・予約のコピー・重要な予定の色）と、予約の詳細（コピー・カレンダーに追加） */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 /* 予約のコピー: コピー先の曜日（複数選べる）。日付の日から1週間のうち、選んだ曜日の日に予約する */
 .wd-chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
@@ -142,3 +142,13 @@ html.dark .room-quick .rq.t-large small { color: #dcaef7; }
 .wd-nav { flex: none; width: 26px; height: 44px; border: 0; border-radius: 8px; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .wd-nav:disabled { opacity: .3; cursor: default; }
 html.dark .time.has-wheel::before { background: rgba(255, 255, 255, .1); }
+
+/* ---------- 予約の詳細（「コピー」「カレンダーに追加」のボタン） ---------- */
+#dCopy { height: 30px; padding: 0 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 600px) {
+  #dCopy { width: 30px; padding: 0; justify-content: center; }
+  #dCopy .lbl { display: none; } /* スマホでは見出しが折り返さないよう、絵だけにする */
+}
+/* 予約の詳細の「カレンダーに追加」: 見出しの右に小さく置き、場所を取らないようにする */
+.cal-add { display: flex; flex: none; }
+.cal-add .btn.small { height: 30px; padding: 0 12px; font-size: 13px; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }

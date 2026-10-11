@@ -1,4 +1,4 @@
-/* 予約表: 自分の予約（予約の一覧・練習時間） */
+/* 予約表: 自分の予約（予約の一覧・練習時間）・予約の検索・不具合報告 */
 .pill-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 3px; border-radius: 11px; background: var(--fill-field, rgba(118, 118, 128, .12)); }
 .pill-tabs button { height: 32px; border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
 .pill-tabs button[aria-pressed="true"] { background: var(--surface); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
@@ -36,3 +36,14 @@ html.dark .pill-tabs button[aria-pressed="true"] { background: #48484c; }
 @media (hover: hover) {
   .mylist button:hover { background: rgba(118, 118, 128, .14); }
 }
+
+/* ---------- 予約の検索 ---------- */
+/* 検索は「自分の予約」の左隣（更新ボタンと押し間違えないよう離す）。高さは隣のボタンに合わせた正方形 */
+.tools .search-btn { aspect-ratio: 1; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; }
+.search-input { width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 11px; background: var(--fill-field, rgba(118, 118, 128, .12)); color: var(--text); font: inherit; font-size: 16px; }
+.search-list { max-height: min(55vh, 460px); overflow-y: auto; overscroll-behavior: contain; }
+.search-list mark { background: rgba(255, 204, 0, .45); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* ---------- 不具合報告 ---------- */
+.env-info { font-size: 12px; color: var(--muted); }
+.env-info pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; margin: 6px 0 0; max-height: 160px; overflow: auto; }

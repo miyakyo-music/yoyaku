@@ -37,7 +37,9 @@
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>練習室予約</title>
-<!-- 見た目は部品ごとのファイル（web/index/*.css）。あとのファイルが前のファイルを上書きするので、並び順を変えない（fallback.css は最後） -->
+<!-- 見た目は両画面の共通（web/shared/*.css）と部品ごとのファイル（web/index/*.css）。あとのファイルが前のファイルを上書きするので、並び順を変えない（fallback.css は最後） -->
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/common.css">
 <link rel="stylesheet" href="index/tokens.css">
 <link rel="stylesheet" href="index/page.css">
 <link rel="stylesheet" href="index/button.css">
@@ -47,12 +49,8 @@
 <link rel="stylesheet" href="index/month.css">
 <link rel="stylesheet" href="index/dialog.css">
 <link rel="stylesheet" href="index/book.css">
-<link rel="stylesheet" href="index/detail.css">
 <link rel="stylesheet" href="index/my.css">
-<link rel="stylesheet" href="index/search.css">
-<link rel="stylesheet" href="index/bug.css">
 <link rel="stylesheet" href="index/hovercard.css">
-<link rel="stylesheet" href="index/toast.css">
 <link rel="stylesheet" href="index/fab.css">
 <link rel="stylesheet" href="index/morph.css">
 <link rel="stylesheet" href="index/fallback.css">

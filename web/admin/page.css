@@ -1,7 +1,16 @@
-/* 管理画面: 画面全体の土台（初期化・文字・カード・メッセージ・フッタ） */
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html { overflow-x: auto; }
+/* 管理画面: 画面全体の土台（管理画面だけの色の名前・初期化・文字・カード・メッセージ・フッタ・短い知らせ） */
+/* ---------- 管理画面だけの色の名前（ライト・ダーク）。両画面に共通の名前は shared/tokens.css ---------- */
+:root {
+  --pop-bg: #ffffff;
+  --warn-bg: #fff7e0;
+  --warn-text: #6b4e00;
+}
+html.dark {
+  --pop-bg: #2c2c2e;
+  --warn-bg: rgba(255, 159, 10, .16); --warn-text: #ffc66b;
+}
+
+/* ---------- 土台 ---------- */
 body {
   margin: 0;
   min-width: 320px;
@@ -18,10 +27,6 @@ button, input, select { font: inherit; color: inherit; }
 a { color: var(--accent); }
 .spacer { flex: 1; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 80px; }
-/* フッタ: 版・不具合を報告・プライバシーポリシー（中央に小さく1行） */
-.site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 0; font-size: 12px; color: var(--muted); }
-.site-foot > * + *::before { content: "・"; margin: 0 6px; color: var(--muted); text-decoration: none; display: inline-block; }
-.site-foot a, .site-foot button { color: var(--accent); font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; }
 .admin-foot { margin-top: 24px; }
 .card { padding: 18px; }
 .card + .card { margin-top: 16px; }
@@ -62,7 +67,27 @@ h3 { font-size: 14px; margin: 0 0 8px; }
 .msg.error { background: rgba(255, 59, 48, .08); }
 /* パスワードの各カードの保存ボタンは、「一般」などの保存と同じく右下に置く */
 .submit-row { display: flex; justify-content: flex-end; }
-html.dark body { background: var(--bg); }
 html.dark .card { background: var(--surface); box-shadow: 0 0 0 .5px rgba(255, 255, 255, .06); }
 html.dark .sat { color: #409cff; }
 html.dark .msg.error { background: rgba(255, 69, 58, .16); }
+
+/* ---------- 画面の下に短く出る知らせ ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px);
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  max-width: calc(100vw - 32px);
+  z-index: 100;
+  background: rgba(40, 40, 44, .78);
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+html.dark .toast { background: rgba(58, 58, 60, .9); }

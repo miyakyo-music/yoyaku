@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
       # ブラウザのキャッシュに古い CSS・JS やアイコンが残らないよう、公開のたびに読み込み先を変える
-      # （config.js・api.js と、部品のフォルダ index/・admin/ の中の .js・.css すべて）
+      # （config.js・api.js と、部品のフォルダ index/・admin/・shared/ の中の .js・.css すべて）
       - name: スクリプト・アイコンの URL に版を付ける
         run: |
           sed -i -E "s#(src|href)=\"(([a-z0-9-]+/)?[a-z0-9-]+\.(js|css))\"#\1=\"\2?v=${GITHUB_SHA::8}\"#g" web/*.html

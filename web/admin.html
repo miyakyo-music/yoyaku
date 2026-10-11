@@ -20,8 +20,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>管理画面</title>
-<!-- 見た目は部品ごとのファイル（web/admin/*.css）。あとのファイルが前のファイルを上書きするので、並び順を変えない（fallback.css は最後） -->
-<link rel="stylesheet" href="admin/tokens.css">
+<!-- 見た目は両画面の共通（web/shared/*.css）と部品ごとのファイル（web/admin/*.css）。あとのファイルが前のファイルを上書きするので、並び順を変えない（fallback.css は最後） -->
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/common.css">
 <link rel="stylesheet" href="admin/page.css">
 <link rel="stylesheet" href="admin/topbar.css">
 <link rel="stylesheet" href="admin/button.css">
@@ -32,7 +33,6 @@
 <link rel="stylesheet" href="admin/closures.css">
 <link rel="stylesheet" href="admin/history.css">
 <link rel="stylesheet" href="admin/login.css">
-<link rel="stylesheet" href="admin/toast.css">
 <link rel="stylesheet" href="admin/info.css">
 <link rel="stylesheet" href="admin/stats.css">
 <link rel="stylesheet" href="admin/settings.css">
