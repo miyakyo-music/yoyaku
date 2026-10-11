@@ -2818,15 +2818,15 @@
 
   const anyDialogOpen = () => dialogs.some((d) => d.open);
   // 小窓が開いている間は、画面の本体を少し暗くする（index.css の html.dlg-open .page）
-  // 上部は、閉じたあと暗さが戻りきるまで不透明のままにする（hdr-solid。戻る途中に半透明に戻すと、
-  // iPhone の Safari で上部のぼかしが効かず、表が透けて見えた）
+  // 上部は、閉じたあと帯へ戻る動き（0.46秒）と暗さの戻り（0.3秒）が終わるまで不透明のままにする（hdr-solid。
+  // 途中で半透明に戻すと、iPhone の Safari で上部のぼかしが効かず、表が透けて見えた。0.36秒では帯へ戻る動きの途中で透けた）
   let solidTimer = 0;
   const syncDepth = () => {
     const open = anyDialogOpen(), root = document.documentElement;
     root.classList.toggle('dlg-open', open);
     clearTimeout(solidTimer);
     if (open) root.classList.add('hdr-solid');
-    else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 360); // 暗さが戻る 0.3秒＋少し
+    else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 520); // 帯へ戻る 0.46秒＋少し
   };
   const depthWatch = new MutationObserver(syncDepth);
   for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
