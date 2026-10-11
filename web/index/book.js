@@ -38,7 +38,7 @@ function openBooking(o) {
   // at: 帯を動かしたときの行き先（部屋・日・開始・終了）。最初からこの値で開く（開いてから回し直すと、
   // iPhone ではホイールが元の位置を拾い直して、時刻の一部だけが元に戻ることがあったため）
   const at = edit && o.at ? o.at : null;
-  roomSel.value = at ? at.roomId : edit ? r.roomId : (o.roomId || (state.view !== 'day' && state.roomId) || firstRoom);
+  roomSel.value = at ? at.roomId : edit ? r.roomId : (o.roomId || shownRoomId() || firstRoom);
   if (!roomSel.value) roomSel.value = firstRoom;
   // 一覧の「新規予約」から開いたときは、まず部屋を選ぶことが多いので、部屋の一覧を広げて見せる。
   // 部屋を押すと、いつもの選択欄に戻る（ドラッグや空き枠から開いたとき・部屋別表示・変更時は広げない）

@@ -43,7 +43,8 @@ function homeDate() {
 const state = {
   view: load_(LS.view, 'day'),
   date: homeDate(),
-  roomId: load_(LS.room, ''),
+  roomId: load_(LS.room, ''),  // 部屋別で表示している部屋
+  monthRoomId: '',      // カレンダーで表示している部屋（空＝すべての部屋。開くたびに「すべての部屋」から）
   data: null,           // 直近の getSchedule 応答
   settings: null,
   rooms: [],
@@ -69,6 +70,8 @@ const state = {
 };
 
 // ---------------- 汎用 ----------------
+/** いま表示している部屋（一覧は空。カレンダーの「すべての部屋」も空） */
+function shownRoomId() { return state.view === 'month' ? state.monthRoomId : state.view === 'room' ? state.roomId : ''; }
 function pad(n) { return String(n).padStart(2, '0'); }
 function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function todayStr() { return fmtDate(new Date()); }

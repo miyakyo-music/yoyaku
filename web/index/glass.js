@@ -147,6 +147,7 @@ function setDate(s) {
 }
 
 function setView(view) {
+  if (view === 'month' && state.view !== 'month') state.monthRoomId = '';
   state.view = view;
   save_(LS.view, view);
   if (view === 'room' && !state.roomId && state.rooms[0]) state.roomId = state.rooms[0].id;

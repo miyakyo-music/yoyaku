@@ -6,7 +6,7 @@ function renderMonth() {
   const reservations = visibleReservations();
   const month = state.date.slice(0, 7);
   const today = todayStr();
-  const roomId = state.roomId;
+  const roomId = state.monthRoomId;
   const mine = getMine();
   const byDate = {};
   for (const r of reservations) {

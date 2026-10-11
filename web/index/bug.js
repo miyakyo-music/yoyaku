@@ -7,7 +7,7 @@ function collectEnv() {
   let storage = 'ok';
   try { localStorage.setItem('prr.test', '1'); localStorage.removeItem('prr.test'); } catch (e) { storage = '使用不可'; }
   const viewName = { day: '一覧', room: '部屋別', month: 'カレンダー' }[state.view];
-  const room = state.view !== 'day' ? roomById(state.roomId) : null;
+  const room = shownRoomId() ? roomById(shownRoomId()) : null;
   return {
     appVersion: APP_VERSION,
     live: liveInfo, // リアルタイム同期の様子（つながっているか・最後に知らせを受けた時刻）

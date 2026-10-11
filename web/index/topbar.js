@@ -11,7 +11,7 @@ $('fabBtn').addEventListener('click', () => $('newBtn').click());
 $('newBtn').addEventListener('click', () => {
   if (!state.settings) return;
   const date = state.view === 'day' && state.date >= todayStr() ? state.date : todayStr();
-  openBooking({ mode: 'create', date, roomId: state.view === 'day' ? '' : state.roomId });
+  openBooking({ mode: 'create', date, roomId: shownRoomId() });
 });
 $('myBtn').addEventListener('click', openMyList);
 $('adminMode').addEventListener('click', () => {

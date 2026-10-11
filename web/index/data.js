@@ -254,8 +254,8 @@ function applySettings() {
   const allOpt = state.view === 'month' ? '<option value="">すべての部屋</option>' : '';
   rs.innerHTML = allOpt + state.rooms.map((r) => `<option value="${esc(r.id)}">${esc(roomText(r))}</option>`).join('');
   if (state.view === 'room' && !state.rooms.some((r) => r.id === state.roomId)) state.roomId = state.rooms[0] ? state.rooms[0].id : '';
-  rs.value = state.roomId;
-  if (rs.value !== state.roomId) rs.value = '';
+  rs.value = shownRoomId();
+  if (rs.value !== shownRoomId()) rs.value = '';
 }
 
 /** 日付欄の表示（例：2026/10/09(金) とカレンダーのアイコン） */

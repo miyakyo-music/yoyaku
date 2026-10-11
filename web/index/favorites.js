@@ -32,7 +32,12 @@ $('freeBtn').addEventListener('click', () => {
   if (state.freeNow && state.date !== todayStr()) { setDate(todayStr()); return; }
   if (state.data) { render(); scrollToNow(); }
 });
-$('roomSelect').addEventListener('change', (e) => { state.roomId = e.target.value; save_(LS.room, state.roomId); updateChrome(); if (state.data) render(); });
+$('roomSelect').addEventListener('change', (e) => {
+  if (state.view === 'month') state.monthRoomId = e.target.value;
+  else { state.roomId = e.target.value; save_(LS.room, state.roomId); }
+  updateChrome();
+  if (state.data) render();
+});
 
 $('bookForm').addEventListener('submit', submitBooking);
 $('bookDialog').addEventListener('close', renderDraft); // 閉じたら仮予約の帯を消す
