@@ -164,10 +164,10 @@ function addHistory(list) {
 addHistory(Object.entries(getMine()).map(([id, date]) => ({ id, date }))); // この記録を作る前の予約も入れておく
 const getFavs = () => new Set(load_(LS.fav, []));
 
-// 広い画面では押したボタンの真下に出す（マウスの移動を短く）。狭い画面・ボタン以外から開いたときは中央
+// マウスで使う広い画面では押したボタンの真下に出す（マウスの移動を短く）。タッチ端末（iPad など）・狭い画面・ボタン以外から開いたときは中央
 function placeUnderBtn(dlg, btn) {
   const st = dlg.style;
-  if (!btn || innerWidth < 700) { st.margin = st.top = st.left = st.maxHeight = ''; return; }
+  if (!btn || innerWidth < 700 || !matchMedia('(pointer: fine)').matches) { st.margin = st.top = st.left = st.maxHeight = ''; return; }
   const b = btn.getBoundingClientRect();
   st.margin = '0';
   st.top = (b.bottom + 8) + 'px';
