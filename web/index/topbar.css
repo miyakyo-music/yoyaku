@@ -453,3 +453,22 @@ html.dark .topbar .seg::before { background: rgba(255, 255, 255, .16); box-shado
 /* ライト: 表示の切り替えの溝まで白いと、白いつまみが見分けにくいので、溝だけ薄い灰色にする */
 html:not(.dark) .topbar .seg { background-color: rgba(118, 118, 128, .12); box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06); }
 html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .12); }
+/* 新規予約: 単色だと平たく見えるので、ほかのカプセルと同じ光の縁を付けた「青い色ガラス」にする。
+   上ほど明るい青、上端に白い照り、下端に青白い照り返し、下に青い影 */
+.topbar .btn.primary, .topbar .btn.primary:hover {
+  background-color: #0a74ff;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .06) 50%, rgba(0, 40, 140, .1));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 1px rgba(170, 215, 255, .5), inset 0 0 0 .5px rgba(255, 255, 255, .25),
+    0 0 0 .5px rgba(0, 60, 170, .3), 0 2px 4px rgba(0, 70, 200, .18), 0 5px 14px rgba(0, 110, 255, .28);
+  font-weight: 600;
+}
+@media (hover: hover) {
+  .topbar .btn.primary:hover { background-color: #1a80ff; }
+}
+.topbar .btn.primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html.dark .topbar .btn.primary, html.dark .topbar .btn.primary:hover {
+  background-color: #2a84f5;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%, rgba(0, 30, 90, .14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -1px 1px rgba(150, 205, 255, .45), inset 0 0 0 1px rgba(130, 195, 255, .3),
+    0 0 0 .5px rgba(0, 0, 0, .5), 0 4px 14px rgba(10, 110, 255, .3);
+}
