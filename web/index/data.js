@@ -101,7 +101,7 @@ async function load(opts) {
   if (!state.data && !hit && !state.skipSnapshot) {
     const snap = load_(LS.snapshot, null);
     if (snap && snap.key === `${state.view}|${key}` && Date.now() - snap.at < 24 * 3600 * 1000) {
-      show({ res: snap.res, at: snap.at }, key);
+      show({ res: snap.res, at: snap.at, saved: true }, key);
       $('statusText').textContent = '更新中…';
       opts = Object.assign({}, opts, { background: true });
     }
@@ -146,11 +146,11 @@ function show(entry, key) {
   const keyChanged = state.shownKey !== shownKey;
   state.shownKey = shownKey;
   if (res.limitedDenied && state.limitedKey) endLimited('限定公開の部屋のパスワードが変更されたため、表示を終了しました。');
-  if (state.limitedEntry && res.ok) {
-    // 入口の URL から来たとき: 見られれば設備の絞り込みを演習室などに合わせ、見られなければパスワードを尋ねる
+  if (state.limitedEntry && res.ok && !entry.saved) {
+    // 入口の URL から来たとき: 見られれば設備の絞り込みを演習室などに合わせ、見られなければパスワードを尋ねる。
+    // 端末に覚えておいた前回の表では決めない（管理者モードで覚えた表は「見られる」になっていて、尋ねずに終わっていた）
     state.limitedEntry = false;
-    if (res.limitedAccess) focusLimitedRooms(res.rooms);
-    else { $('limPass').value = ''; $('limError').textContent = ''; $('limitedDialog').showModal(); }
+    if (res.limitedAccess) { focusLimitedRooms(res.rooms); dropLimitedQuery(); } else askLimited();
   }
   $('limitedMode').hidden = !(state.limitedKey && res.limitedAccess);
   // 管理者モードでは、未対応の不具合報告の件数を「管理」に出す
@@ -180,7 +180,8 @@ function show(entry, key) {
  */
 function showInBackground(entry, key, seq) {
   const sig = (r) => JSON.stringify([r.reservations, r.closures, r.rooms, r.settings]);
-  if (state.data && state.shownKey === `${state.view}|${key}` && sig(entry.res) === sig(state.data)) {
+  // 中身が同じなら描き直さない（ただし ?limited から来たときは、パスワードを尋ねるかをここで決めるので描き直す）
+  if (!state.limitedEntry && state.data && state.shownKey === `${state.view}|${key}` && sig(entry.res) === sig(state.data)) {
     const t = new Date(entry.at);
     $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
     return;

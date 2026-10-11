@@ -8,10 +8,10 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 
 // ---------------- 起動 ----------------
 if (!['day', 'room', 'month'].includes(state.view)) state.view = 'day';
-// 限定公開の部屋の入口（…/yoyaku/?limited）。URL からは外し、ブックマークや共有で広まらないようにする。
-// 記憶済みのパスワードで見られればそのまま演習室などを表示し、見られなければ最初の表示のあとでパスワードを尋ねる
+// 限定公開の部屋の入口（…/yoyaku/?limited）。記憶済みのパスワードで見られればそのまま演習室などを表示し、
+// 見られなければ最初の表示のあとでパスワードを尋ねる。URL の ?limited は、見られると分かったときか
+// パスワードの小窓を閉じたときに外す（ブックマークや共有で広まらないように。小窓が出る前に外すと、読み込み直しても出なくなる）
 if (/[?&]limited\b/.test(location.search)) {
-  history.replaceState(null, '', location.pathname + location.hash);
   state.limitedEntry = true;
   state.view = 'day';
 }

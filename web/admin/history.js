@@ -137,7 +137,7 @@ function listTable({ from, to, list }, opt) {
     const sel = opt.select ? `<td class="sel"><input type="checkbox" tabindex="-1" aria-label="選ぶ"${opt.select.has(r.id) ? ' checked' : ''}></td>` : '';
     return `<tr class="${first ? 'day' : ''}${opt.select && opt.select.has(r.id) ? ' picked' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${sel}${cells}</tr>`;
   }).join('');
-  const selHead = opt.select ? '<th class="sel"><input type="checkbox" id="xSelAll" aria-label="すべて選ぶ"></th>' : '';
+  const selHead = opt.select ? '<th class="sel"><input type="checkbox" id="xSelAll" aria-label="すべて選ぶ"><span class="pick-n"></span></th>' : '';
   return `<table class="list-table${opt.clickable ? ' clickable' : ''}${opt.select ? ' selecting' : ''}"><thead><tr>${selHead}${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 }
 const COLOR_NAMES = { red: '赤', purple: '紫', green: '緑' };
@@ -216,6 +216,7 @@ function syncPicks() {
   const all = $('xSelAll');
   const n = Math.min(shownList.length, SHOW_MAX);
   if (all) { all.checked = n > 0 && pickedIds.size === n; all.indeterminate = pickedIds.size > 0 && pickedIds.size < n; }
+  for (const el of document.querySelectorAll('#xResultHead .pick-n, #xResultBody .pick-n')) el.textContent = `${pickedIds.size}件を選択`;
   $('xDelBtn').disabled = !pickedIds.size;
   $('xDelBtn').textContent = pickedIds.size ? `${pickedIds.size}件を削除` : '削除';
 }
@@ -260,7 +261,8 @@ async function showHistory() {
   const { list } = data;
   const cond = exportFilter();
   head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span class="cond">${esc(cond.label)}</span>` : '') +
-    (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
+    (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '') +
+    (pickedIds ? '<span class="pick-n"></span>' : '');
   shownList = list;
   if (pickedIds) { const ids = new Set(list.slice(0, SHOW_MAX).map((r) => r.id)); for (const id of [...pickedIds]) if (!ids.has(id)) pickedIds.delete(id); lastPick = -1; } // 条件で見えなくなった予約は選ばない
   // 画面では備考を出さない（行を押すと、その予約の情報を全部開く）

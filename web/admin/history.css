@@ -53,6 +53,8 @@ html.dark #xResult .list-table thead th { background: linear-gradient(rgba(255, 
 .hx-out { display: flex; gap: 8px; margin-left: auto; }
 .hx-del { flex: none; margin-left: auto; }
 #xSelect::before { content: none; }
+#xResultHead .pick-n { color: var(--accent); font-weight: 600; white-space: nowrap; }
+#xResult .list-table th.sel .pick-n { display: none; } /* PC では件数の横に出す（スマホは下の @media） */
 #xSelect[aria-pressed="true"] { font-weight: 600; }
 /* 選ぶ状態: 先頭に印の欄。選んだ行は薄い青。Shift で間を選ぶとき文字が選択されないようにする */
 #xResult .list-table.selecting { -webkit-user-select: none; user-select: none; }
@@ -147,7 +149,15 @@ html.dark #xResult .list-table tr.picked td { background: rgba(10, 132, 255, .2)
   #xResult .table-wrap .selecting thead th:not(.sel) { display: none; }
   #xResult .table-wrap .selecting thead th.sel { grid-area: sel; position: static; padding: 10px 0 2px; border: 0; background: none; }
   #xResult .table-wrap td.sel { grid-area: sel; align-self: stretch; display: flex; align-items: center; width: auto; padding: 0; }
-  #xResult .table-wrap tr.picked td.d { background: none; } /* 日付の見出しは色を付けない */
+  /* 選んだ行の色: 欄ごとに塗ると、部屋名が2行の行で高さがそろわずガタガタになるので、行の2段目全体に1枚敷く。
+     日付の見出し（1段目）には色を付けない */
+  #xResult .table-wrap tr.picked td, html.dark #xResult .table-wrap tr.picked td { background: none; }
+  #xResult .table-wrap tr.picked::before { content: ''; grid-row: 2; grid-column: 1 / -1; align-self: stretch; margin: 0 -2px; background: rgba(0, 122, 255, .1); }
+  html.dark #xResult .table-wrap tr.picked::before { background: rgba(10, 132, 255, .2); }
+  /* 選んだ件数は、すべて選ぶ印の右に出す（上の行は狭いので） */
+  #xResultHead .pick-n { display: none; }
+  #xResult .table-wrap .selecting thead th.sel { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
+  #xResult .table-wrap .selecting thead th.sel .pick-n { display: inline; font-size: 13px; font-weight: 600; color: var(--muted); }
   #xResult .table-wrap tr.day { border-top: 0; }
   #xResult .table-wrap tr.detail { display: block; padding: 0 0 8px; border-bottom: .5px solid var(--sep); }
   #xResult .table-wrap tr.detail td { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 400; white-space: normal; overflow: visible; }

@@ -29,6 +29,17 @@ function endLimited(message) {
   invalidate();
   if (message) toast(message, 'error');
 }
+/** URL から ?limited を外す */
+function dropLimitedQuery() {
+  if (/[?&]limited\b/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
+}
+/** パスワードの小窓を開く（閉じたとき・パスワードが通ったときに URL から ?limited を外す） */
+function askLimited() {
+  $('limPass').value = '';
+  $('limError').textContent = '';
+  $('limitedDialog').showModal();
+}
+$('limitedDialog').addEventListener('close', dropLimitedQuery);
 $('limitedForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const key = $('limPass').value.trim();
