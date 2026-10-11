@@ -56,8 +56,9 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
 /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
 .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
 .notice-row .notice { flex: 1; min-width: 0; }
-/* 中くらいの幅では、タイトルとボタンの間に押し込むと縦に潰れるので、お知らせを次の行に回す */
-@media (min-width: 601px) and (max-width: 1199px) {
+/* 幅 999px 以下では、タイトルとボタンの間に押し込むと縦に潰れるので、お知らせを次の行に回す
+   （iPad 12.9 インチ縦の 1024px はタイトルの段に入る） */
+@media (min-width: 601px) and (max-width: 999px) {
   .notice-row { order: 3; flex: 1 0 100%; }
 }
 /* 試験運用中の帯 */
@@ -354,8 +355,8 @@ html.dark .notice-editor input { background: var(--fill-field); color: var(--tex
 .admin-link, .brand .admin-link, .status { height: 34px; border-radius: 10px; }
 .admin-link, .brand .admin-link { width: 34px; padding: 0; }
 .admin-link svg { width: 17px; height: 17px; }
-/* 中くらいの幅とスマホでは、お知らせは次の行いっぱいに */
-@media (max-width: 1199px) {
+/* 幅 999px 以下（iPad の小さい機種の縦・スマホ）では、お知らせは次の行いっぱいに */
+@media (max-width: 999px) {
   .notice-row { order: 9; }
 }
 /* スマホ: 1段目＝タイトルとアイコンのボタン。2段目＝表示の切り替えと絞り込み。
