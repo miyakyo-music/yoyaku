@@ -402,11 +402,12 @@ html.dark .status #statusText { color: var(--muted); }
    ・縁は細い光の輪。上端が一番明るく、下端にもかすかな照り返し
    ・矢印などのアイコンは色を付けず、文字と同じ色 */
 .topbar {
-  --sf-glass: rgba(255, 255, 255, .72);
-  --sf-hover: rgba(0, 0, 0, .06);
-  --sf-rim: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -.5px 0 rgba(255, 255, 255, .6), inset 0 0 0 .5px rgba(255, 255, 255, .5);
-  --sf-ring: 0 0 0 .5px rgba(0, 0, 0, .12);
-  --sf-shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 12px rgba(0, 0, 0, .06);
+  /* ライト: ほぼ不透明の白。黒い縁取りは見せず、広くて淡い影で浮かせる */
+  --sf-glass: rgba(255, 255, 255, .92);
+  --sf-hover: rgba(0, 0, 0, .05);
+  --sf-rim: inset 0 1px 0 #fff, inset 0 0 0 .5px rgba(255, 255, 255, .8);
+  --sf-ring: 0 0 0 .5px rgba(0, 0, 0, .05);
+  --sf-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 4px 16px rgba(0, 0, 0, .09);
 }
 html.dark .topbar {
   --sf-glass: rgba(72, 72, 76, .5);
@@ -449,3 +450,6 @@ html.dark .topbar .seg::before { background: rgba(255, 255, 255, .16); box-shado
   .topbar .seg .btn, .topbar .seg .btn:first-child, .topbar .seg .btn:last-child { padding: 0 8px; }
   .topbar .free-btn, .topbar #todayBtn { padding: 0; }
 }
+/* ライト: 表示の切り替えの溝まで白いと、白いつまみが見分けにくいので、溝だけ薄い灰色にする */
+html:not(.dark) .topbar .seg { background-color: rgba(118, 118, 128, .12); box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06); }
+html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .12); }
