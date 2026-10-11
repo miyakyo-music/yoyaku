@@ -32,7 +32,22 @@
 }
 html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
 .chip-btn:focus-visible, .chip-btn[aria-expanded="true"] { outline: 0; box-shadow: 0 0 0 2px var(--accent); }
-.hx-bar { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: .5px solid var(--sep); }
+/* 件数・並び順・選択・印刷・エクスポートの行と、表の見出しは、下へ送っても上部の帯の下に留める。
+   位置は上部の帯と、この行の高さから決める（admin/history.js が --top-h・--hxbar-h に入れる）。
+   後ろを一覧が通るので、行はカードの端まで広げてカードと同じ色で塞ぐ */
+.hx-bar {
+  display: flex; align-items: center; gap: 8px; margin: 14px -18px 0; padding: 12px 18px 10px; border-top: .5px solid var(--sep);
+  position: sticky; top: var(--top-h, 56px); z-index: 4;
+  background: #fcfcfe; /* カードの白いガラスを背景の灰色に重ねたのと同じ色 */
+}
+#xResult .table-wrap { overflow: visible; } /* 横にはみ出させる箱があると、見出しが留まらないため */
+#xResult .list-table { min-width: 0; }
+#xResult .list-table thead th {
+  position: sticky; top: calc(var(--top-h, 56px) + var(--hxbar-h, 56px)); z-index: 3;
+  background: linear-gradient(rgba(118, 118, 128, .08), rgba(118, 118, 128, .08)), #fcfcfe;
+}
+html.dark .hx-bar { background: var(--surface); }
+html.dark #xResult .list-table thead th { background: linear-gradient(rgba(255, 255, 255, .06), rgba(255, 255, 255, .06)), var(--surface); }
 #xResultHead { flex: 0 1 auto; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--muted); }
 #xResultHead b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hx-out { display: flex; gap: 8px; margin-left: auto; }
@@ -125,9 +140,12 @@ html.dark #xResult .list-table tr.picked td { background: rgba(10, 132, 255, .2)
     column-gap: 0; /* 選んだ行の色が欄の間で途切れないよう、間は欄の右の余白でとる */
   }
   #xResult .table-wrap .selecting td.c-time, #xResult .table-wrap .selecting td.c-room { padding-right: 8px; }
-  #xResult .table-wrap .selecting thead { display: block; } /* すべて選ぶ印だけ出す */
+  .hx-bar { margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; } /* カードの余白が狭い */
+  #xResult .table-wrap .selecting thead { display: block; position: sticky; top: calc(var(--top-h, 48px) + var(--hxbar-h, 52px)); z-index: 3; } /* すべて選ぶ印だけ出す */
+  #xResult .table-wrap .selecting thead tr { background: #fcfcfe; }
+  html.dark #xResult .table-wrap .selecting thead tr { background: var(--surface); }
   #xResult .table-wrap .selecting thead th:not(.sel) { display: none; }
-  #xResult .table-wrap .selecting thead th.sel { grid-area: sel; padding: 10px 0 2px; border: 0; background: none; }
+  #xResult .table-wrap .selecting thead th.sel { grid-area: sel; position: static; padding: 10px 0 2px; border: 0; background: none; }
   #xResult .table-wrap td.sel { grid-area: sel; align-self: stretch; display: flex; align-items: center; width: auto; padding: 0; }
   #xResult .table-wrap tr.picked td.d { background: none; } /* 日付の見出しは色を付けない */
   #xResult .table-wrap tr.day { border-top: 0; }

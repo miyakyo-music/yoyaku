@@ -273,6 +273,17 @@ async function showHistory() {
   $('xResultBody').style.setProperty('--room-w', `${roomW.toFixed(2)}em`);
   syncPicks();
 }
+// 一覧の上の行と表の見出しを留める位置（上部の帯と、その行の高さ。admin/history.css）
+if (window.ResizeObserver) {
+  const syncStick = () => {
+    const s = document.documentElement.style;
+    s.setProperty('--top-h', `${document.querySelector('.topbar').offsetHeight}px`);
+    s.setProperty('--hxbar-h', `${document.querySelector('.hx-bar').offsetHeight}px`);
+  };
+  const ro = new ResizeObserver(syncStick);
+  ro.observe(document.querySelector('.topbar'));
+  ro.observe(document.querySelector('.hx-bar'));
+}
 let refilterTimer = 0;
 function refilter(wait) {
   clearTimeout(refilterTimer);
