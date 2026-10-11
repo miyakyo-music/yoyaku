@@ -156,7 +156,8 @@ html.dark #xResult .list-table tr.picked td { background: rgba(10, 132, 255, .2)
   html.dark #xResult .table-wrap tr.picked::before { background: rgba(10, 132, 255, .2); }
   /* 選んだ件数は、すべて選ぶ印の右に出す（上の行は狭いので） */
   #xResultHead .pick-n { display: none; }
-  #xResult .table-wrap .selecting thead th.sel { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
+  #xResult .table-wrap .selecting thead th.sel { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 8px 0 10px; }
+  #xResult .table-wrap .selecting thead tr { border-bottom: .5px solid var(--sep); } /* 留まっているとき、後ろを通る一覧と分ける */
   #xResult .table-wrap .selecting thead th.sel .pick-n { display: inline; font-size: 13px; font-weight: 600; color: var(--muted); }
   #xResult .table-wrap tr.day { border-top: 0; }
   #xResult .table-wrap tr.detail { display: block; padding: 0 0 8px; border-bottom: .5px solid var(--sep); }
