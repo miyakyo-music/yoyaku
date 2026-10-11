@@ -2824,6 +2824,9 @@
   const syncDepth = () => {
     const open = anyDialogOpen(), root = document.documentElement;
     root.classList.toggle('dlg-open', open);
+    // 画面の高さのほとんどを占める小窓（新規予約など）では縮めない。上下に後ろの画面の端が細くのぞいて、境目が目立ったため
+    const top = dialogs.find((d) => d.open);
+    if (top) root.classList.toggle('dlg-tall', top.offsetHeight > window.innerHeight * 0.8);
     clearTimeout(solidTimer);
     if (open) root.classList.add('hdr-solid');
     else solidTimer = setTimeout(() => root.classList.remove('hdr-solid'), 520); // 縮みが戻る 0.46秒＋少し

@@ -50,6 +50,8 @@ html.dark.dlg-open .page { filter: brightness(.82); }
 /* ライトでは後ろの明るい背景がすき間から白く見えて目立つので、開いている間は本体の暗さより少し濃い灰色にする（ダークは黒のまま） */
 body { transition: background-color .3s ease; }
 html.dlg-open:not(.dark) body { background: #a7a7ad; }
+/* 背の高い小窓（index.js の syncDepth で dlg-tall）では縮めず、暗くするだけ */
+html.dlg-open.dlg-tall .page { transform: none; border-radius: 0; }
 @media (prefers-reduced-motion: reduce) { html.dlg-open .page { transform: none; border-radius: 0; } }
 
 /* ---------- ヘッダー ---------- */
