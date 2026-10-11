@@ -45,5 +45,5 @@ function renderMonth() {
     html += '</ul></div>';
   }
   $('main').classList.remove('has-tl');
-  $('main').innerHTML = html + '</div>' + footHtml('日付を押すと、その日の一覧を表示します');
+  $('main').innerHTML = html + '</div>' + footHtml('');
 }
