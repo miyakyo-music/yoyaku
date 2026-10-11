@@ -277,8 +277,9 @@ async function showHistory() {
 if (window.ResizeObserver) {
   const syncStick = () => {
     const s = document.documentElement.style;
-    s.setProperty('--top-h', `${document.querySelector('.topbar').offsetHeight}px`);
-    s.setProperty('--hxbar-h', `${document.querySelector('.hx-bar').offsetHeight}px`);
+    // 高さは小数まで測る（整数に丸めると 0.5px の隙間ができ、後ろの一覧が透けて見えた）
+    s.setProperty('--top-h', `${document.querySelector('.topbar').getBoundingClientRect().height}px`);
+    s.setProperty('--hxbar-h', `${document.querySelector('.hx-bar').getBoundingClientRect().height}px`);
   };
   const ro = new ResizeObserver(syncStick);
   ro.observe(document.querySelector('.topbar'));

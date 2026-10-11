@@ -37,13 +37,13 @@ html.dark .chip-btn.on { background: rgba(10, 132, 255, .24); }
    後ろを一覧が通るので、行はカードの端まで広げてカードと同じ色で塞ぐ */
 .hx-bar {
   display: flex; align-items: center; gap: 8px; margin: 14px -18px 0; padding: 12px 18px 10px; border-top: .5px solid var(--sep);
-  position: sticky; top: var(--top-h, 56px); z-index: 4;
+  position: sticky; top: calc(var(--top-h, 56px) - 1px); z-index: 4; /* 上下と 1px 重ねて、隙間から一覧が見えないように */
   background: #fcfcfe; /* カードの白いガラスを背景の灰色に重ねたのと同じ色 */
 }
 #xResult .table-wrap { overflow: visible; } /* 横にはみ出させる箱があると、見出しが留まらないため */
 #xResult .list-table { min-width: 0; }
 #xResult .list-table thead th {
-  position: sticky; top: calc(var(--top-h, 56px) + var(--hxbar-h, 56px)); z-index: 3;
+  position: sticky; top: calc(var(--top-h, 56px) + var(--hxbar-h, 56px) - 2px); z-index: 3;
   background: linear-gradient(rgba(118, 118, 128, .08), rgba(118, 118, 128, .08)), #fcfcfe;
 }
 html.dark .hx-bar { background: var(--surface); }
@@ -141,7 +141,7 @@ html.dark #xResult .list-table tr.picked td { background: rgba(10, 132, 255, .2)
   }
   #xResult .table-wrap .selecting td.c-time, #xResult .table-wrap .selecting td.c-room { padding-right: 8px; }
   .hx-bar { margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; } /* カードの余白が狭い */
-  #xResult .table-wrap .selecting thead { display: block; position: sticky; top: calc(var(--top-h, 48px) + var(--hxbar-h, 52px)); z-index: 3; } /* すべて選ぶ印だけ出す */
+  #xResult .table-wrap .selecting thead { display: block; position: sticky; top: calc(var(--top-h, 48px) + var(--hxbar-h, 52px) - 2px); z-index: 3; } /* すべて選ぶ印だけ出す */
   #xResult .table-wrap .selecting thead tr { background: #fcfcfe; }
   html.dark #xResult .table-wrap .selecting thead tr { background: var(--surface); }
   #xResult .table-wrap .selecting thead th:not(.sel) { display: none; }
