@@ -83,6 +83,17 @@ function renderMyStats() {
       `<div class="${w === 0 ? 'sun' : w === 6 ? 'sat' : ''}" title="${WEEKDAY_NAMES[w]}曜 ${hh(byDow[w])}"><i style="height:${(byDow[w] / maxDow * 70).toFixed(1)}px"></i>${WEEKDAY_NAMES[w]}</div>`).join('') + '</div>' : '');
 }
 
+// 広い画面ではボタンの真下に出す（マウスの移動を短く）。狭い画面は中央のまま
+function placeUnderBtn(dlg, btn) {
+  const st = dlg.style;
+  if (innerWidth < 700) { st.margin = st.top = st.left = st.maxHeight = ''; return; }
+  const b = btn.getBoundingClientRect();
+  st.margin = '0';
+  st.top = (b.bottom + 8) + 'px';
+  st.maxHeight = `calc(100dvh - ${b.bottom + 18}px)`;
+  st.left = Math.max(10, Math.min(b.right - dlg.offsetWidth, innerWidth - dlg.offsetWidth - 10)) + 'px';
+}
+
 async function openMyList() {
   setMyTab('list');
   state.myStats = null;
@@ -92,6 +103,7 @@ async function openMyList() {
   const list = $('myList');
   list.innerHTML = '<li class="hint">読み込み中…</li>';
   $('myDialog').showModal();
+  placeUnderBtn($('myDialog'), $('myBtn'));
   if (!ids.length) { list.innerHTML = '<li class="hint">予約はありません。</li>'; return; }
   try {
     const res = await api('getReservationsByIds', { ids });
