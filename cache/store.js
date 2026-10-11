@@ -25,6 +25,7 @@
     MAX_MEMO_LENGTH: 100,
     MAX_RANGE_DAYS: 42,
     MAX_PIN_FAILURES: 5,
+    MAX_ADMIN_DELETE: 2000,
     MAX_LIMITED_FAILURES: 30,
     FAILURE_LOCK_SECONDS: 600,
     MAX_WRITES_PER_MINUTE: 60, // GAS のときより速いので、上限は GAS の倍にする（いたずらで埋め尽くされないための上限）
@@ -650,6 +651,28 @@
     return { ok: true, cancelledIds: targets.map((r) => r.id) };
   }
 
+  function adminDeleteReservations(p) {
+    const denied = this.requireAdmin(p);
+    if (denied) return denied;
+    const ids = Array.isArray(p.ids) ? p.ids.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    if (!ids.length) return fail('削除する予約が選ばれていません。');
+    if (ids.length > SYSTEM.MAX_ADMIN_DELETE) return fail('一度に削除できるのは' + SYSTEM.MAX_ADMIN_DELETE + '件までです。');
+    const uniq = [...new Set(ids)];
+    const targets = [];
+    for (let i = 0; i < uniq.length; i += 90) { // SQLite に一度に渡せる値の数に収まるよう分けて読む
+      const part = uniq.slice(i, i + 90);
+      targets.push(...this.resWhere('WHERE id IN (' + part.map(() => '?').join(',') + ')', ...part));
+    }
+    targets.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    if (targets.length) {
+      this.deleteRes(targets.map((r) => r.id));
+      const at = nowStr('yyyy-MM-dd HH:mm:ss');
+      targets.forEach((r) => this.addLog([at, '削除（管理者）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
+        (r.affiliation ? r.affiliation + ' ' : '') + r.name, r.memo || '']));
+    }
+    return { ok: true, deletedIds: targets.map((r) => r.id) };
+  }
+
   function submitBugReport(p) {
     const message = String(p.message || '').trim();
     const contact = String(p.contact || '').trim();
@@ -862,7 +885,7 @@
 
   const API = {
     getSchedule, getReservationsByIds, createReservation, createBulkReservations, updateReservation, cancelReservation,
-    submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
+    adminDeleteReservations, submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
     adminGetBugReports, adminSetBugStatus, adminChangePassword, adminPasskeyTicket,
   };
 

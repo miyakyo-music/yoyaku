@@ -56,6 +56,7 @@
       return new Range(this, a, b, c || 1, d || 1);
     }
     deleteRow(row) { book.sheets[this.name].splice(row - 1, 1); }
+    deleteRows(row, count) { book.sheets[this.name].splice(row - 1, count); }
     setFrozenRows() { return this; }
     setColumnWidth() { return this; }
   }

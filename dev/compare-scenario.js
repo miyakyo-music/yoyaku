@@ -46,6 +46,17 @@
   out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.length;
   r = rec('cancelAdminPinField', await c('cancelReservation', { id: ids.a, pin: A }));
   rec('cancelAgain', await c('cancelReservation', { id: ids.a, pin: '1111' }));
+  // 管理画面の予約履歴からまとめて削除
+  r = await c('createBulkReservations', Object.assign({}, base, { adminPassword: A, dates: [D, D7], roomIds: ['room_13'], start: '11:00', end: '12:00' }));
+  const delIds = (r.reservations || []).map((x) => x.id);
+  rec('delNoAdmin', await c('adminDeleteReservations', { ids: delIds }));
+  rec('delEmpty', await c('adminDeleteReservations', { adminPassword: A, ids: [] }));
+  r = rec('del', await c('adminDeleteReservations', { adminPassword: A, ids: delIds.concat(['nope', delIds[0]]) }));
+  out[out.length - 1][4] = r.deletedIds && r.deletedIds.length;
+  r = rec('delAgain', await c('adminDeleteReservations', { adminPassword: A, ids: delIds }));
+  out[out.length - 1][4] = r.deletedIds && r.deletedIds.length;
+  CacheService.getScriptCache().remove('writes_' + Math.floor(Date.now() / 60000)); // 削除の分で、書き込みの上限に当たらないよう数え直す
+  devCf.core.kdel('writes_' + Math.floor(Date.now() / 60000));
   rec('bug', await c('submitBugReport', { message: '=テスト', contact: 'x', env: { userAgent: 'UA', screen: '1x1', page: 'p' } }), null);
   r = rec('bugs', await c('adminGetBugReports', { adminPassword: A }));
   ids.bug = r.reports && r.reports[0] && r.reports[0].id;

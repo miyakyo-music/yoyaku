@@ -52,6 +52,7 @@ const SYSTEM = {
   MAX_RANGE_DAYS: 42,
   // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
+  MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
   FAILURE_LOCK_SECONDS: 600,
   // 予約の登録・変更・取消を、全体で1分あたりこの件数までにする（Google の無料枠を使い切らないための上限）。
@@ -113,6 +114,7 @@ const API = {
   createBulkReservations: createBulkReservations,
   updateReservation: updateReservation,
   cancelReservation: cancelReservation,
+  adminDeleteReservations: adminDeleteReservations,
   submitBugReport: submitBugReport,
   adminGetData: adminGetData,
   adminSaveSettings: adminSaveSettings,
@@ -465,6 +467,47 @@ function cancelReservation(p) {
     log_(ctx.ss, auth.admin ? '取消（管理者）' : '取消', target,
       targets.length > 1 ? targets.length + '件（' + targets.map(t => t.date).join(', ') + '）' : '');
     return { ok: true, cancelledIds: targets.map(r => r.id) };
+  });
+}
+
+/**
+ * 管理画面の予約履歴から、選んだ予約をまとめて削除する（過去の予約も消せる。操作ログには1件ずつ残す）。
+ * @param {{adminPassword, ids:string[]}} p
+ */
+function adminDeleteReservations(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const ids = Array.isArray(p.ids) ? p.ids.map(x => String(x || '').trim()).filter(Boolean) : [];
+  if (!ids.length) return fail_('削除する予約が選ばれていません。');
+  if (ids.length > SYSTEM.MAX_ADMIN_DELETE) return fail_('一度に削除できるのは' + SYSTEM.MAX_ADMIN_DELETE + '件までです。');
+  const want = new Set(ids);
+
+  return withLock_(() => {
+    const ss = getSpreadsheet_();
+    const sheet = getSheet_(ss, SHEETS.reservations);
+    const rows = readReservations_(sheet);
+    const targets = rows.filter(r => want.has(r.id));
+    // 続いた行はまとめて、下から削除する（行番号のずれを防ぎ、件数が多くても早く終わるように）
+    const nums = targets.map(r => r.row).sort((a, b) => b - a);
+    for (let i = 0; i < nums.length;) {
+      let j = i;
+      while (j + 1 < nums.length && nums[j + 1] === nums[j] - 1) j++;
+      sheet.deleteRows(nums[j], i === j ? 1 : j - i + 1);
+      i = j + 1;
+    }
+    const gone = new Set(targets.map(r => r.id));
+    MEMO_.resAfter = rows.filter(x => !gone.has(x.id));
+    if (targets.length) {
+      try {
+        const log = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
+        const at = nowStr_('yyyy-MM-dd HH:mm:ss');
+        appendRows_(log, targets.map(r => [at, '削除（管理者）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
+          (r.affiliation ? r.affiliation + ' ' : '') + r.name, r.memo || '']));
+      } catch (e) {
+        console.error(e); // ログの失敗で削除自体は失敗させない
+      }
+    }
+    return { ok: true, deletedIds: targets.map(r => r.id) };
   });
 }
 

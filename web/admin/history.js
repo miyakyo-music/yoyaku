@@ -134,9 +134,11 @@ function listTable({ from, to, list }, opt) {
         : c.k === 'room' && opt.clickable
           ? `<td class="c-room">${esc(shortRoom(r.roomId)).replace(/（.*$/, (t) => `<wbr><span class="tg">${t}</span>`)}</td>` // 長いときは「（」の前で折り返す
           : `<td class="c-${c.k}">${esc(cellOf(r, c.k))}</td>`)).join('');
-    return `<tr class="${first ? 'day' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${cells}</tr>`;
+    const sel = opt.select ? `<td class="sel"><input type="checkbox" tabindex="-1" aria-label="選ぶ"${opt.select.has(r.id) ? ' checked' : ''}></td>` : '';
+    return `<tr class="${first ? 'day' : ''}${opt.select && opt.select.has(r.id) ? ' picked' : ''}"${opt.clickable ? ` data-i="${i}" tabindex="0"` : ''}>${sel}${cells}</tr>`;
   }).join('');
-  return `<table class="list-table${opt.clickable ? ' clickable' : ''}"><thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+  const selHead = opt.select ? '<th class="sel"><input type="checkbox" id="xSelAll" aria-label="すべて選ぶ"></th>' : '';
+  return `<table class="list-table${opt.clickable ? ' clickable' : ''}${opt.select ? ' selecting' : ''}"><thead><tr>${selHead}${cols.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 }
 const COLOR_NAMES = { red: '赤', purple: '紫', green: '緑' };
 /** 行を押したときに開く、その予約の情報（備考・まとめ予約・編集用パスワード・重要な予定） */
@@ -164,12 +166,77 @@ function toggleDetail(tr) {
   tr.setAttribute('aria-expanded', 'true');
 }
 $('xResultBody').addEventListener('click', (e) => {
+  if (e.target.id === 'xSelAll') { pickAll(e.target.checked); return; }
   const tr = e.target.closest('tr[data-i]');
-  if (tr) toggleDetail(tr);
+  if (!tr) return;
+  if (pickedIds) pickRow(tr, e.shiftKey, e.target.type === 'checkbox' ? e.target.checked : null);
+  else toggleDetail(tr);
 });
 $('xResultBody').addEventListener('keydown', (e) => {
   const tr = e.target.closest('tr[data-i]');
-  if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleDetail(tr); }
+  if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (pickedIds) pickRow(tr, e.shiftKey, null); else toggleDetail(tr); }
+});
+
+// ---------------- 選んで削除する ----------------
+// 「選択」を押すと各行に印の欄が出る。行を押すと選ぶ・外す。Shift を押しながら押すと、前に押した行との間をまとめて同じにする
+let pickedIds = null; // 選んでいる予約の ID（選ぶ状態でないときは null）
+let lastPick = -1;
+function setPicking(on) {
+  pickedIds = on ? new Set() : null;
+  lastPick = -1;
+  $('xSelect').setAttribute('aria-pressed', String(on));
+  $('xSelect').textContent = on ? '完了' : '選択';
+  $('xFmtPick').hidden = on;
+  $('xDelBtn').hidden = !on;
+  showHistory();
+}
+$('xSelect').addEventListener('click', () => setPicking(!pickedIds));
+function shownRows() { return [...$('xResultBody').querySelectorAll('tr[data-i]')]; }
+function pickRow(tr, range, want) {
+  const i = Number(tr.dataset.i);
+  const on = want == null ? !pickedIds.has(shownList[i].id) : want;
+  const from = range && lastPick >= 0 ? Math.min(lastPick, i) : i;
+  const to = range && lastPick >= 0 ? Math.max(lastPick, i) : i;
+  for (let k = from; k <= to; k++) { if (on) pickedIds.add(shownList[k].id); else pickedIds.delete(shownList[k].id); }
+  lastPick = i;
+  syncPicks();
+}
+function pickAll(on) {
+  shownList.slice(0, SHOW_MAX).forEach((r) => { if (on) pickedIds.add(r.id); else pickedIds.delete(r.id); });
+  syncPicks();
+}
+/** 印・行の色・すべて選ぶの印・削除ボタンの件数を、選んでいる内容に合わせる */
+function syncPicks() {
+  if (!pickedIds) return;
+  for (const tr of shownRows()) {
+    const on = pickedIds.has(shownList[Number(tr.dataset.i)].id);
+    tr.classList.toggle('picked', on);
+    tr.querySelector('td.sel input').checked = on;
+  }
+  const all = $('xSelAll');
+  const n = Math.min(shownList.length, SHOW_MAX);
+  if (all) { all.checked = n > 0 && pickedIds.size === n; all.indeterminate = pickedIds.size > 0 && pickedIds.size < n; }
+  $('xDelBtn').disabled = !pickedIds.size;
+  $('xDelBtn').textContent = pickedIds.size ? `${pickedIds.size}件を削除` : '削除';
+}
+$('xDelBtn').addEventListener('click', async () => {
+  if (!pickedIds || !pickedIds.size) return;
+  const ids = [...pickedIds];
+  if (!confirm(`${ids.length}件の予約を削除します。元に戻せません。`)) return;
+  const btn = $('xDelBtn');
+  btn.disabled = true;
+  btn.textContent = '削除中…';
+  $('exportError').textContent = '';
+  try {
+    const res = await api('adminDeleteReservations', { ids });
+    if (!res.ok) throw new Error(res.message);
+    exportCache = null; // 次の表示は読み直す
+    toast(`${res.deletedIds.length}件を削除しました`);
+    setPicking(false);
+  } catch (e) {
+    $('exportError').textContent = errMessage(e);
+    syncPicks();
+  }
 });
 
 // 一覧: 条件を変えるたびに、欄の下の表を出し直す（入力の途中は少し待つ。古い読み込みの結果は捨てる）
@@ -195,14 +262,16 @@ async function showHistory() {
   head.innerHTML = `<b>${list.length}件</b>` + (cond ? `<span class="cond">${esc(cond.label)}</span>` : '') +
     (list.length > SHOW_MAX ? `<span>先頭の${SHOW_MAX}件を表示（すべては印刷・エクスポートで）</span>` : '');
   shownList = list;
+  if (pickedIds) { const ids = new Set(list.slice(0, SHOW_MAX).map((r) => r.id)); for (const id of [...pickedIds]) if (!ids.has(id)) pickedIds.delete(id); lastPick = -1; } // 条件で見えなくなった予約は選ばない
   // 画面では備考を出さない（行を押すと、その予約の情報を全部開く）
-  $('xResultBody').innerHTML = list.length ? listTable(data, { max: SHOW_MAX, cols: ['date', 'time', 'room', 'name', 'aff'], clickable: true })
+  $('xResultBody').innerHTML = list.length ? listTable(data, { max: SHOW_MAX, cols: ['date', 'time', 'room', 'name', 'aff'], clickable: true, select: pickedIds })
     : '<p class="empty">条件に合う予約はありません。</p>';
   // スマホの1行表示: 部屋の列は、この一覧でいちばん長い部屋名の幅にして、氏名をできるだけ左に寄せる（8文字分まで）。
   // タグ付きの部屋名（練習室6（電子P.2）など）は「（」の前で折り返すので、名前とタグの長い方で測る
   const em = (t) => [...t].reduce((n, ch) => n + (ch.codePointAt(0) < 0x7f ? 0.55 : 1), 0);
   const roomW = Math.min(8, Math.max(3, ...list.slice(0, SHOW_MAX).map((r) => Math.max(...shortRoom(r.roomId).split(/(?=（)/).map(em))))) + 0.4;
   $('xResultBody').style.setProperty('--room-w', `${roomW.toFixed(2)}em`);
+  syncPicks();
 }
 let refilterTimer = 0;
 function refilter(wait) {

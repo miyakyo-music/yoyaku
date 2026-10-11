@@ -180,7 +180,7 @@
       <!-- 不具合報告 -->
       <!-- 予約履歴（admin/history.js・admin/export.js。期間・部屋・検索で絞って一覧を出し、印刷・エクスポートする） -->
       <div class="card" data-panel="history">
-        <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="期間・部屋・曜日・検索で絞った予約の一覧です。条件を変えるとすぐ一覧が変わります。印刷や、CSV・Excel・PDF への書き出しも、この一覧と同じ条件で行います。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。">i</button></h2>
+        <h2>予約履歴 <button type="button" class="info" aria-label="説明" data-tip="期間・部屋・曜日・検索で絞った予約の一覧です。条件を変えるとすぐ一覧が変わります。印刷や、CSV・Excel・PDF への書き出しも、この一覧と同じ条件で行います。名前・学籍番号が入るので、ファイルや紙の扱いに気をつけてください。「選択」を押すと予約を選んで削除できます（Shift を押しながら選ぶと間をまとめて選べます。削除は元に戻せません）。">i</button></h2>
         <form id="exportForm" class="hx-form" novalidate>
           <div class="hx-top">
             <div class="hx-range">
@@ -199,6 +199,8 @@
         <div class="hx-bar">
           <p id="xResultHead" aria-live="polite"></p>
           <button type="button" class="sort-btn" id="xSort" data-dir="asc" aria-label="並び順（押すと切り替わる）">古い順</button>
+          <button type="button" class="sort-btn" id="xSelect" aria-pressed="false">選択</button>
+          <button type="button" class="btn danger hx-del" id="xDelBtn" hidden disabled>削除</button>
           <div class="multi hx-out" id="xFmtPick">
             <button type="button" class="btn" id="xPrintBtn" aria-haspopup="true" aria-expanded="false">印刷</button>
             <button type="button" class="btn primary" id="xFmtBtn" aria-haspopup="true" aria-expanded="false">エクスポート</button>

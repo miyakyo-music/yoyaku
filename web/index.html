@@ -89,14 +89,16 @@
         <button type="button" class="btn" data-view="room" aria-pressed="false">部屋別</button>
         <button type="button" class="btn" data-view="month" aria-pressed="false">カレンダー</button>
       </div>
-      <!-- 日付の移動: ‹ 日付 › 今日 -->
+      <!-- 日付の移動: ‹ 日付 ›（1つの面） 今日 -->
       <div class="datenav">
+        <span class="date-step">
         <button type="button" class="btn arrow" id="prevBtn" title="前日" aria-label="前日"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
         <label class="date-field" id="dateField">
           <span class="date-display" id="dateDisplay" aria-hidden="true"></span>
           <input type="date" id="datePicker" aria-label="日付を選択">
         </label>
         <button type="button" class="btn arrow" id="nextBtn" title="翌日" aria-label="翌日"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </span>
         <button type="button" class="btn" id="todayBtn">今日</button>
       </div>
       <span class="range-label" id="rangeLabel"></span>

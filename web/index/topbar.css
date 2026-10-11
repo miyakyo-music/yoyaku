@@ -103,6 +103,29 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
 @media (hover: hover) {
   .btn.arrow:hover { color: var(--text); }
 }
+/* 前日・日付・翌日を1枚のガラスの面にまとめ、間を細い線で区切る */
+.date-step {
+  display: inline-flex; align-items: center; gap: 0; border-radius: 11px;
+  background-color: var(--glass); background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+}
+.date-step .btn.arrow, .date-step .date-display {
+  background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-radius: 0;
+}
+.date-step .btn.arrow:first-child { border-radius: 11px 0 0 11px; }
+.date-step .btn.arrow:last-child { border-radius: 0 11px 11px 0; }
+.date-step .btn.arrow:active { transform: none; background-color: var(--fill-field); }
+.date-step .btn.arrow:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.date-step .date-field:focus-within .date-display { box-shadow: inset 0 0 0 2px var(--accent); }
+.date-step .date-field::before, .date-step .date-field::after {
+  content: ''; position: absolute; top: 8px; bottom: 8px; width: .5px; background: var(--sep); pointer-events: none;
+}
+.date-step .date-field::before { left: 0; }
+.date-step .date-field::after { right: 0; }
+@media (hover: hover) {
+  .date-step .btn.arrow:hover { background-color: var(--fill-field); }
+}
 .legend { display: inline-flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-left: auto; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
 /* iPad（12.9インチの縦など）: 「空室」の右に凡例まで1行に収まるよう、設備の選択欄と凡例を少し詰める */
@@ -167,6 +190,7 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
   .tabs { grid-area: tabs; display: flex; }
   .tabs .btn { flex: 1; }
   .datenav { grid-area: datenav; display: flex; min-width: 0; }
+  .date-step { flex: 1; min-width: 0; }
   .datenav .date-field { flex: 1; min-width: 0; }
   .datenav .date-display {
     width: 100%;
