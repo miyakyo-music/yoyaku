@@ -108,6 +108,7 @@ function openBooking(o) {
   resetConflicts();
   updateBookingUi();
   $('bookDialog').showModal();
+  placeUnderBtn($('bookDialog'), o.fromBtn ? $('newBtn') : null);
   // 閉じている間はホイールの位置を合わせられないので、開いてから合わせ直す
   for (const sel of $('bookDialog').querySelectorAll('.time select')) syncWheel(sel);
   renderDraft();

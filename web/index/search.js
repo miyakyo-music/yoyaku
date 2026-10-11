@@ -8,6 +8,7 @@ const normText = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(
   .replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 async function openSearch() {
   $('searchDialog').showModal();
+  placeUnderBtn($('searchDialog'), $('searchBtn'));
   $('searchInput').focus();
   const s = state.settings;
   const days = Math.min(180, Math.max(30, Number(s && s.maxDaysAhead) || 60));

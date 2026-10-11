@@ -163,3 +163,14 @@ function addHistory(list) {
 }
 addHistory(Object.entries(getMine()).map(([id, date]) => ({ id, date }))); // この記録を作る前の予約も入れておく
 const getFavs = () => new Set(load_(LS.fav, []));
+
+// 広い画面では押したボタンの真下に出す（マウスの移動を短く）。狭い画面・ボタン以外から開いたときは中央
+function placeUnderBtn(dlg, btn) {
+  const st = dlg.style;
+  if (!btn || innerWidth < 700) { st.margin = st.top = st.left = st.maxHeight = ''; return; }
+  const b = btn.getBoundingClientRect();
+  st.margin = '0';
+  st.top = (b.bottom + 8) + 'px';
+  st.maxHeight = `calc(100dvh - ${b.bottom + 18}px)`;
+  st.left = Math.max(10, Math.min(b.right - dlg.offsetWidth, innerWidth - dlg.offsetWidth - 10)) + 'px';
+}
