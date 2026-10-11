@@ -56,7 +56,7 @@ $('main').addEventListener('click', (e) => {
   const blk = e.target.closest('.blk.res');
   if (blk && Date.now() < moveClickBlockUntil) return; // 動かし終えた直後のクリックでは詳細を開かない
   if (blk) { morph(blk, () => openDetail(blk.dataset.id), () => $('detailDialog')); return; }
-  const cell = e.target.closest('.mc');
+  const cell = e.target.closest('.mc[data-date]');
   if (cell) { state.date = cell.dataset.date; setView('day'); return; }
   const dayLabel = e.target.closest('.tl-label[data-date]');
   if (dayLabel) { state.date = dayLabel.dataset.date; setView('day'); return; }
@@ -69,6 +69,6 @@ $('main').addEventListener('click', (e) => {
 });
 $('main').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
-  const el = e.target.closest('.blk.res, .mc, .tl-label[data-room], .tl-label[data-date]');
+  const el = e.target.closest('.blk.res, .mc[data-date], .tl-label[data-room], .tl-label[data-date]');
   if (el) { e.preventDefault(); el.click(); }
 });

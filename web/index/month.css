@@ -1,55 +1,49 @@
-/* 予約表: カレンダー（月表示）。iPad のカレンダーの月表示に寄せる */
+/* 予約表: カレンダー（月表示）。iPhone のカレンダーの月表示に寄せる（日付は中央、予定は色付きの札、週の区切りの横線だけ） */
 /* 1日48px未満にはしない。予約者名が長くても列は広げず、セルの中で省略する */
 .month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); width: 100%; min-width: calc(48px * 7); }
 .month .dow {
   position: sticky;
   z-index: 1;
   background: var(--surface);
-  text-align: right;
-  font-size: 13px;
+  text-align: center;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
-  padding: 6px 8px;
+  padding: 6px 0;
   border-bottom: 1px solid var(--line);
   top: var(--hdr-h);
 }
-.mc { min-width: 0; min-height: 112px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 6px 4px; cursor: pointer; overflow: hidden; }
-.mc.sat { border-right: 0; }
-/* 土日の列はわずかに沈める */
-.mc.sun, .mc.sat { background: rgba(120, 120, 128, .06); }
+.mc { min-width: 0; min-height: 120px; border-bottom: 1px solid var(--line); padding: 6px 3px; cursor: pointer; overflow: hidden; }
+/* 前後の月の日は空欄 */
+.mc.other { cursor: default; }
 @media (hover: hover) {
-  .mc:hover { background: rgba(0, 122, 255, .05); }
+  .mc:not(.other):hover { background: rgba(0, 122, 255, .05); }
 }
-.mc.other { color: var(--muted); }
-.mc.other .n { opacity: .55; }
 .mc.closed-day { background: var(--closed); }
-.mc.selected .n { background: rgba(120, 120, 128, .2); }
-.mc .d { font-size: 18px; line-height: 26px; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 4px; }
-.mc .d .n { min-width: 26px; height: 26px; padding: 0 4px; border-radius: 13px; text-align: center; font-variant-numeric: tabular-nums; }
-.mc.today .d .n { background: var(--accent); color: #fff; font-weight: 600; }
-.mc .d small { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mc ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 11px; line-height: 1.5; }
-/* 予定: 左に細い色の棒＋名前、右に開始時刻 */
-.mc li { display: flex; align-items: baseline; gap: 4px; padding-left: 6px; position: relative; color: var(--text); }
-.mc li::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2.5px; border-radius: 2px; background: var(--res-border); }
-.mc li.mine::before { background: var(--mine-border); }
-.mc li[class*="c-"] { font-weight: 700; color: var(--res-text); }
-.mc li .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mc li time { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
-.mc li.more { padding-left: 0; color: var(--muted); }
-.mc li.more::before { content: none; }
-.mc .count { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.mc .d { display: flex; justify-content: center; font-size: 20px; line-height: 34px; }
+.mc .d .n { min-width: 34px; height: 34px; padding: 0 4px; border-radius: 17px; text-align: center; font-variant-numeric: tabular-nums; }
+.mc.selected .d .n { background: rgba(120, 120, 128, .2); }
+.mc.today .d .n { background: var(--accent); color: #fff; font-weight: 700; }
+/* 予定: 色を薄く敷いた札。名前、右に開始時刻（一覧の帯と同じ色） */
+.mc ul { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; line-height: 1.6; }
+.mc li { display: flex; align-items: baseline; gap: 4px; margin-top: 3px; padding: 0 5px; border-radius: 5px; background: var(--res); color: var(--res-text); font-weight: 600; }
+.mc li.mine { background: var(--mine); color: var(--mine-text); }
+.mc li[class*="c-"] { font-weight: 700; }
+.mc li .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.mc li time { flex: none; font-weight: 500; opacity: .8; font-variant-numeric: tabular-nums; }
+.mc li.closed { background: none; padding: 0; justify-content: center; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; }
+.mc li.more { background: none; padding: 0 5px; color: var(--muted); font-weight: 500; }
 @media (max-width: 600px) {
-  .mc { min-height: 76px; padding: 3px 2px; }
-  .mc .d { font-size: 14px; line-height: 22px; }
-  .mc .d .n { min-width: 22px; height: 22px; border-radius: 11px; }
-  .mc li { font-size: 10px; padding-left: 4px; }
-  /* 狭い画面では時刻だけ */
-  .mc li .nm { display: none; }
-  .mc li time { color: inherit; }
+  .mc { min-height: 96px; padding: 4px 2px; }
+  .mc .d { font-size: 17px; line-height: 30px; }
+  .mc .d .n { min-width: 30px; height: 30px; border-radius: 15px; }
+  .mc ul { margin-top: 4px; font-size: 11px; line-height: 1.55; }
+  .mc li { margin-top: 2px; padding: 0 3px; border-radius: 4px; }
+  /* 狭い画面では、部屋の予約は時刻だけ */
+  .mc li.res .nm { display: none; }
+  .mc li.res time { flex: 1; text-align: center; opacity: 1; }
+  .mc li.closed { font-size: 10px; }
 }
-html.dark .mc.sun, html.dark .mc.sat { background: rgba(255, 255, 255, .04); }
-html.dark .mc.closed-day { background: var(--closed); }
 .month.slide-next { animation: slide-in-next .34s cubic-bezier(.2, .8, .3, 1) both; }
 .month.slide-prev { animation: slide-in-prev .34s cubic-bezier(.2, .8, .3, 1) both; }
 @media (prefers-reduced-motion: reduce) {

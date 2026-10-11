@@ -15,27 +15,29 @@ function renderMonth() {
   }
   let html = '<div class="month">' + [...WEEKDAY_NAMES].map((w, i) => `<div class="dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   for (let d = from; d <= to; d = addDays(d, 1)) {
+    // 前後の月の日は空欄にする（iPhone のカレンダーの月表示と同じ）
+    if (d.slice(0, 7) !== month) { html += '<div class="mc other" aria-hidden="true"></div>'; continue; }
     const list = (byDate[d] || []).sort((a, b) => a.start.localeCompare(b.start));
     const allDayClosure = state.data.closures.find((c) => c.date === d && c.allDay && (!c.roomId || c.roomId === roomId));
     const closedLabel = isClosedWeekday(d) ? '定休日' : allDayClosure && (!allDayClosure.roomId || roomId) ? allDayClosure.reason || '利用不可' : '';
     const cls = ['mc', dayClass(d)];
-    if (d.slice(0, 7) !== month) cls.push('other');
     if (d === today) cls.push('today');
     if (d === state.date) cls.push('selected');
     if (closedLabel) cls.push('closed-day');
     html += `<div class="${cls.join(' ')}" data-date="${d}" role="button" tabindex="0">` +
-      `<div class="d"><span class="n">${Number(d.slice(8))}</span>${closedLabel ? `<small>${esc(closedLabel)}</small>` : ''}</div>`;
+      `<div class="d"><span class="n">${Number(d.slice(8))}</span></div><ul>` +
+      (closedLabel ? `<li class="closed">${esc(closedLabel)}</li>` : '');
     if (roomId) {
       const max = 4;
-      html += '<ul>' + list.slice(0, max).map((r) =>
-        `<li class="${Object.prototype.hasOwnProperty.call(mine, r.id) ? 'mine' : ''}${RES_COLORS.includes(r.color) ? ' c-' + r.color : ''}" title="${esc(hm(r.start))}〜${esc(hm(r.end))} ${esc(r.affiliation)} ${esc(r.name)}">` +
+      html += list.slice(0, max).map((r) =>
+        `<li class="res${Object.prototype.hasOwnProperty.call(mine, r.id) ? ' mine' : ''}${RES_COLORS.includes(r.color) ? ' c-' + r.color : ''}" title="${esc(hm(r.start))}〜${esc(hm(r.end))} ${esc(r.affiliation)} ${esc(r.name)}">` +
         `<span class="nm">${esc(r.name || r.affiliation)}</span><time>${esc(hm(r.start))}</time></li>`).join('') +
-        (list.length > max ? `<li class="more">ほか${list.length - max}件</li>` : '') + '</ul>';
+        (list.length > max ? `<li class="more">ほか${list.length - max}件</li>` : '');
     } else if (list.length) {
       const own = list.filter((r) => Object.prototype.hasOwnProperty.call(mine, r.id)).length;
-      html += `<div class="count"><span class="wide-only">予約 </span>${list.length}件</div>` + (own ? `<ul><li class="mine">自分 ${own}件</li></ul>` : '');
+      html += `<li><span class="nm"><span class="wide-only">予約 </span>${list.length}件</span></li>` + (own ? `<li class="mine"><span class="nm">自分 ${own}件</span></li>` : '');
     }
-    html += '</div>';
+    html += '</ul></div>';
   }
   $('main').classList.remove('has-tl');
   $('main').innerHTML = html + '</div>' + footHtml('日付を押すと、その日の一覧を表示します');
