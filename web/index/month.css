@@ -1,48 +1,63 @@
-/* 予約表: カレンダー（月表示）。iPhone のカレンダーの月表示に寄せる（日付は中央、予定は色付きの札、週の区切りの横線だけ） */
+/* 予約表: カレンダー（月表示）。
+   PC は Mac のカレンダーの月表示に寄せる（縦横の線、右上に「12日」、予定は左に細い色の棒・名前・右端に開始時刻）。
+   スマホは iPhone のカレンダーの月表示に寄せる（日付は中央、週の区切りの横線だけ、前後の月の日は空欄、予定は色を薄く敷いた札） */
 /* 1日48px未満にはしない。予約者名が長くても列は広げず、セルの中で省略する */
 .month { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); width: 100%; min-width: calc(48px * 7); }
 .month .dow {
   position: sticky;
   z-index: 1;
   background: var(--surface);
-  text-align: center;
-  font-size: 12px;
+  text-align: right;
+  font-size: 13px;
   font-weight: 500;
   color: var(--muted);
-  padding: 6px 0;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--line);
   top: var(--hdr-h);
 }
-.mc { min-width: 0; min-height: 120px; border-bottom: 1px solid var(--line); padding: 6px 3px; cursor: pointer; overflow: hidden; }
-/* 前後の月の日は空欄 */
-.mc.other { cursor: default; }
+.mc { min-width: 0; min-height: 128px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 6px 4px; cursor: pointer; overflow: hidden; }
+.mc.sat { border-right: 0; }
 @media (hover: hover) {
-  .mc:not(.other):hover { background: rgba(0, 122, 255, .05); }
+  .mc:hover { background: rgba(0, 122, 255, .05); }
 }
 .mc.closed-day { background: var(--closed); }
-.mc .d { display: flex; justify-content: center; font-size: 20px; line-height: 34px; }
-.mc .d .n { min-width: 34px; height: 34px; padding: 0 4px; border-radius: 17px; text-align: center; font-variant-numeric: tabular-nums; }
+.mc .d { display: flex; justify-content: flex-end; align-items: center; font-size: 18px; line-height: 28px; font-variant-numeric: tabular-nums; }
+.mc.other .d { opacity: .45; }
+/* 「12日」と詰めて書く。今日（と選んでいる日）は数字だけを丸で囲み、「日」はその右 */
+.mc .d .n { height: 28px; border-radius: 14px; text-align: center; }
+.mc.selected .d .n, .mc.today .d .n { min-width: 28px; padding: 0 4px; margin-right: 2px; }
 .mc.selected .d .n { background: rgba(120, 120, 128, .2); }
-.mc.today .d .n { background: var(--accent); color: #fff; font-weight: 700; }
-/* 予定: 色を薄く敷いた札。名前、右に開始時刻（一覧の帯と同じ色） */
-.mc ul { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; line-height: 1.6; }
-.mc li { display: flex; align-items: baseline; gap: 4px; margin-top: 3px; padding: 0 5px; border-radius: 5px; background: var(--res); color: var(--res-text); font-weight: 600; }
-.mc li.mine { background: var(--mine); color: var(--mine-text); }
-.mc li[class*="c-"] { font-weight: 700; }
-.mc li .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: clip; }
-.mc li time { flex: none; font-weight: 500; opacity: .8; font-variant-numeric: tabular-nums; }
-.mc li.closed { background: none; padding: 0; justify-content: center; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; }
-.mc li.more { background: none; padding: 0 5px; color: var(--muted); font-weight: 500; }
+.mc.today .d .n { background: var(--accent); color: #fff; font-weight: 600; }
+/* 予定: 左に細い色の棒・名前・右端に開始時刻 */
+.mc ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; line-height: 1.7; }
+.mc li { display: flex; align-items: baseline; gap: 4px; padding-left: 7px; position: relative; color: var(--text); font-weight: 500; }
+.mc li::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: var(--res-border); }
+.mc li.mine::before { background: var(--mine-border); }
+.mc li[class*="c-"] { font-weight: 700; color: var(--res-text); }
+.mc li .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc li time { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mc li.closed, .mc li.more { padding-left: 0; color: var(--muted); }
+.mc li.closed::before, .mc li.more::before { content: none; }
 @media (max-width: 600px) {
-  .mc { min-height: 96px; padding: 4px 2px; }
-  .mc .d { font-size: 17px; line-height: 30px; }
-  .mc .d .n { min-width: 30px; height: 30px; border-radius: 15px; }
+  .month .dow { text-align: center; font-size: 12px; padding: 6px 0; }
+  .mc { min-height: 96px; border-right: 0; padding: 4px 2px; }
+  /* 前後の月の日は空欄にして押せなくする */
+  .mc.other { pointer-events: none; }
+  .mc.other > * { visibility: hidden; }
+  .mc .d { justify-content: center; font-size: 17px; line-height: 30px; }
+  .mc .d .u { display: none; }
+  .mc .d .n, .mc.selected .d .n, .mc.today .d .n { min-width: 30px; height: 30px; padding: 0 4px; margin: 0; border-radius: 15px; }
+  .mc.today .d .n { font-weight: 700; }
+  /* 予定は色を薄く敷いた札（一覧の帯と同じ色）。部屋の予約は時刻だけ */
   .mc ul { margin-top: 4px; font-size: 11px; line-height: 1.55; }
-  .mc li { margin-top: 2px; padding: 0 3px; border-radius: 4px; }
-  /* 狭い画面では、部屋の予約は時刻だけ */
+  .mc li { margin-top: 2px; padding: 0 3px; border-radius: 4px; background: var(--res); color: var(--res-text); font-weight: 600; }
+  .mc li::before { content: none; }
+  .mc li.mine { background: var(--mine); color: var(--mine-text); }
+  .mc li .nm { text-overflow: clip; }
   .mc li.res .nm { display: none; }
-  .mc li.res time { flex: 1; text-align: center; opacity: 1; }
-  .mc li.closed { font-size: 10px; }
+  .mc li.res time { flex: 1; text-align: center; color: inherit; }
+  .mc li.closed { justify-content: center; font-size: 10px; font-weight: 500; background: none; }
+  .mc li.more { background: none; font-weight: 500; }
 }
 .month.slide-next { animation: slide-in-next .34s cubic-bezier(.2, .8, .3, 1) both; }
 .month.slide-prev { animation: slide-in-prev .34s cubic-bezier(.2, .8, .3, 1) both; }

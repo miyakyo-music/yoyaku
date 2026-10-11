@@ -1,6 +1,12 @@
 // 予約表: カレンダー（月表示）の描画
 'use strict';
 
+/** マスの日付。PC は「12日」、月の初日は「10月1日」（Mac のカレンダーと同じ）。スマホは数字だけ */
+function dayNum(d) {
+  const day = Number(d.slice(8));
+  return (day === 1 ? `<span class="u">${Number(d.slice(5, 7))}月</span>` : '') + `<span class="n">${day}</span><span class="u">日</span>`;
+}
+
 function renderMonth() {
   const { from, to } = state.data;
   const reservations = visibleReservations();
@@ -15,17 +21,16 @@ function renderMonth() {
   }
   let html = '<div class="month">' + [...WEEKDAY_NAMES].map((w, i) => `<div class="dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   for (let d = from; d <= to; d = addDays(d, 1)) {
-    // 前後の月の日は空欄にする（iPhone のカレンダーの月表示と同じ）
-    if (d.slice(0, 7) !== month) { html += '<div class="mc other" aria-hidden="true"></div>'; continue; }
     const list = (byDate[d] || []).sort((a, b) => a.start.localeCompare(b.start));
     const allDayClosure = state.data.closures.find((c) => c.date === d && c.allDay && (!c.roomId || c.roomId === roomId));
     const closedLabel = isClosedWeekday(d) ? '定休日' : allDayClosure && (!allDayClosure.roomId || roomId) ? allDayClosure.reason || '利用不可' : '';
     const cls = ['mc', dayClass(d)];
+    if (d.slice(0, 7) !== month) cls.push('other'); // 前後の月の日（スマホでは空欄）
     if (d === today) cls.push('today');
     if (d === state.date) cls.push('selected');
     if (closedLabel) cls.push('closed-day');
     html += `<div class="${cls.join(' ')}" data-date="${d}" role="button" tabindex="0">` +
-      `<div class="d"><span class="n">${Number(d.slice(8))}</span></div><ul>` +
+      `<div class="d">${dayNum(d)}</div><ul>` +
       (closedLabel ? `<li class="closed">${esc(closedLabel)}</li>` : '');
     if (roomId) {
       const max = 4;
