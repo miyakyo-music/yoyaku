@@ -380,3 +380,28 @@ html.dark .notice-editor input { background: var(--fill-field); color: var(--tex
   .tools .icon-btn svg { width: 18px; height: 18px; }
   #searchBtn svg { width: 17px; height: 17px; }
 }
+/* ---------- 更新・検索・自分の予約・管理を1つのカプセルに（iPhone のカレンダーの右上と同じ形） ---------- */
+/* 4つを別々のボタンに分けると上部がにぎやかになるので、1枚のガラスに並べ、中のボタンは背景なしのアイコンだけにする */
+.hdr-pill {
+  order: 2; margin-left: auto; flex: none;
+  display: inline-flex; align-items: center; height: 34px; padding: 0 3px; border-radius: 999px;
+  background-color: var(--glass); background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+}
+#refreshBtn { margin-left: 0; }
+.topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status {
+  width: 38px; min-width: 38px; height: 34px; padding: 0; border-radius: 999px;
+  background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--text);
+}
+.topbar .hdr-pill > .status { width: auto; padding: 0 10px; }
+.hdr-pill svg { width: 18px; height: 18px; }
+.hdr-pill #searchBtn svg { width: 17px; height: 17px; }
+.hdr-pill .admin-link .badge { top: 1px; right: 1px; }
+@media (hover: hover) {
+  .topbar .hdr-pill > .btn:hover, .topbar .hdr-pill > .admin-link:hover, .topbar .hdr-pill > .status:hover { background: var(--glass-strong); }
+}
+.topbar .hdr-pill > :focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; box-shadow: none; }
+@media (max-width: 600px) {
+  .topbar .hdr-pill > .status { width: 38px; padding: 0; }
+}

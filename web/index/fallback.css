@@ -3,9 +3,11 @@
 /* ぼかしに対応していない環境・「透明度を下げる」設定の端末では、半透明をやめて不透明な面にする */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .topbar, dialog, .hovercard { background: #fff; }
-  .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link { background-color: #ececf0; }
+  .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link, .hdr-pill { background-color: #ececf0; }
+  .topbar .hdr-pill > * { background-color: transparent; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .topbar, dialog, .hovercard, .tl-head, .tl-corner { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link { background-color: #ececf0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link, .hdr-pill { background-color: #ececf0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .topbar .hdr-pill > * { background-color: transparent; }
 }
