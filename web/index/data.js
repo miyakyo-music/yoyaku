@@ -225,12 +225,9 @@ function applySettings() {
   save_(LS.closeTime, s.closeTime);
   $('title').textContent = s.title;
   document.title = s.title;
-  // お知らせを書き換えている間は、裏の自動更新で入力中の内容を消さない
-  if (!state.noticeEditing) {
-    $('noticeRow').hidden = !s.notice;
-    $('noticeText').textContent = s.notice || '';
-    $('notice').classList.toggle('important', s.noticeLevel === '重要');
-  }
+  $('noticeRow').hidden = !s.notice;
+  $('noticeText').textContent = s.notice || '';
+  $('notice').classList.toggle('important', s.noticeLevel === '重要');
   $('notice').classList.toggle('editable', isAdminMode());
   $('notice').title = isAdminMode() ? '押すとお知らせを変更できます' : '';
   if (typeof markNoticeOverflow === 'function') markNoticeOverflow();

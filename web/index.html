@@ -67,12 +67,6 @@
     <div class="row">
       <div class="brand"><h1 id="title">練習室予約</h1><button type="button" class="admin-mode" id="adminMode" hidden title="押すと管理者モードを終了します">管理者<span class="lg">モード</span></button><button type="button" class="admin-mode limited-mode" id="limitedMode" hidden title="押すと限定公開の部屋の表示を終了します">限定<span class="lg">公開</span></button></div>
       <div class="notice-row" id="noticeRow" hidden>
-        <form class="notice-editor" id="noticeEditor" hidden>
-          <input id="noticeInput" maxlength="200" autocomplete="off" aria-label="お知らせ（空欄にすると非表示）" placeholder="空欄にするとお知らせを出さない">
-          <select id="noticeLevel" aria-label="お知らせの種類"><option value="通常">通常</option><option value="重要">重要</option></select>
-          <button type="button" class="btn" id="noticeCancel">やめる</button>
-          <button type="submit" class="btn primary" id="noticeSave">保存</button>
-        </form>
         <p class="notice" id="notice"><svg class="ic-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6M10 8v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-5M12 8h0l4.5-3.5A1 1 0 0 1 18 5.3v11.4a1 1 0 0 1-1.5.8L12 14H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h8"/></svg><svg class="ic-alert" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.4 3.9 1.8 18a1.9 1.9 0 0 0 1.6 2.9h17.2a1.9 1.9 0 0 0 1.6-2.9L13.6 3.9a1.9 1.9 0 0 0-3.2 0z"/></svg><span id="noticeText"></span></p>
       </div>
       <div class="tools">
@@ -278,6 +272,25 @@
       <p class="notice-full" id="noticeFull"></p>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
     </div>
+  </dialog>
+
+  <!-- お知らせの変更（管理者モードでお知らせを押したとき） -->
+  <dialog id="noticeEditDialog">
+    <form id="noticeEditor" novalidate>
+      <h2 tabindex="-1">お知らせを変更</h2>
+      <label class="field"><span>内容</span><textarea id="noticeInput" rows="3" maxlength="200" autocomplete="off" placeholder="空欄にするとお知らせを出さない"></textarea></label>
+      <div class="field">種類
+        <div class="pill-tabs" id="noticeLevel" role="group" aria-label="お知らせの種類">
+          <button type="button" data-level="通常" aria-pressed="true">通常（青）</button>
+          <button type="button" data-level="重要" aria-pressed="false">重要（赤）</button>
+        </div>
+      </div>
+      <p class="error" id="noticeError"></p>
+      <div class="actions">
+        <button type="button" class="btn" data-close>やめる</button>
+        <button type="submit" class="btn primary" id="noticeSave">保存</button>
+      </div>
+    </form>
   </dialog>
 
   <!-- お気に入りの練習室（端末に保存。一覧の絞り込みで「★ お気に入り」を選ぶと、ここで選んだ部屋だけになる） -->

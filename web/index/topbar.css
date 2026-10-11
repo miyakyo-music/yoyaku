@@ -304,18 +304,11 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
   .status svg { width: 18px; height: 18px; }
   .brand { gap: 6px; }
 }
-/* お知らせ: 管理者モードでは押すとその場で書き換えられる */
+/* お知らせ: 管理者モードでは押すと変更の小窓を出す（index/notice.js） */
 .notice.editable { cursor: pointer; }
 @media (hover: hover) {
   .notice.editable:hover { filter: brightness(.97); }
 }
-.notice-editor { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.notice-editor input {
-  flex: 1 1 220px; min-width: 0; height: 34px; padding: 0 12px; border: 0; border-radius: 11px; font-size: 16px;
-  background: rgba(255, 255, 255, .95); box-shadow: 0 0 0 2px var(--accent);
-}
-.notice-editor select { flex: none; height: 34px; font-size: 14px; padding: 0 10px; }
-.notice-editor .btn { flex: none; height: 34px; }
 /* スマホ: 表示の切り替え・設備の選択・空室・日付の行の高さを 34px にそろえる（iPhone で選択欄だけ少し高くなるのを防ぐ） */
 @media (max-width: 600px) {
   .tabs.seg, .selects select, .free-btn, .datenav .btn, .datenav .date-display { height: 34px; min-height: 0; box-sizing: border-box; line-height: normal; }
@@ -343,7 +336,6 @@ html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0
 html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
 html.dark .admin-link, html.dark .brand .admin-link, html.dark .status { color: #e5e5ea; }
 html.dark .status #statusText { color: var(--muted); }
-html.dark .notice-editor input { background: var(--fill-field); color: var(--text); }
 /* ---------- 上部の整理（年は出さない・スマホは2段＋日付の段） ---------- */
 /* 上部の日付欄では年を出さない（毎日見る情報ではないため）。予約画面の日付欄は年をまたぐことがあるので出したまま */
 .datenav .yr { display: none; }
