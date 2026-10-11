@@ -1,11 +1,11 @@
 /* 予約表: 予約表だけの色と大きさの名前（ライト・ダーク）。両画面に共通の名前（--accent・--glass など）は shared/tokens.css。
    屈折（像のゆがみ）は Chrome・Edge だけで足す（index/glass.js の「光の屈折」、html.refract）。Safari（iPhone）はぼかしのみ */
 :root {
-  /* 予約の帯の色（iOS のシステムカラーに近いオレンジと青を、白地に薄く敷いた色） */
-  --res: rgba(255, 149, 0, .16);
+  /* 予約の帯の色。他人の予約は落ち着いた灰色にして、空いている所と自分の予約（青）が目に入るようにする */
+  --res: rgba(120, 130, 150, .14);
   /* 半透明にして、下の罫線や縞模様が透けて見えるようにする */
-  --res-border: #ff9500;
-  --res-text: #7a4300;
+  --res-border: #8e98aa;
+  --res-text: #3a4250;
   --mine: rgba(0, 122, 255, .15);
   --mine-text: #003f9e;
   --mine-border: #007aff;
@@ -23,7 +23,7 @@
 }
 html.dark {
   --sat: #409cff; --sun: #ff6961;
-  --res: rgba(255, 159, 10, .26); --res-border: #ff9f0a; --res-text: #ffd59a;
+  --res: rgba(142, 152, 170, .22); --res-border: #8e96a6; --res-text: #d6dae2;
   --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
   --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
 }

@@ -194,7 +194,7 @@ body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; an
   .datenav .date-field { flex: 1; min-width: 0; }
   .datenav .date-display {
     width: 100%;
-    /* 日付は年まで出して中央に置き、カレンダーのアイコンは右端に */
+    /* 日付は中央に置き、カレンダーのアイコンは右端に */
     position: relative;
     justify-content: center;
     padding: 0 30px;
@@ -337,3 +337,28 @@ html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
 html.dark .admin-link, html.dark .brand .admin-link, html.dark .status { color: #e5e5ea; }
 html.dark .status #statusText { color: var(--muted); }
 html.dark .notice-editor input { background: var(--fill-field); color: var(--text); }
+/* ---------- 上部の整理（年は出さない・スマホは2段＋日付の段） ---------- */
+/* 上部の日付欄では年を出さない（毎日見る情報ではないため）。予約画面の日付欄は年をまたぐことがあるので出したまま */
+.datenav .yr { display: none; }
+/* スマホ: 1段目＝タイトルと、同じ大きさのアイコンのボタン（更新・検索・自分の予約・管理）。
+   2段目＝日付の移動（いちばん大事な「どの日を見ているか」をタイトルのすぐ下に）。3段目＝表示の切り替えと絞り込み */
+@media (max-width: 600px) {
+  .topbar {
+    grid-template-areas:
+      "head    head"
+      "datenav datenav"
+      "tabs    select";
+  }
+  .topbar .row:first-child .brand, .topbar .row:first-child .tools { display: contents; }
+  .topbar .row:first-child { gap: 6px; }
+  .brand h1 { order: 0; font-size: 17px; }
+  .brand .admin-mode { order: 0; }
+  #refreshBtn { order: 1; margin-left: auto; }
+  #searchBtn { order: 2; }
+  #myBtn { order: 3; }
+  #adminLink { order: 4; }
+  .notice-row { order: 5; }
+  .admin-link, .brand .admin-link, .status, .tools .icon-btn { width: 34px; height: 34px; border-radius: 10px; }
+  .tools .icon-btn svg { width: 18px; height: 18px; }
+  #searchBtn svg { width: 17px; height: 17px; }
+}
