@@ -1096,3 +1096,31 @@ html.dark .hovercard .summary { background: rgba(255, 255, 255, .07); }
 
 /* 小窓の幕は透明にする（後ろを暗くするのは画面の本体 .page。上の .page の説明）。ダークの幕の色より後ろに置く */
 html body:not(.dialog-fallback) dialog::backdrop { background: transparent; }
+
+/* ================= 動きの仕上げ =================
+   1. 予約が取れた帯を一度だけ弾ませて光らせる（index.js の celebrate）
+   2. 「‹」「›」で日付を切り替えたとき、表を進む向きから滑り込ませる（index.js の render の slide-next / slide-prev）
+   （予約表の後ろの淡い色と、帯の光沢・影も試したが、2026-10-11 に見送った） */
+/* 光の輪の色（帯の左の線と同じ色。重要な予定の色 c-red なども流れ込む） */
+.blk.res { --bk-c: var(--res-border); }
+.blk.res.mine { --bk-c: var(--mine-border); }
+
+/* 予約が取れた瞬間: 少し膨らんで戻り、帯の色の光の輪が広がって消える。中の色も一瞬明るくなる */
+.blk.res.booked { animation: booked-pop .75s cubic-bezier(.3, 1.5, .5, 1) var(--bk-delay, 0ms) both; }
+.blk.res.booked::after { animation: booked-flash .9s ease-out var(--bk-delay, 0ms) both; }
+@keyframes booked-pop {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--bk-c) 55%, transparent); }
+  35% { transform: scale(1.06); }
+  100% { transform: scale(1); box-shadow: 0 0 0 9px color-mix(in srgb, var(--bk-c) 0%, transparent); }
+}
+@keyframes booked-flash { 0% { filter: none; } 25% { filter: brightness(1.15) saturate(1.5); } 100% { filter: none; } }
+
+/* 日付の切り替え: 表の時間の部分だけを、進む向きから滑り込ませる（部屋名の列は動かさない） */
+.tl-track.slide-next, .month.slide-next { animation: slide-in-next .34s cubic-bezier(.2, .8, .3, 1) both; }
+.tl-track.slide-prev, .month.slide-prev { animation: slide-in-prev .34s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes slide-in-next { from { transform: translateX(32px); opacity: .15; } to { transform: none; opacity: 1; } }
+@keyframes slide-in-prev { from { transform: translateX(-32px); opacity: .15; } to { transform: none; opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .blk.res.booked, .blk.res.booked::after, .tl-track.slide-next, .tl-track.slide-prev, .month.slide-next, .month.slide-prev { animation: none; }
+}

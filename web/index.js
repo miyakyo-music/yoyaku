@@ -782,9 +782,16 @@
         if (r.date < today || (r.date === today && toMin(r.end) <= now)) cls.push('ended');
         if (r.pending) cls.push('mine', 'pending'); // 送信中の予約も自分の予約の色で表示する
         if (RES_COLORS.includes(r.color)) cls.push('c-' + r.color); // 重要な予定の色（自分の予約の青より優先）
+        // 取れたばかりの予約は一度だけ弾ませる。描き直しても動きが最初からやり直しにならないよう、経過時間ぶん先へ進めて始める
+        let pop = '';
+        const cel = state.celebrate;
+        if (cel && cel.ids.has(r.id)) {
+          const t = performance.now() - cel.start;
+          if (t < 900) { cls.push('booked'); pop = `;--bk-delay:${Math.round(-t)}ms`; }
+        }
         const title = `${hm(r.start)}〜${hm(r.end)} ${personText(r)}${r.memo ? '　' + r.memo : ''}${r.pending ? '（送信中）' : ''}`;
         // 予約者名を太字で先に、学籍番号/所属は2行目に細字で
-        html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}" aria-label="${esc(title)}">` +
+        html += `<div class="${cls.join(' ')}" data-id="${esc(r.id)}" role="button" tabindex="0" style="${span(toMin(r.start), toMin(r.end))}${pop}" aria-label="${esc(title)}">` +
           `<div class="txt"><b>${r.groupId ? '↻' : ''}${esc(r.name)}</b>${r.affiliation ? `<span>${esc(r.affiliation)}</span>` : ''}</div></div>`;
       }
       html += '</div></div>';
@@ -2099,6 +2106,11 @@
     btn.disabled = false;
   }
 
+  /** 予約が取れた帯を、小窓が帯へ縮み終わるころに一度だけ弾ませる（index.css の .blk.res.booked） */
+  function celebrate(id) {
+    state.celebrate = { ids: new Set([id]), start: performance.now() + (VT_OK && onScreen($('bookDialog')) ? 400 : 0) };
+  }
+
   /** 新規予約（1件）を楽観的に反映してから送信する。失敗したら表示を戻し、入力内容を残したまま予約画面を開き直す。 */
   async function createOptimistic(payload) {
     const temp = Object.assign({}, payload, { id: `tmp_${Date.now()}`, groupId: '', hasPin: !!payload.pin, pending: true });
@@ -2106,6 +2118,7 @@
     delete temp.adminPassword;
     const entry = { r: temp, status: 'sending' };
     state.pending.push(entry);
+    celebrate(temp.id);
     morph($('bookDialog'), () => {
       $('bookDialog').close();
       if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
@@ -2119,6 +2132,7 @@
       // 確定した予約は、再取得で台帳のデータに現れるまでこのまま表示しておく
       entry.r = res.reservation;
       entry.status = 'done';
+      if (state.celebrate) state.celebrate.ids.add(res.reservation.id);
       addMine([res.reservation]);
       toast('予約しました');
       invalidate([payload.date]);
@@ -2151,6 +2165,7 @@
     const entry = { r: temp, status: 'sending' };
     state.pending.push(entry);
     state.hidden.set(orig.id, orig.date);
+    celebrate(temp.id);
     morph($('bookDialog'), () => {
       $('bookDialog').close();
       if (state.view === 'day' && payload.date !== state.date) setDate(payload.date);
