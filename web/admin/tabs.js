@@ -26,6 +26,7 @@ for (const t of document.querySelectorAll('.tabs [data-tab]')) {
     if (t.dataset.tab === 'bugs') loadBugs();
     if (t.dataset.tab === 'setup') pkRefresh();
     if (t.dataset.tab === 'stats') loadStats();
+    if (t.dataset.tab === 'oplog') loadOplog(false);
   });
 }
 // タブの白いつまみを、選択中のタブの位置・幅に合わせる（最初に置くときだけは滑らせない）

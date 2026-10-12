@@ -26,6 +26,7 @@
     MAX_RANGE_DAYS: 42,
     MAX_PIN_FAILURES: 5,
     MAX_ADMIN_DELETE: 2000,
+    LOG_PAGE: 200,
     MAX_LIMITED_FAILURES: 30,
     FAILURE_LOCK_SECONDS: 600,
     MAX_WRITES_PER_MINUTE: 60, // GAS のときより速いので、上限は GAS の倍にする（いたずらで埋め尽くされないための上限）
@@ -34,19 +35,19 @@
   };
 
   const SETTINGS = [
-    { key: 'title', def: '練習室予約' },
-    { key: 'notice', def: '' },
-    { key: 'noticeLevel', def: '通常' },
-    { key: 'openTime', def: '07:00' },
-    { key: 'closeTime', def: '22:00' },
-    { key: 'unitMinutes', def: '5' },
-    { key: 'maxDurationMinutes', def: '0' },
-    { key: 'maxDaysAhead', def: '0' },
-    { key: 'closedWeekdays', def: '' },
-    { key: 'maxBulkCount', def: '100' },
-    { key: 'bulkRequiresAdmin', def: 'はい' },
-    { key: 'viewPassword', def: '' },
-    { key: 'limitedPassword', def: '' },
+    { key: 'title', label: '予約表のタイトル', def: '練習室予約' },
+    { key: 'notice', label: 'お知らせ', def: '' },
+    { key: 'noticeLevel', label: 'お知らせの種類', def: '通常' },
+    { key: 'openTime', label: '利用開始時刻', def: '07:00' },
+    { key: 'closeTime', label: '利用終了時刻', def: '22:00' },
+    { key: 'unitMinutes', label: '予約単位（分）', def: '5' },
+    { key: 'maxDurationMinutes', label: '1回の最大予約時間（分）', def: '0' },
+    { key: 'maxDaysAhead', label: '何日先まで予約できるか', def: '0' },
+    { key: 'closedWeekdays', label: '定休日（曜日）', def: '' },
+    { key: 'maxBulkCount', label: 'まとめて予約の最大件数', def: '100' },
+    { key: 'bulkRequiresAdmin', label: 'まとめて予約は管理者のみ', def: 'はい' },
+    { key: 'viewPassword', label: '閲覧パスワード', def: '' },
+    { key: 'limitedPassword', label: '限定公開の部屋のパスワード', def: '' },
   ];
   const SECRET_SETTINGS = ['viewPassword', 'limitedPassword'];
   const ROOM_RESTRICTIONS = { ADMIN_ONLY: '管理者のみ', STOPPED: '使用停止', LIMITED: '限定公開' };
@@ -720,11 +721,13 @@
     if (denied) return denied;
     const v = validateSettings(p.settings || {});
     if (v.error) return fail(v.error);
+    const before = {};
+    this.db.exec('SELECT k, v FROM settings').forEach((r) => { before[r.k] = r.v; });
     SETTINGS.forEach((def) => this.db.exec('INSERT OR REPLACE INTO settings (k, v) VALUES (?, ?)', def.key, v.value[def.key]));
     this.change('settings', v.value);
     this.memo.master = null;
     const settings = this.master().settings;
-    this.logAdmin('設定変更', SETTINGS.filter((d) => SECRET_SETTINGS.indexOf(d.key) < 0).map((d) => d.key + '=' + v.value[d.key]).join(' / '));
+    this.logAdmin('設定変更', settingsDiff(before, v.value));
     return { ok: true, settings, warnings: settingsWarnings.call(this, settings) };
   }
 
@@ -868,6 +871,32 @@
     return { ok: true };
   }
 
+  /** 管理画面の「変更履歴」: 操作ログを新しい順に（gas/Code.gs の adminGetLog と同じ。before は oplog の番号） */
+  function adminGetLog(p) {
+    const denied = this.requireAdmin(p);
+    if (denied) return denied;
+    const names = {};
+    this.readRooms().forEach((r) => { names[r.id] = r.name; });
+    const match = logMatcher(p, names);
+    const entries = [];
+    let before = Number(p.before) || Number.MAX_SAFE_INTEGER;
+    let scanned = 0;
+    let done = false;
+    while (!done && entries.length < SYSTEM.LOG_PAGE && scanned < 20000) {
+      const rows = this.db.exec('SELECT * FROM oplog WHERE n < ? ORDER BY n DESC LIMIT 1000', before);
+      if (rows.length < 1000) done = true;
+      for (const r of rows) {
+        if (entries.length >= SYSTEM.LOG_PAGE) { done = false; break; }
+        before = r.n;
+        scanned++;
+        const e = { at: r.at, action: r.action, resId: r.res_id || '', date: r.date || '', roomId: r.room_id || '', time: r.time || '', who: r.who || '', detail: r.detail || '' };
+        if (match(e)) entries.push(e);
+      }
+    }
+    const more = !!this.db.exec('SELECT n FROM oplog WHERE n < ? LIMIT 1', before).length;
+    return { ok: true, entries, next: before, more };
+  }
+
   function adminChangePassword(p) {
     const denied = this.requireAdmin(p);
     if (denied) return denied;
@@ -888,7 +917,7 @@
   const API = {
     getSchedule, getReservationsByIds, createReservation, createBulkReservations, updateReservation, cancelReservation,
     adminDeleteReservations, submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
-    adminGetBugReports, adminSetBugStatus, adminChangePassword, adminPasskeyTicket,
+    adminGetBugReports, adminSetBugStatus, adminGetLog, adminChangePassword, adminPasskeyTicket,
   };
 
   // ---------------------------------------------------------------------------
@@ -1097,6 +1126,32 @@
     const e = normTime(end);
     const allDay = !isTime(s) || !isTime(e) || toMin(s) >= toMin(e);
     return { date: normDate(date), roomId: str(roomId), allDay, start: allDay ? '' : s, end: allDay ? '' : e, reason: str(reason) };
+  }
+  /** 設定の変わった項目だけを「項目: 前 → 後」で並べる（操作ログ用。パスワード類は中身を書かない。gas/Code.gs の settingsDiff_ と同じ） */
+  function settingsDiff(before, after) {
+    const shown = (x) => (String(x == null ? '' : x) === '' ? '（なし）' : String(x));
+    const out = SETTINGS.filter((d) => String(before[d.key] == null ? d.def : before[d.key]) !== String(after[d.key]))
+      .map((d) => (SECRET_SETTINGS.indexOf(d.key) >= 0 ? d.label + ': 変更'
+        : d.label + ': ' + shown(before[d.key] == null ? d.def : before[d.key]) + ' → ' + shown(after[d.key])));
+    return out.length ? out.join(' / ') : '変更なし';
+  }
+  /** 操作ログの種類（gas/Code.gs の logKind_ と同じ） */
+  function logKind(e) {
+    if (!e.resId) return 'admin';
+    if (/取消|削除/.test(e.action)) return 'cancel';
+    if (/変更/.test(e.action)) return 'change';
+    return 'book';
+  }
+  /** 変更履歴の絞り込み条件（gas/Code.gs の logMatcher_ と同じ） */
+  function logMatcher(p, names) {
+    const kind = String(p.kind || '');
+    const words = String(p.q || '').toLowerCase().split(/[\s　]+/).filter(Boolean).slice(0, 10);
+    return (e) => {
+      if (kind && logKind(e) !== kind) return false;
+      if (!words.length) return true;
+      const hay = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ').toLowerCase();
+      return words.every((w) => hay.indexOf(w) >= 0);
+    };
   }
   function describe(r) { return hm(r.start) + '〜' + hm(r.end) + ' ' + (r.affiliation ? r.affiliation + ' ' : '') + r.name; }
 

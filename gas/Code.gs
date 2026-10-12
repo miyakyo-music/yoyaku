@@ -53,6 +53,7 @@ const SYSTEM = {
   // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
   MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
+  LOG_PAGE: 200, // 管理画面の変更履歴を一度に読む件数
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
   FAILURE_LOCK_SECONDS: 600,
   // 予約の登録・変更・取消を、全体で1分あたりこの件数までにする（Google の無料枠を使い切らないための上限）。
@@ -123,6 +124,7 @@ const API = {
   adminSaveClosures: adminSaveClosures,
   adminGetBugReports: adminGetBugReports,
   adminSetBugStatus: adminSetBugStatus,
+  adminGetLog: adminGetLog,
   adminChangePassword: adminChangePassword,
   adminPasskeyTicket: adminPasskeyTicket,
   mirrorNow: mirrorNow,
@@ -603,7 +605,13 @@ function adminSaveSettings(p) {
     const ss = getSpreadsheet_();
     const sheet = ensureSheet_(ss, SHEETS.settings, HEADERS.settings);
     sheet.getRange('B:B').setNumberFormat('@');
-    const labels = readTable_(sheet, 1).map(r => r[0].trim());
+    const table = readTable_(sheet, 2);
+    const labels = table.map(r => r[0].trim());
+    const before = {};
+    SETTINGS.forEach(def => {
+      const idx = [def.label].concat(def.aliases || []).map(l => labels.indexOf(l)).find(i => i >= 0);
+      if (idx !== undefined) before[def.key] = table[idx][1];
+    });
     SETTINGS.forEach(def => {
       const idx = [def.label].concat(def.aliases || []).map(l => labels.indexOf(l)).find(i => i >= 0);
       if (idx !== undefined) {
@@ -617,7 +625,7 @@ function adminSaveSettings(p) {
     SpreadsheetApp.flush();
     invalidateMaster_();
     const settings = loadSettings_(ss);
-    logAdmin_(ss, '設定変更', SETTINGS.filter(d => SECRET_SETTINGS.indexOf(d.key) < 0).map(d => d.label + '=' + v.value[d.key]).join(' / '));
+    logAdmin_(ss, '設定変更', settingsDiff_(before, v.value));
     return { ok: true, settings: settings, warnings: settingsWarnings_(ss, settings) };
   });
 }
@@ -815,6 +823,61 @@ function adminSetBugStatus(p) {
   }, { noPush: true }); // 予約表に関係しないので、写しは送らない
 }
 
+/**
+ * 管理画面の「変更履歴」: 操作ログを新しい順に返す（1回に LOG_PAGE 件まで。続きは next を before に渡して読む）。
+ * kind で種類を絞る（book 予約 / change 変更 / cancel 取消・削除 / admin 設定など）。q は全項目と部屋名から探す。
+ * @param {{before?:number, kind?:string, q?:string}} p before はこの行より上（古い方）を読む
+ */
+function adminGetLog(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const ss = getSpreadsheet_();
+  const sheet = ss.getSheetByName(SHEETS.log);
+  const names = {};
+  readRooms_(ss).forEach(r => { names[r.id] = r.name; });
+  const match = logMatcher_(p, names);
+  const entries = [];
+  let row = sheet ? Math.min(Number(p.before) || Infinity, sheet.getLastRow() + 1) : 2;
+  let scanned = 0;
+  // 下（新しい方）から1000行ずつ読む。探す範囲は1回に2万行まで（時間切れを防ぐ。続きは「さらに読み込む」で）
+  while (row > 2 && entries.length < SYSTEM.LOG_PAGE && scanned < 20000) {
+    const top = Math.max(2, row - 1000);
+    const vals = sheet.getRange(top, 1, row - top, HEADERS.log.length).getDisplayValues();
+    for (let i = vals.length - 1; i >= 0 && entries.length < SYSTEM.LOG_PAGE; i--) {
+      row = top + i;
+      scanned++;
+      const e = logEntry_(vals[i]);
+      if (e.at && match(e)) entries.push(e);
+    }
+  }
+  return { ok: true, entries: entries, next: row, more: row > 2 };
+}
+
+/** 操作ログの1行を、画面に渡す形にする */
+function logEntry_(r) {
+  return { at: r[0], action: r[1], resId: r[2], date: r[3], roomId: r[4], time: r[5], who: r[6], detail: r[7] };
+}
+
+/** 操作ログの種類（管理画面の絞り込み用。cache/store.js と同じ） */
+function logKind_(e) {
+  if (!e.resId) return 'admin';
+  if (/取消|削除/.test(e.action)) return 'cancel';
+  if (/変更/.test(e.action)) return 'change';
+  return 'book';
+}
+
+/** 変更履歴の絞り込み条件（種類と検索語）に合うかを返す関数 */
+function logMatcher_(p, names) {
+  const kind = String(p.kind || '');
+  const words = String(p.q || '').toLowerCase().split(/[\s　]+/).filter(Boolean).slice(0, 10);
+  return e => {
+    if (kind && logKind_(e) !== kind) return false;
+    if (!words.length) return true;
+    const hay = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ').toLowerCase();
+    return words.every(w => hay.indexOf(w) >= 0);
+  };
+}
+
 /** 管理用パスワードを変更する（引き継ぎ時など）。 */
 function adminChangePassword(p) {
   const denied = requireAdmin_(p);
@@ -907,6 +970,15 @@ function settingsWarnings_(ss, settings) {
   if (outside) warnings.push('新しい利用時間の外にかかる予約が' + outside + '件あります（自動では取り消されません）。');
   if (holiday) warnings.push('定休日に入っている予約が' + holiday + '件あります（自動では取り消されません）。');
   return warnings;
+}
+
+/** 設定の変わった項目だけを「項目: 前 → 後」で並べる（操作ログ用。パスワード類は中身を書かない。cache/store.js と同じ） */
+function settingsDiff_(before, after) {
+  const shown = x => (String(x == null ? '' : x) === '' ? '（なし）' : String(x));
+  const out = SETTINGS.filter(d => String(before[d.key] == null ? d.def : before[d.key]) !== String(after[d.key]))
+    .map(d => (SECRET_SETTINGS.indexOf(d.key) >= 0 ? d.label + ': 変更'
+      : d.label + ': ' + shown(before[d.key] == null ? d.def : before[d.key]) + ' → ' + shown(after[d.key])));
+  return out.length ? out.join(' / ') : '変更なし';
 }
 
 function logAdmin_(ss, action, detail) {

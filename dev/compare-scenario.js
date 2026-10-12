@@ -108,6 +108,17 @@
   r = rec('viewOk', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   out[out.length - 1][4] = r.settings && r.settings.viewPasswordRequired;
   await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { viewPassword: '', limitedPassword: 'secret1', closedWeekdays: [] }) });
+  // 変更履歴（予約 ID は両方で違うので比べない）
+  const logLine = (e) => [e.action, e.date, e.roomId, e.time, e.who].join(' ');
+  r = rec('log', await c('adminGetLog', { adminPassword: A }));
+  out[out.length - 1][4] = r.entries && [r.entries.map(logLine).join(';'), r.more];
+  r = rec('logCancel', await c('adminGetLog', { adminPassword: A, kind: 'cancel' }));
+  out[out.length - 1][4] = r.entries && r.entries.map(logLine).join(';');
+  r = rec('logAdmin', await c('adminGetLog', { adminPassword: A, kind: 'admin' }));
+  out[out.length - 1][4] = r.entries && r.entries.map((e) => e.action + ' ' + e.detail).join(';');
+  r = rec('logQuery', await c('adminGetLog', { adminPassword: A, q: base.name + ' 変更' }));
+  out[out.length - 1][4] = r.entries && r.entries.map(logLine).join(';');
+  rec('logNoAdmin', await c('adminGetLog', {}));
   // パスワード変更・パスキー
   rec('pwShort', await c('adminChangePassword', { adminPassword: A, newPassword: '123' }));
   rec('pwChange', await c('adminChangePassword', { adminPassword: A, newPassword: 'newpass1' }));

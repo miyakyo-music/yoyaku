@@ -28,6 +28,7 @@
 <link rel="stylesheet" href="admin/button.css">
 <link rel="stylesheet" href="admin/tabs.css">
 <link rel="stylesheet" href="admin/bugs.css">
+<link rel="stylesheet" href="admin/oplog.css">
 <link rel="stylesheet" href="admin/field.css">
 <link rel="stylesheet" href="admin/rooms.css">
 <link rel="stylesheet" href="admin/closures.css">
@@ -70,6 +71,7 @@
         <button type="button" role="tab" data-tab="stats" aria-selected="false">統計</button>
         <button type="button" role="tab" data-tab="closures" aria-selected="false">休館<span class="lg">・利用停止</span></button>
         <button type="button" role="tab" data-tab="setup" aria-selected="false">設定<span class="dot" id="dotSetup" hidden>●</span></button>
+        <button type="button" role="tab" data-tab="oplog" aria-selected="false">変更<span class="lg">履歴</span></button>
         <button type="button" role="tab" data-tab="bugs" aria-selected="false">不具合<span class="lg">報告</span><span class="badge" id="bugBadge" hidden></span></button>
       </nav>
 
@@ -254,6 +256,28 @@
         </div>
       </div>
 
+      <!-- 変更履歴（admin/oplog.js。サーバーの操作ログを新しい順に） -->
+      <div class="card" data-panel="oplog" hidden>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <h2 style="margin:0">変更履歴 <button type="button" class="info" aria-label="説明" data-tip="予約・変更・取消・削除と、管理画面での設定・部屋・休館・パスワードの変更の記録（新しい順）。スプレッドシートの「操作ログ」シートにも残ります。">i</button></h2>
+          <span class="spacer"></span>
+          <button type="button" class="btn small" id="oplogReload">再読み込み</button>
+        </div>
+        <div class="log-filter">
+          <input id="oplogQuery" class="hx-search" type="search" placeholder="氏名・部屋・日付・予約IDで検索" aria-label="検索" autocomplete="off" enterkeyhint="search">
+          <div class="seg-mini" role="group" aria-label="種類" id="oplogKind">
+            <button type="button" data-kind="" aria-pressed="true">すべて</button>
+            <button type="button" data-kind="book" aria-pressed="false">予約</button>
+            <button type="button" data-kind="change" aria-pressed="false">変更</button>
+            <button type="button" data-kind="cancel" aria-pressed="false">取消</button>
+            <button type="button" data-kind="admin" aria-pressed="false">設定</button>
+          </div>
+        </div>
+        <p class="msg error" id="oplogError"></p>
+        <div id="oplogList"></div>
+        <button type="button" class="btn log-more" id="oplogMore" hidden>さらに読み込む</button>
+      </div>
+
       <div class="card" data-panel="bugs" hidden>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <h2 style="margin:0">不具合報告 <button type="button" class="info" aria-label="説明" data-tip="予約表の「不具合を報告」から届いた内容（新しい順）。スプレッドシートの「不具合報告」シートにも残ります。">i</button></h2>
@@ -286,6 +310,7 @@
 <script src="admin/history.js"></script>
 <script src="admin/export.js"></script>
 <script src="admin/bugs.js"></script>
+<script src="admin/oplog.js"></script>
 <script src="admin/passkey.js"></script>
 <script src="admin/boot.js"></script>
 </body>
