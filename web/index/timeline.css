@@ -283,3 +283,11 @@ html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
 .day-pull.prev { right: auto; left: 4px; }
 .day-pull.prev svg { transform: scaleX(-1); }
 .day-pull.ready { color: #fff; background: var(--accent); }
+/* 指でなぞって日付（月）を切り替えたとき（index/glass.js の swipeShift）: 「‹」「›」より遠くから、はっきり滑り込ませる */
+.tl-track.far.slide-next, .month.far.slide-next { animation: slide-in-next-far .42s cubic-bezier(.2, .8, .3, 1) both; }
+.tl-track.far.slide-prev, .month.far.slide-prev { animation: slide-in-prev-far .42s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes slide-in-next-far { from { transform: translateX(140px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slide-in-prev-far { from { transform: translateX(-140px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .tl-track.far, .month.far { animation: none !important; }
+}

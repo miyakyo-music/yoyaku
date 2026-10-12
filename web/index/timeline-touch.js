@@ -258,7 +258,7 @@ document.addEventListener('touchend', () => {
   showDayPull(0);
   if (dir && amount >= DAY_PULL_PX) {
     state.landEnd = dir < 0;
-    shift(dir);
+    swipeShift(dir);
   }
 }, { passive: true });
 document.addEventListener('touchcancel', () => { dayPull = null; showDayPull(0); }, { passive: true });

@@ -25,9 +25,9 @@ function render() {
   liftFab();
   // 「‹」「›」で日付（月）を切り替えたときだけ、表を進む向きから軽くすべり込ませる
   if (state.slide) {
-    const cls = state.slide > 0 ? 'slide-next' : 'slide-prev';
+    const cls = (state.slide > 0 ? 'slide-next' : 'slide-prev') + (Math.abs(state.slide) > 1 ? ' far' : '');
     state.slide = 0;
-    for (const el of $('main').querySelectorAll('.tl-track, .month')) el.classList.add(cls);
+    for (const el of $('main').querySelectorAll('.tl-track, .month')) el.classList.add(...cls.split(' '));
   }
 }
 

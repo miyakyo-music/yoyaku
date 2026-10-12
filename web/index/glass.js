@@ -158,8 +158,31 @@ function setView(view) {
   load();
 }
 
-function shift(dir) {
-  state.slide = dir; // 次の描画で、表を進む向きからすべり込ませる
+/**
+ * 指でなぞって日付（月）を切り替えたとき: 「‹」「›」より大きく滑り込ませ、日付欄を一度ふくらませ、端末を軽く震わせる。
+ * iPhone の Safari は振動（navigator.vibrate）に対応していないので、iOS 18 からスイッチの形のチェックボックスを
+ * 押したときに出る軽い振動を借りる（見えない部品を一瞬作って押す）
+ */
+function tapFeel() {
+  if (navigator.vibrate) { navigator.vibrate(12); return; }
+  const label = document.createElement('label');
+  label.style.display = 'none';
+  label.innerHTML = '<input type="checkbox" switch>';
+  document.body.appendChild(label);
+  label.click();
+  label.remove();
+}
+function swipeShift(dir) {
+  tapFeel();
+  shift(dir, true);
+  const d = $('dateDisplay');
+  d.classList.remove('bump');
+  void d.offsetWidth; // 続けてなぞったときも、もう一度ふくらませる
+  d.classList.add('bump');
+}
+
+function shift(dir, far) {
+  state.slide = far ? dir * 2 : dir; // 次の描画で、表を進む向きからすべり込ませる（2 は大きく）
   if (state.view === 'day') setDate(addDays(state.date, dir));
   else if (state.view === 'room') setDate(addMonths(state.date, dir));
   else setDate(addMonths(state.date, dir));

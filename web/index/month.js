@@ -61,6 +61,6 @@ $('main').addEventListener('touchend', (e) => {
   const t = e.changedTouches[0];
   const dx = t.clientX - monthSwipe.x, dy = t.clientY - monthSwipe.y;
   monthSwipe = null;
-  if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shift(dx < 0 ? 1 : -1);
+  if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) swipeShift(dx < 0 ? 1 : -1);
 }, { passive: true });
 $('main').addEventListener('touchcancel', () => { monthSwipe = null; }, { passive: true });

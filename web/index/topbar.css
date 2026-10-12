@@ -452,3 +452,7 @@ html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px 
 @media (max-width: 600px) {
   .topbar { --text-inset: 11px; }
 }
+/* 指でなぞって日付（月）を切り替えたとき（index/glass.js の swipeShift）: 日付欄の文字を一度ふくらませ、青く光らせる */
+.date-step .date-display.bump { animation: date-bump .45s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes date-bump { 0% { transform: scale(1); } 35% { transform: scale(1.12); color: var(--accent); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .date-step .date-display.bump { animation: none; } }
