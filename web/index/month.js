@@ -47,3 +47,20 @@ function renderMonth() {
   $('main').classList.remove('has-tl');
   $('main').innerHTML = html + '</div>' + footHtml('');
 }
+
+// スマホ: カレンダーを左右になぞると前の月・次の月へ（「‹」「›」と同じ）。
+// 画面の端から始めたなぞりは Safari の「戻る」に任せる。縦の動きが大きいときはスクロールとみなす
+let monthSwipe = null;
+$('main').addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  monthSwipe = state.view === 'month' && e.touches.length === 1 && e.target.closest('.month') &&
+    t.clientX > 24 && t.clientX < window.innerWidth - 24 ? { x: t.clientX, y: t.clientY } : null;
+}, { passive: true });
+$('main').addEventListener('touchend', (e) => {
+  if (!monthSwipe) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - monthSwipe.x, dy = t.clientY - monthSwipe.y;
+  monthSwipe = null;
+  if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shift(dx < 0 ? 1 : -1);
+}, { passive: true });
+$('main').addEventListener('touchcancel', () => { monthSwipe = null; }, { passive: true });
