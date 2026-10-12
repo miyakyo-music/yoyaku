@@ -60,9 +60,7 @@ html.dark .req { color: #ff6961; }
 }
 @media (hover: hover) { .toast-act:hover { background: rgba(255, 255, 255, .12); } }
 .toast-act:focus-visible { outline: 2px solid #64d2ff; outline-offset: -2px; }
-/* スマホでは右下の「＋」（index/fab.css。右 18px・幅 58px）に重ならないよう、左に寄せて「＋」の左で止める */
+/* スマホで右下の「＋」（index/fab.css。下 22px・高さ 58px）が出ている間は、重ならないよう「＋」の上に出す（真ん中のまま） */
 @media (max-width: 600px) {
-  .toast.has-act { left: 16px; max-width: calc(100vw - 104px); transform: translateY(20px); }
-  .toast.show.has-act { transform: none; }
-  .toast.has-act { bottom: calc(31px + env(safe-area-inset-bottom)); }
+  body:has(.fab:not([hidden])) .toast { bottom: calc(92px + env(safe-area-inset-bottom)); }
 }
