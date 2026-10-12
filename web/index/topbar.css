@@ -428,6 +428,8 @@ html.dark .topbar .date-step .btn.arrow { color: #f2f2f7; }
 .topbar .seg::before { top: 3px; bottom: 3px; border-radius: 999px; }
 .topbar .seg .btn, .topbar .seg .btn:first-child, .topbar .seg .btn:last-child { height: 28px; border-radius: 999px; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 0 12px; }
 html.dark .topbar .seg::before { background: rgba(255, 255, 255, .14); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .1); }
+/* ダーク: 縁の光と影を消すと、隣の「全設備」より上にずれて見えるので、ほかのカプセルと同じ縁と影を付ける */
+html.dark .topbar .seg { box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-shadow); }
 .topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status { box-shadow: none; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* スマホ: 横幅が足りないので、カプセルの内側の余白は元の詰めた値のまま */
 @media (max-width: 600px) {
