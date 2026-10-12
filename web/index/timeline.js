@@ -15,6 +15,11 @@ function closuresFor(date, roomId) {
 }
 
 function render() {
+  if (isOffline() && state.shownKey !== `${state.view}|${rangeKey(currentRange())}`) {
+    $('main').innerHTML = '<p class="empty">オフラインのため、この期間の予約を表示できません。</p>';
+    liftFab();
+    return;
+  }
   if (state.view === 'month') renderMonth();
   else renderTimeline();
   liftFab();

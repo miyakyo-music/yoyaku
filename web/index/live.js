@@ -65,3 +65,19 @@ function disconnectLive() {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) disconnectLive(); else { liveRetry = 0; connectLive(); } });
 connectLive();
+
+// ---------------- 電波がないとき ----------------
+// 更新ボタンの絵を「電波なし」に変え、文字を「オフライン（17:40 時点）」にする。戻ったら、すぐつなぎ直して最新を読む
+function updateOffline() {
+  const off = isOffline();
+  document.body.classList.toggle('offline', off);
+  $('refreshBtn').setAttribute('aria-label', off ? 'オフライン（前回の予約表を表示中）' : '最新の予約に更新');
+  if (state.data) stampStatus();
+}
+window.addEventListener('offline', () => { updateOffline(); if (state.data) render(); });
+window.addEventListener('online', () => {
+  updateOffline();
+  clearTimeout(liveTimer); liveRetry = 0; connectLive();
+  if (state.data) { invalidate(); load({ force: true, background: state.shownKey === `${state.view}|${rangeKey(currentRange())}` }); }
+});
+updateOffline();

@@ -377,6 +377,7 @@ async function submitBooking(e) {
   const edit = state.booking.mode === 'edit';
   const err = $('bError');
   const fail = (msg, focusId) => { err.textContent = msg; if (focusId) ($(focusId).wheel || $(focusId)).focus(); };
+  if (isOffline()) return fail(OFFLINE_MSG);
   if (!$('bRoomQuickField').hidden) return fail('部屋を選んでください。');
   const payload = {
     roomId: $('bRoom').value,

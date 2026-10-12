@@ -91,20 +91,30 @@ async function load(opts) {
   const range = currentRange();
   const key = rangeKey(range);
   const hit = state.cache.get(key);
-  if (!opts.force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
+  const offline = isOffline();
+  // オフラインの間は、古くなっていても覚えている表を出す（通信はしない）
+  if ((!opts.force || offline) && hit && (offline || Date.now() - hit.at < CACHE_TTL_MS)) {
     document.body.classList.remove('loading');
     show(hit, key);
     afterShow(opts);
+    if (offline && opts.force && !opts.background) toast('オフラインです。電波が戻ると最新の予約に更新します。');
     return;
   }
   // 開いた直後: 前回と同じ表示なら、端末に覚えておいた予約表をすぐ出し、最新の取得は裏で行って差し替える
   if (!state.data && !hit && !state.skipSnapshot) {
     const snap = load_(LS.snapshot, null);
-    if (snap && snap.key === `${state.view}|${key}` && Date.now() - snap.at < 24 * 3600 * 1000) {
+    if (snap && snap.key === `${state.view}|${key}` && (offline || Date.now() - snap.at < 24 * 3600 * 1000)) {
       show({ res: snap.res, at: snap.at, saved: true }, key);
+      if (offline) return;
       $('statusText').textContent = '更新中…';
       opts = Object.assign({}, opts, { background: true });
     }
+  }
+  // オフラインで覚えていない期間: 前の表を残すと、別の日の予約が空いて見えるので、表を出さない（render が知らせを出す）
+  if (offline) {
+    render();
+    if (!opts.background) toast('オフラインです。電波が戻ると最新の予約に更新します。');
+    return;
   }
   // 管理者モード・限定公開は、限定公開の部屋も出すために GAS から読む（2〜4秒かかる）。待たせないよう、
   // 高速キャッシュの写しがあれば先にそれを出し（限定公開の部屋は後から現れる）、GAS の結果で差し替える
@@ -140,6 +150,14 @@ async function load(opts) {
   }
 }
 
+/** 更新ボタンの文字（いつの表か）。オフラインの間は「オフライン（17:40 時点）」 */
+function stampStatus(at) {
+  if (at) state.shownAt = at;
+  const t = new Date(state.shownAt || Date.now());
+  const hm_ = `${t.getHours()}:${pad(t.getMinutes())}`;
+  $('statusText').textContent = isOffline() ? (state.shownAt ? `オフライン（${hm_} 時点）` : 'オフライン') : `${hm_} 更新`;
+}
+
 function show(entry, key) {
   const res = entry.res;
   const shownKey = `${state.view}|${key}`;
@@ -168,8 +186,7 @@ function show(entry, key) {
   applySettings();
   render();
   if (keyChanged) scrollToNow();
-  const t = new Date(entry.at);
-  $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
+  stampStatus(entry.at);
   // 次に開いたときにすぐ出せるよう、端末に覚えておく（閲覧パスワードが必要な予約表では覚えない）
   if (!res.settings.viewPasswordRequired) save_(LS.snapshot, { key: shownKey, res, at: entry.at });
 }
@@ -182,8 +199,7 @@ function showInBackground(entry, key, seq) {
   const sig = (r) => JSON.stringify([r.reservations, r.closures, r.rooms, r.settings]);
   // 中身が同じなら描き直さない（ただし ?limited から来たときは、パスワードを尋ねるかをここで決めるので描き直す）
   if (!state.limitedEntry && state.data && state.shownKey === `${state.view}|${key}` && sig(entry.res) === sig(state.data)) {
-    const t = new Date(entry.at);
-    $('statusText').textContent = `${t.getHours()}:${pad(t.getMinutes())} 更新`;
+    stampStatus(entry.at);
     return;
   }
   const tryShow = () => {
@@ -202,6 +218,7 @@ function afterShow(opts) {
 /** 「‹」「›」で次に開きそうな前後の期間を裏で取得しておき、押したときにすぐ表示できるようにする
  * （一覧は前日・翌日、部屋別・カレンダーは前月・翌月）。翌日（翌月）を先に取る */
 function prefetchNext() {
+  if (isOffline()) return;
   const step = state.view === 'day' ? (d, n) => addDays(d, n) : (d, n) => addMonths(d, n);
   for (const dir of [1, -1]) {
     const range = rangeFor(state.view, step(state.date, dir));

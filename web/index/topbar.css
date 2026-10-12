@@ -41,6 +41,9 @@ h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-ove
 body.loading .status .ic-refresh { display: none; }
 body.loading .status .ic-spinner { display: block; transform-origin: 50% 50%; animation: ios-spin .8s steps(8) infinite; }
 @keyframes ios-spin { to { transform: rotate(360deg); } }
+/* オフラインの間は、↻ の代わりに「電波なし」の絵（index/live.js の body.offline） */
+.status .ic-offline, body.offline .status .ic-refresh, body.offline .status .ic-spinner { display: none; }
+body.offline .status .ic-offline { display: block; }
 @media (prefers-reduced-motion: reduce) {
   body.loading .status .ic-spinner { animation-duration: 1.6s; }
 }

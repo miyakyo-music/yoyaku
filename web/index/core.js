@@ -130,6 +130,11 @@ function tagClass(t) {
   return '';
 }
 
+// ---------------- 電波がないとき ----------------
+// 端末が「つながっていない」と言うときだけオフラインとみなす（つながっていると言うのに届かないときは、今までどおり送って失敗を知らせる）
+function isOffline() { return navigator.onLine === false; }
+const OFFLINE_MSG = 'オフラインのため送信できません。電波の届く所で、もう一度押してください。';
+
 let toastTimer;
 function toast(message, type, ms) {
   if (type === 'error') state.lastError = `${new Date().toLocaleString('ja-JP')} ${message}`;

@@ -36,6 +36,7 @@ $('bugForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const message = $('bugMsg').value.trim();
   if (!message) { $('bugError').textContent = '内容を入力してください。'; $('bugMsg').focus(); return; }
+  if (isOffline()) { $('bugError').textContent = OFFLINE_MSG; return; }
   const btn = $('bugSubmit');
   btn.disabled = true;
   $('bugError').textContent = '';

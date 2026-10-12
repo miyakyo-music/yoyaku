@@ -37,6 +37,7 @@ $('noticeInput').addEventListener('keydown', (e) => {
 });
 $('noticeEditor').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (isOffline()) { $('noticeError').textContent = OFFLINE_MSG; return; }
   const btn = $('noticeSave');
   const level = $('noticeLevel').querySelector('[aria-pressed="true"]').dataset.level;
   btn.disabled = true;

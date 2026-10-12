@@ -73,6 +73,7 @@ async function submitCancel(e) {
   e.preventDefault();
   const pin = $('dPin').value.trim();
   const err = $('dError');
+  if (isOffline()) { err.textContent = OFFLINE_MSG; return; }
   if (!$('dOps').hidden && !pin) { err.textContent = '編集用パスワードを入力してください。'; $('dPin').focus(); return; }
   const series = !$('dSeriesArea').hidden && $('dSeries').checked;
   if (!confirm(series ? '同じまとめ予約のうち、この日以降の分をすべて取り消しますか？' : 'この予約を取り消しますか？')) return;
