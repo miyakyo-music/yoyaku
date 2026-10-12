@@ -271,3 +271,15 @@ html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) {
   .blk.res.booked, .blk.res.booked::after, .tl-track.slide-next, .tl-track.slide-prev { animation: none; }
 }
+/* 一覧で表の端からさらに引っぱったときの丸い矢印（index/timeline-touch.js の showDayPull が位置・濃さを動かす）。超えたら青 */
+.day-pull {
+  position: fixed; right: 4px; z-index: 30; width: 40px; height: 40px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center; pointer-events: none;
+  color: var(--text); background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  transition: background-color .15s, color .15s;
+}
+.day-pull.on { display: flex; }
+.day-pull.prev { right: auto; left: 4px; }
+.day-pull.prev svg { transform: scaleX(-1); }
+.day-pull.ready { color: #fff; background: var(--accent); }

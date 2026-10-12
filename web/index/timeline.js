@@ -247,6 +247,8 @@ function scrollToNow() {
   if (state.view === 'month' || !state.geo) { main.scrollTop = 0; main.scrollLeft = 0; return; }
   const isToday = state.view === 'day' ? state.data.from === todayStr() : true;
   const track = main.querySelector('.tl-track');
+  // 一覧の左端からさらに引っぱって前の日へ来たときは、その日の終わり（一番右）を見せる
+  if (state.landEnd) { state.landEnd = false; main.scrollLeft = main.scrollWidth; return; }
   if (!isToday || !track) { main.scrollLeft = 0; return; }
   const ratio = (nowMin() - state.geo.t0) / state.geo.total;
   main.scrollLeft = Math.max(0, ratio * track.offsetWidth - track.offsetWidth / state.geo.total * 60);

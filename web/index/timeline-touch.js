@@ -208,3 +208,57 @@ document.addEventListener('mouseup', () => {
   if (m.dragging) finishDrag();
   else tapTrack(m.track, m.x);
 });
+
+// ---------------- 一覧: 表の端からさらに引っぱると前の日・次の日へ ----------------
+// 一番右（閉館の時刻）まで見えている所から、さらに左へ一定以上なぞって離すと次の日へ。一番左から右へなら前の日へ
+// （前の日は一番右を見せて開き、時間がつながって見えるようにする）。引っぱっている間は端に丸い矢印を出し、
+// 超えたら青くする。画面の端から始めたなぞりは Safari の「戻る」に任せる
+const DAY_PULL_PX = 80;
+let dayPull = null;
+const dayPullHint = document.createElement('div');
+dayPullHint.className = 'day-pull';
+dayPullHint.setAttribute('aria-hidden', 'true');
+dayPullHint.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+document.body.appendChild(dayPullHint);
+function showDayPull(dir, amount) {
+  const h = dayPullHint;
+  if (!dir) { h.classList.remove('on', 'ready'); return; }
+  const r = $('main').getBoundingClientRect();
+  const p = Math.min(1, amount / DAY_PULL_PX);
+  h.classList.toggle('prev', dir < 0);
+  h.classList.add('on');
+  h.classList.toggle('ready', p >= 1);
+  h.style.top = `${r.top + r.height / 2}px`;
+  h.style.opacity = String(p);
+  h.style.transform = `translate(${(dir > 0 ? -1 : 1) * p * 24}px, -50%) scale(${.6 + p * .4})`;
+}
+$('main').addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  dayPull = state.view === 'day' && e.touches.length === 1 && e.target.closest('.tl') &&
+    t.clientX > 24 && t.clientX < window.innerWidth - 24 ? { x: t.clientX, y: t.clientY, dir: 0, from: 0, amount: 0 } : null;
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (!dayPull) return;
+  // 2本指（拡大・縮小）・時間の選択・帯の移動が始まったら取りやめる
+  if (e.touches.length !== 1 || pinch || drag || move) { dayPull = null; showDayPull(0); return; }
+  const t = e.touches[0];
+  const main = $('main');
+  const max = main.scrollWidth - main.clientWidth;
+  const sideways = Math.abs(t.clientX - dayPull.x) > Math.abs(t.clientY - dayPull.y);
+  // 端に着いた所の指の位置を起点に、そこからさらに動かした分だけを数える
+  const dir = !sideways ? 0 : t.clientX < dayPull.x && main.scrollLeft >= max - 1 ? 1 : t.clientX > dayPull.x && main.scrollLeft <= 0 ? -1 : 0;
+  if (dir !== dayPull.dir) { dayPull.dir = dir; dayPull.from = t.clientX; }
+  dayPull.amount = dir ? Math.max(0, (dayPull.from - t.clientX) * dir) : 0;
+  showDayPull(dir, dayPull.amount);
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  if (!dayPull) return;
+  const { dir, amount } = dayPull;
+  dayPull = null;
+  showDayPull(0);
+  if (dir && amount >= DAY_PULL_PX) {
+    state.landEnd = dir < 0;
+    shift(dir);
+  }
+}, { passive: true });
+document.addEventListener('touchcancel', () => { dayPull = null; showDayPull(0); }, { passive: true });
