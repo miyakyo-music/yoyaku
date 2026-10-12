@@ -240,6 +240,8 @@
     writeLimit() {
       const key = 'writes_' + Math.floor(Date.now() / 60000);
       const n = Number(this.kget(key) || 0);
+      // その分の最初の書き込みのときに、期限が過ぎた値（前の分の回数など。二度と読まれない）をまとめて消す
+      if (!n) this.db.exec('DELETE FROM kv WHERE exp > 0 AND exp < ?', Date.now());
       if (n >= SYSTEM.MAX_WRITES_PER_MINUTE) return fail('予約の操作が集中しています。1分ほど待ってから、もう一度お試しください。', 'BUSY');
       this.kput(key, n + 1, 120);
       return null;

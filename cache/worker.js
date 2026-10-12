@@ -375,21 +375,36 @@ export class Store {
     return json(res.body, res.status, { 'Cache-Control': 'no-store' });
   }
 
-  /** 予約などが変わったとき: 開いている画面に知らせ、GAS に「スプレッドシートへ写して」と合図する（どちらも待たない） */
+  /**
+   * 予約などが変わったとき: 開いている画面にはすぐ知らせる。GAS への「スプレッドシートへ写して」は、
+   * 目覚まし（alarm）で最初の変更から MIRROR_DELAY_MS 後に1回だけ送る（続けて変わった分はまとめて写る）
+   */
   changed() {
     const version = Date.now();
     const jobs = [];
     if (this.env.HUB) jobs.push(hub(this.env).fetch('https://hub/notify', { method: 'POST', body: JSON.stringify({ type: 'changed', version }) }).catch(() => {}));
-    const gas = String(this.env.GAS_URL || '').trim();
-    if (gas) {
-      jobs.push(fetch(gas, {
-        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
-        body: JSON.stringify({ action: 'mirrorNow', params: {} }),
-      }).catch(() => {}));
+    if (String(this.env.GAS_URL || '').trim()) {
+      const storage = this.ctx.storage;
+      jobs.push((async () => {
+        if (await storage.getAlarm() == null) await storage.setAlarm(Date.now() + MIRROR_DELAY_MS);
+      })().catch(() => {}));
     }
     this.ctx.waitUntil(Promise.all(jobs));
   }
+
+  /** 目覚まし: GAS に「写して」と送る。届かなければ Cloudflare が間をあけて何度かやり直す（それでもだめなら GAS の5分ごとの見回りが写す） */
+  async alarm() {
+    const gas = String(this.env.GAS_URL || '').trim();
+    if (!gas) return;
+    const res = await fetch(gas, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
+      body: JSON.stringify({ action: 'mirrorNow', params: {} }),
+    });
+    if (!res.ok) throw new Error('GAS ' + res.status);
+  }
 }
+
+const MIRROR_DELAY_MS = 10 * 1000; // 予約が変わってから、スプレッドシートへ写す合図を送るまで
 
 // ---------------- リアルタイム同期 ----------------
 
