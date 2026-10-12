@@ -35,6 +35,7 @@
   /**
    * @param {string} action Code.gs の関数名（API に登録されたもの）
    * @param {object} params
+   * @param {{keepalive?:boolean}} [opts] keepalive: 画面を閉じても送り切る
    * @returns {Promise<object>} サーバーの応答（{ok, ...}）。通信できなかったときは reject
    */
   // 管理画面にログインしたことのある端末の印（管理用パスワードを送るときだけ添える。
@@ -52,24 +53,24 @@
     try { if (cf) localStorage.setItem(PRIMARY_KEY, 'cf'); else localStorage.removeItem(PRIMARY_KEY); } catch (e) { /* 覚えられない環境では、毎回 GAS から */ }
   }
 
-  window.callApi = async function (action, params) {
+  window.callApi = async function (action, params, opts) {
     params = Object.assign({}, params);
     if (params.adminPassword) {
       try { const d = localStorage.getItem(DEVICE_KEY); if (d) params.adminDevice = d; } catch (e) { /* 保存できない環境では付けない */ }
     }
     if (!window.GAS_API_URL) throw new Error('接続先が設定されていません（web/config.js の GAS_API_URL）。');
-    let data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params);
+    let data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params, opts);
     if (data && data.code === 'MOVED' && cfApiUrl()) {
       // 正本の場所が変わっていた: 覚え直して、もう一方へ送り直す（1回だけ）
       setPrimary(data.primary === 'cloudflare');
-      data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params);
+      data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params, opts);
     }
     if (data && data.apiVersion !== API_VERSION) warnVersion();
     if (data && data.adminDevice) { try { localStorage.setItem(DEVICE_KEY, data.adminDevice); } catch (e) { /* 無視 */ } }
     return data;
   };
 
-  async function post(url, action, params) {
+  async function post(url, action, params, opts) {
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctrl && setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     let res;
@@ -81,6 +82,7 @@
         credentials: 'omit',
         redirect: 'follow',
         cache: 'no-store',
+        keepalive: !!(opts && opts.keepalive),
         signal: ctrl ? ctrl.signal : undefined,
       });
     } catch (e) {

@@ -136,11 +136,20 @@ function isOffline() { return navigator.onLine === false; }
 const OFFLINE_MSG = 'オフラインのため送信できません。電波の届く所で、もう一度押してください。';
 
 let toastTimer;
-function toast(message, type, ms) {
+/** 画面の下に短く知らせる。action（{ label, run }）を渡すと右にボタンを付ける（例: 取消の「元に戻す」） */
+function toast(message, type, ms, action) {
   if (type === 'error') state.lastError = `${new Date().toLocaleString('ja-JP')} ${message}`;
   const el = $('toast');
   el.textContent = message;
-  el.className = 'toast show' + (type === 'error' ? ' error' : '');
+  el.className = 'toast show' + (type === 'error' ? ' error' : '') + (action ? ' has-act' : '');
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'toast-act';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { clearTimeout(toastTimer); el.className = 'toast'; action.run(); });
+    el.appendChild(b);
+  }
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.className = 'toast'; }, ms || (type === 'error' ? 5000 : 2800));
 }

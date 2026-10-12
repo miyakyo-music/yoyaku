@@ -76,22 +76,53 @@ async function submitCancel(e) {
   if (isOffline()) { err.textContent = OFFLINE_MSG; return; }
   if (!$('dOps').hidden && !pin) { err.textContent = '編集用パスワードを入力してください。'; $('dPin').focus(); return; }
   const series = !$('dSeriesArea').hidden && $('dSeries').checked;
-  if (!confirm(series ? '同じまとめ予約のうち、この日以降の分をすべて取り消しますか？' : 'この予約を取り消しますか？')) return;
 
   const r = state.detail;
   const scope = series ? 'following' : 'single';
-  // サーバーの結果を待たずに画面から消す（失敗したら元に戻す）
+  // 確かめの小窓は出さずに、すぐ画面から消す。サーバーへは UNDO_MS 待ってから送り、その間は「元に戻す」で取りやめられる
   const targets = series
     ? visibleReservations().filter((x) => x.groupId === r.groupId && x.date >= r.date)
     : [r];
   targets.forEach((x) => state.hidden.set(x.id, x.date));
   $('detailDialog').close();
   render();
+  if (pendingCancel) pendingCancel.send(); // 前の取消がまだ待っていれば、先に送る
+  const job = { sent: false };
+  job.send = (keepalive) => {
+    if (job.sent) return;
+    job.sent = true;
+    clearTimeout(job.timer);
+    if (pendingCancel === job) pendingCancel = null;
+    sendCancel(r, pin, scope, series, targets, keepalive);
+  };
+  job.timer = setTimeout(() => job.send(), UNDO_MS);
+  pendingCancel = job;
+  toast(series ? 'この日以降の予約を取り消しました' : '予約を取り消しました', '', UNDO_MS, {
+    label: '元に戻す',
+    run: () => {
+      if (job.sent) return; // 送ったあとは戻せない（ちょうど時間切れのとき）
+      job.sent = true;
+      clearTimeout(job.timer);
+      pendingCancel = null;
+      targets.forEach((x) => state.hidden.delete(x.id));
+      render();
+      toast('予約を元に戻しました');
+    },
+  });
+}
+
+// 取消は、「元に戻す」を押せる間（5秒）待ってから送る。画面を閉じる・裏に回すときは、待たずにすぐ送る
+// （iPhone は裏に回すと JS が止まり、そのまま閉じられると送られないため）
+const UNDO_MS = 5000;
+let pendingCancel = null;
+document.addEventListener('visibilitychange', () => { if (document.hidden && pendingCancel) pendingCancel.send(true); });
+window.addEventListener('pagehide', () => { if (pendingCancel) pendingCancel.send(true); });
+
+async function sendCancel(r, pin, scope, series, targets, keepalive) {
   try {
-    const res = await api('cancelReservation', { id: r.id, pin, scope });
+    const res = await api('cancelReservation', { id: r.id, pin, scope }, { keepalive });
     if (!res || !res.ok) throw Object.assign(new Error((res && res.message) || '取り消しに失敗しました。'), { code: res && res.code });
     removeMine(res.cancelledIds);
-    toast(res.cancelledIds.length > 1 ? `${res.cancelledIds.length}件の予約を取り消しました` : '予約を取り消しました');
     invalidate(series ? undefined : [r.date]); // くり返し予約は他の日にもまたがるのですべて取り直す
     load({ force: true });
   } catch (ex) {

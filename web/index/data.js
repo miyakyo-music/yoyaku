@@ -3,13 +3,13 @@
 
 // ---------------- API呼び出し ----------------
 class AuthError extends Error {}
-async function api(fn, payload) {
+async function api(fn, payload, opts) {
   const body = Object.assign({}, payload, { viewKey: state.viewKey });
   if (state.limitedKey && !body.limitedKey) body.limitedKey = state.limitedKey;
   // 管理者モードでは読み込みにも管理用パスワードを添える（限定公開の部屋も表示するため）
   const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation', 'adminSetNotice'];
   if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
-  const res = await callApi(fn, body); // web/api.js
+  const res = await callApi(fn, body, opts); // web/api.js
   // 予約・変更・取消などの書き込みが通ったら、しばらくは高速キャッシュを使わずサーバーから読む
   if (res && res.ok && fn !== 'getSchedule' && fn !== 'getReservationsByIds') state.noCacheUntil = Date.now() + 2 * 60 * 1000;
   if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); throw new AuthError(res.message); }
