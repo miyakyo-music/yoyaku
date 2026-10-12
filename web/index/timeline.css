@@ -250,6 +250,8 @@ html.dark .tag.t-up { background: rgba(255, 159, 10, .2); color: #ffc66b; }
 html.dark .tag.t-gp { background: rgba(48, 209, 88, .18); color: #7ee29a; }
 html.dark .tag.t-ep { background: rgba(10, 132, 255, .2); color: #8cc4ff; }
 html.dark .tag.t-large { background: rgba(191, 90, 242, .22); color: #dcaef7; }
+html.dark .tag.t-admin { background: rgba(255, 69, 58, .2); color: #ff9d97; }
+html.dark .tag.t-limited { background: rgba(94, 92, 230, .26); color: #b9b7ff; }
 html.dark .main-foot, html.dark .site-foot { color: var(--muted); }
 /* 動きの仕上げ（予約表の後ろの淡い色と、帯の光沢・影も試したが、2026-10-11 に見送った） */
 /* 予約が取れた瞬間（index/book-send.js の celebrate が .booked を付ける）: 少し膨らんで戻り、帯の色の光の輪が広がって消える。中の色も一瞬明るくなる */
