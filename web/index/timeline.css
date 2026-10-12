@@ -71,7 +71,7 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 /* 部屋の特徴タグ（大・GP・UP・電子P など） */
 .tag.t-large { background: #ece5fb; color: #5b3aa8; }
 .tag.t-gp { background: #e1f3e8; color: #22693f; }
-.tag.t-up { background: #fdf0d9; color: #8a5a00; }
+.tag.t-up { background: none; color: #8e96a0; box-shadow: inset 0 0 0 .5px #d3d7dd; } /* ほぼ全室に付くので目立たせない（GP に人気が集まらないよう、消しはしない） */
 .tag.t-ep { background: #e3eefc; color: #2457a1; }
 .tag.t-limited { color: #5b3a9b; background: #efe8fb; border-color: #d4c3f2; }
 .tl-track {
@@ -246,7 +246,7 @@ html.dark .blk.res::after { background: linear-gradient(var(--res), var(--res)),
 html.dark .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .12), inset 0 0 0 .5px rgba(10, 132, 255, .4), 0 1px 2px rgba(0, 0, 0, .5); }
 html.dark .blk.closed { background: #2c2c2e repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .05) 6px 12px); }
 html.dark .tag { background: rgba(255, 255, 255, .1); color: #d1d1d6; }
-html.dark .tag.t-up { background: rgba(255, 159, 10, .2); color: #ffc66b; }
+html.dark .tag.t-up { background: none; color: rgba(235, 235, 245, .45); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .16); }
 html.dark .tag.t-gp { background: rgba(48, 209, 88, .18); color: #7ee29a; }
 html.dark .tag.t-ep { background: rgba(10, 132, 255, .2); color: #8cc4ff; }
 html.dark .tag.t-large { background: rgba(191, 90, 242, .22); color: #dcaef7; }
