@@ -23,7 +23,7 @@
 }
 html.dark {
   --sat: #409cff; --sun: #ff6961;
-  --res: rgba(142, 152, 170, .22); --res-border: #8e96a6; --res-text: #d6dae2;
+  --res: rgba(142, 152, 170, .22); --res-border: #c7ccd6; --res-text: #f5f6f8;
   --mine: rgba(10, 132, 255, .28); --mine-text: #b3d7ff; --mine-border: #0a84ff;
-  --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .35);
+  --closed: #2c2c2e; --closed-text: #a1a1a6; --past: rgba(0, 0, 0, .5);
 }
