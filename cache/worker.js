@@ -46,7 +46,7 @@ export default {
     if (url.pathname === '/live') return live(request, env);
     try {
       if (url.pathname === '/api' && request.method === 'POST') return apiCors(await store(env).fetch(request), env);
-      if (url.pathname === '/migrate' || url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/import-past') return await store(env).fetch(request);
+      if (url.pathname === '/migrate' || url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/rizaburo/last') return await store(env).fetch(request);
       if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
         // 正本になっていれば正本から（まだなら、これまでどおり写しから）
         const res = await store(env).fetch(request);
@@ -56,6 +56,7 @@ export default {
       await ensureTable(env);
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
       if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
+      if (url.pathname === '/rizaburo/run' && request.method === 'POST') return await rizaburoRun(url, request, env);
       if (url.pathname === '/push' && request.method === 'POST') return await push(request, env, ctx);
       if (url.pathname.startsWith('/passkey/')) return passkeyCors(await passkey(url.pathname.slice(9), request, env), env);
       if (url.pathname === '/') return cors(json(await status(env)));
@@ -64,7 +65,97 @@ export default {
       return cors(json({ ok: false, code: 'ERROR', message: String(e && e.message || e) }, 500));
     }
   },
+
+  /**
+   * 【一時的】りざぶ郎から予約を移す（wrangler.toml の crons で毎分）。毎分は今日だけ（部屋に入ってから予約する人が多い）、
+   * 15分ごとに再来週の日曜まで。1回の外への通信は無料プランの上限（50）に収まる（1日あたり2回＋3回）
+   */
+  async scheduled(event, env, ctx) {
+    const today = jstDay(0);
+    const full = new Date(event.scheduledTime).getUTCMinutes() % 15 === 0;
+    ctx.waitUntil(rizaburoSync(env, today, full ? untilSundayAfterNext(today) : today).catch((e) => console.error(e)));
+  },
 };
+
+// ---------------------------------------------------------------------------
+// 【一時的】りざぶ郎からの予約の移行（仕様書 4.7）。りざぶ郎から切り替わったら、ここと scheduled・wrangler.toml の
+// crons・/rizaburo/run・store.js の importRizaburo を消す
+// ---------------------------------------------------------------------------
+const R326 = 'https://www.r326.com/b/';
+const RIZABURO_MAX_DAYS = 23; // 1日あたり通信2回。外への通信の上限（50）に収まる日数
+
+/**
+ * りざぶ郎の「CSVダウンロード」は表示中の1日分だけなので、表示する日を切り替えながら1日ずつ書き出し、
+ * 行をそのまま正本（store.js の importRizaburo）に渡す。失敗したら、その理由を正本に残す（GET /rizaburo/last で見られる）
+ */
+async function rizaburoSync(env, from, to) {
+  const group = String(env.R326_GROUP || '').trim();
+  if (!group || !env.STORE) return { ok: false, code: 'DISABLED' };
+  const t0 = Date.now();
+  const send = async (body) => (await store(env).fetch('https://store/rizaburo', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + String(env.PUSH_TOKEN || '').trim() }, body: JSON.stringify(body),
+  })).json();
+  try {
+    const cookies = {};
+    const get = async (path, form) => {
+      const res = await fetch(R326 + path, {
+        method: form ? 'POST' : 'GET',
+        headers: Object.assign({ 'User-Agent': 'Mozilla/5.0', Cookie: Object.entries(cookies).map(([k, v]) => k + '=' + v).join('; ') },
+          form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        body: form ? new URLSearchParams(form).toString() : undefined,
+      });
+      for (const c of res.headers.getSetCookie()) {
+        const kv = c.split(';')[0];
+        cookies[kv.slice(0, kv.indexOf('=')).trim()] = kv.slice(kv.indexOf('=') + 1);
+      }
+      if (!res.ok) throw new Error('りざぶ郎が ' + res.status + ' を返しました');
+      return res.text();
+    };
+    const statusOf = (html) => {
+      const m = html.match(/var statusId="([^"]*)"/);
+      if (!m) throw new Error('りざぶ郎の画面を読めませんでした');
+      return m[1];
+    };
+    let st = statusOf(await get('main.aspx?g=' + group));
+    const lines = [];
+    for (let d = from; d <= to; d = addDay(d)) {
+      st = statusOf(await get('main.aspx?g=' + group, { date: d.replace(/-/g, '/'), status: st })); // 表示する日を切り替える
+      const rows = (await get(`csv.aspx?g=${group}&status=${st}`, { del: '0', code: '0', ok: 'ok' })).split(/\r?\n/).filter((l) => l && l[0] !== '#');
+      if (rows.some((l) => (l.split(',')[2] || '').slice(0, 8) !== d.replace(/-/g, ''))) throw new Error(d + ' に別の日の予約が混ざりました');
+      lines.push(...rows);
+    }
+    return await send({ lines, from, to, fetchMs: Date.now() - t0 });
+  } catch (e) {
+    await send({ error: String(e && e.message || e), from, to, fetchMs: Date.now() - t0 }).catch(() => {});
+    throw e;
+  }
+}
+
+/** 手で期間を指定して移す（GitHub Actions「りざぶ郎から予約を移す」から。合言葉が要る） */
+async function rizaburoRun(url, request, env) {
+  const token = String(env.PUSH_TOKEN || '').trim();
+  if (!token || !safeEqual((request.headers.get('Authorization') || '').trim(), 'Bearer ' + token)) return json({ ok: false, code: 'UNAUTHORIZED' }, 401);
+  const from = url.searchParams.get('from') || '';
+  const to = url.searchParams.get('to') || from;
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
+  if (!DATE.test(from) || !DATE.test(to) || from > to || dayCount(from, to) > RIZABURO_MAX_DAYS) {
+    return json({ ok: false, code: 'BAD_REQUEST', message: '期間は' + RIZABURO_MAX_DAYS + '日以内で指定してください。' }, 400);
+  }
+  try {
+    return json(await rizaburoSync(env, from, to));
+  } catch (e) {
+    return json({ ok: false, code: 'ERROR', message: String(e && e.message || e) }, 500);
+  }
+}
+
+function jstDay(offset) { return new Date(Date.now() + 9 * 3600 * 1000 + offset * 86400000).toISOString().slice(0, 10); }
+function addDay(d) { return new Date(Date.parse(d + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10); }
+function dayCount(from, to) { return Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1; }
+/** 再来週の日曜（週は月曜はじまり） */
+function untilSundayAfterNext(d) {
+  const monday0 = (new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7;
+  return new Date(Date.parse(d + 'T00:00:00Z') + (6 - monday0 + 14) * 86400000).toISOString().slice(0, 10);
+}
 
 /** 写しを入れる表（k = 'meta' または 'm:YYYY-MM'、v = JSON）。初回だけ作る */
 async function ensureTable(env) {

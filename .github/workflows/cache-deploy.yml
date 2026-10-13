@@ -3,6 +3,7 @@
 #   CLOUDFLARE_API_TOKEN  … Cloudflare の API トークン（Workers と D1 だけを編集できる権限）
 #   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウント ID
 #   CACHE_PUSH_TOKEN      … GAS と共有する合言葉（GAS のスクリプトプロパティ CACHE_PUSH_TOKEN と同じ値）
+#   R326_GROUP            … 【一時的】りざぶ郎の予約表 URL の g= のあと（りざぶ郎からの移行。仕様書 4.7）
 # 高速キャッシュを使わない場合は、これらを登録しなければ何もしない。
 name: 高速キャッシュを Cloudflare に公開
 
@@ -34,6 +35,7 @@ jobs:
         if: env.HAS_TOKEN == 'true'
         env:
           PUSH_TOKEN: ${{ secrets.CACHE_PUSH_TOKEN }}
+          R326_GROUP: ${{ secrets.R326_GROUP }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -41,3 +43,4 @@ jobs:
           command: deploy
           secrets: |
             PUSH_TOKEN
+            R326_GROUP

@@ -394,35 +394,44 @@
     }
 
     /**
-     * 【一時的・りざぶ郎からの移行が終わったら、この関数と routeSync の /import-past を消す】
-     * りざぶ郎にあった「もう終わった予約」を、そのまま入れる（ふつうの予約は過去の時間帯を断るため）。
-     * 合言葉（PUSH_TOKEN）が要り、画面からは使えない。終わっていない予約・重複する予約は入れずに返す
+     * 【一時的・りざぶ郎から切り替わったら消す（仕様書 4.7）】りざぶ郎の CSV の行（worker.js の rizaburoSync が取ってくる）を予約として入れる。
+     * 本番にすでにある予約は飛ばし、本番の予約と重なるものは入れない。終わった予約もそのまま入れる（記録として）。
+     * 結果は kv の rizaburoLast に残し、GET /rizaburo/last で誰でも見られる（件数だけで、名前は入れない）
      */
-    importPast(body) {
+    importRizaburo(body) {
       this.memo = { admin: {} };
+      body = body || {};
+      const head = { at: nowStr('yyyy-MM-dd HH:mm:ss'), from: String(body.from || ''), to: String(body.to || ''), fetchMs: Number(body.fetchMs) || 0 };
+      if (body.error) { this.kput('rizaburoLast', JSON.stringify(Object.assign(head, { ok: false, error: String(body.error) }))); return { ok: false }; }
       if (!this.isPrimary()) return fail('Cloudflare が正本になっていません。', 'NOT_PRIMARY');
-      const rows = (body && Array.isArray(body.rows) ? body.rows : []).slice(0, 500);
+      const lines = (Array.isArray(body.lines) ? body.lines : []).slice(0, 3000);
       let res;
       try {
         res = this.db.txn(() => {
           this.memo.wrote = false;
-          const ctx = this.context({});
-          const now = nowStr('yyyy-MM-dd HH:mm:ss');
-          const skipped = [];
-          let count = 0;
-          rows.forEach((x) => {
-            const v = validateBooking(ctx, Object.assign({}, x, { pin: '' }), true);
-            if (v.error) { skipped.push({ row: x, reason: v.error }); return; }
+          const m = this.master();
+          const ctx = { settings: m.settings, rooms: m.rooms, closures: m.closures, limited: { ok: true }, isAdmin: true };
+          const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, same: 0, overlap: 0, problems: [] });
+          lines.forEach((line) => {
+            const x = rizaburoRow(m.rooms, String(line));
+            const v = x.error ? x : validateBooking(ctx, x.value, true);
             const r = v.value;
-            if (!isPast(r.date, r.end)) { skipped.push({ row: x, reason: 'まだ終わっていない予約です（ふつうの予約で入れてください）。' }); return; }
+            const problem = v.error || closureError(ctx, r);
+            if (problem) { out.problems.push((x.value ? x.value.date + ' ' + x.value.start + ' ' + x.value.roomId + ' ' : '') + problem); return; }
             const conflict = findConflict.call(this, r, null);
-            if (conflict) { skipped.push({ row: x, reason: '重複（' + describe(conflict) + '）' }); return; }
-            const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: now, updatedAt: '', color: '' });
+            if (conflict) {
+              if (conflict.start === r.start && conflict.end === r.end && conflict.affiliation === r.affiliation && conflict.name === r.name) out.same++;
+              else out.overlap++;
+              return;
+            }
+            const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: head.at, updatedAt: '', color: '' });
             this.insertRes(created);
-            this.log('取り込み（りざぶ郎・過去分）', created, '');
-            count++;
+            this.log('取り込み（りざぶ郎）', created, '');
+            out.added++;
           });
-          return { ok: true, count, skipped };
+          out.problems = out.problems.slice(0, 20);
+          this.kput('rizaburoLast', JSON.stringify(out));
+          return out;
         });
       } catch (e) {
         console.error(e);
@@ -485,6 +494,49 @@
     if (ctx.limited.denied) return { limitedDenied: true };
     return {};
   }
+  /**
+   * 【一時的】りざぶ郎の CSV の1行（部屋,テキスト,開始,終了,予約者,…）を予約の入力に直す。
+   * 部屋は名前の番号と「P.n」（電子ピアノの番号）で当てる。予約者は先頭の英数字を学籍番号/所属、残りを氏名にする
+   * （氏名がなければ学籍番号を、英数字がなければ全体を氏名に）。時刻は5分刻みに（開始は切り下げ、終了は切り上げ）
+   */
+  function rizaburoRow(rooms, line) {
+    const f = csvFields(line);
+    const s = String(f[2] || '');
+    const e = String(f[3] || '');
+    if (!/^\d{12}$/.test(s) || !/^\d{12}$/.test(e)) return { error: '日時が読めない行' };
+    if (s.slice(0, 8) !== e.slice(0, 8)) return { error: '日をまたぐ予約' };
+    const roomName = String(f[0] || '').normalize('NFKC');
+    const num = (roomName.match(/練習室(\d+)/) || [])[1];
+    const p = (roomName.match(/P\.(\d+)/) || [])[1];
+    const hit = num ? rooms.filter((r) => r.name === '練習室' + Number(num) && (!p || r.tags === '電子P.' + p)) : [];
+    if (hit.length !== 1) return { error: '部屋が決まらない: ' + roomName };
+    const time = (t, up) => {
+      const m0 = Number(t.slice(8, 10)) * 60 + Number(t.slice(10, 12));
+      const m = up ? Math.ceil(m0 / 5) * 5 : Math.floor(m0 / 5) * 5;
+      return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60);
+    };
+    const who = String(f[4] || '').normalize('NFKC').trim();
+    const w = who.match(/^([A-Za-z0-9]*\d[A-Za-z0-9]*)\s*・?\s*(.*)$/);
+    const affiliation = w ? w[1].toUpperCase() : '';
+    const name = (w ? w[2].trim() : who) || affiliation;
+    return { value: { date: s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8), roomId: hit[0].id, start: time(s, false), end: time(e, true), affiliation, name, memo: '', pin: '' } };
+  }
+  function csvFields(line) {
+    const out = [];
+    let cur = '';
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (quoted) {
+        if (ch !== '"') cur += ch;
+        else if (line[i + 1] === '"') { cur += '"'; i++; } else quoted = false;
+      } else if (ch === '"') quoted = true;
+      else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
   function roomOf(ctx, roomId) { return ctx.rooms.find((r) => r.id === roomId) || {}; }
 
   function scheduleOf(ctx, from, to) {
@@ -1312,6 +1364,8 @@
       const res = core.publicSchedule(req.query.get('from') || '', req.query.get('to') || req.query.get('from') || '');
       return { status: 200, body: res || { ok: false, code: 'MISS' } };
     }
+    // 【一時的】りざぶ郎からの移行の、最後の結果（件数だけ）
+    if (req.path === '/rizaburo/last' && req.method === 'GET') return { status: 200, body: JSON.parse(core.kget('rizaburoLast') || '{"ok":null}') };
     // ここから下は GAS 専用（合言葉が要る）
     const token = String(core.env.PUSH_TOKEN || '').trim();
     if (!token || !safeEqual(req.auth || '', 'Bearer ' + token)) return { status: 401, body: { ok: false, code: 'UNAUTHORIZED' } };
@@ -1319,7 +1373,7 @@
     if (req.path === '/mirror/changes' && req.method === 'GET') return { status: 200, body: core.sync('changes', { after: req.query.get('after') }) };
     if (req.path === '/mirror/full' && req.method === 'GET') return { status: 200, body: core.sync('full') };
     if (req.path === '/store/status' && req.method === 'GET') return { status: 200, body: core.sync('status') };
-    if (req.path === '/import-past' && req.method === 'POST') return { status: 200, body: core.importPast(req.body) }; // 【一時的】りざぶ郎からの移行用
+    if (req.path === '/rizaburo' && req.method === 'POST') return { status: 200, body: core.importRizaburo(req.body) }; // 【一時的】りざぶ郎からの移行用
     return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
   }
 
