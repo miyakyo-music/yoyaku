@@ -88,10 +88,14 @@ for row in csv.reader(io.StringIO('\n'.join(lines))):
     (past if f"{p['date']} {p['end']}" <= now.strftime('%Y-%m-%d %H:%M') else future).append(p)
 
 # 4) 登録
-ok, ng = 0, 0
+# 本番の予約と重なるもの（りざぶ郎と両方に入れた人など）は、記録に出すだけで失敗にはしない（毎回出続けるため）
+ok, ng, dup = 0, 0, 0
 for p in future:
     r = wpost('/api', {'action': 'createReservation', 'params': p, 'v': 1})
     if r.get('ok'): ok += 1
+    elif r.get('code') == 'CONFLICT':
+        dup += 1
+        print('本番の予約と重なる:', p['date'], p['start'], p['roomId'])
     else:
         ng += 1
         print('登録できない:', p['date'], p['start'], p['roomId'], r.get('code') or '', (r.get('message') or '').split('（')[0])
@@ -102,8 +106,12 @@ if past:
         if not r.get('ok'): sys.exit('過去分の取り込みに失敗: ' + str(r.get('message')))
         ok += r['count']
         for x in r['skipped']:
+            if x['reason'].startswith('重複'):
+                dup += 1
+                print('本番の予約と重なる:', x['row']['date'], x['row']['start'], x['row']['roomId'])
+                continue
             ng += 1
             print('登録できない:', x['row']['date'], x['row']['start'], x['row']['roomId'], x['reason'].split('（')[0])
 print(f'{d0}〜{d1}（{(d1 - d0).days + 1}日）: りざぶ郎 {len(lines)}件・{t1 - t0:.1f}秒 / 新規 {len(future) + len(past)}件'
-      f'（登録 {ok}・できない {ng}・読めない {bad}） / 全体 {time.time() - t0:.1f}秒')
+      f'（登録 {ok}・重なり {dup}・できない {ng}・読めない {bad}） / 全体 {time.time() - t0:.1f}秒')
 if ng or bad: sys.exit(1)  # Actions で赤く出して気づけるように
