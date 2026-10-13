@@ -393,6 +393,45 @@
       });
     }
 
+    /**
+     * 【一時的・りざぶ郎からの移行が終わったら、この関数と routeSync の /import-past を消す】
+     * りざぶ郎にあった「もう終わった予約」を、そのまま入れる（ふつうの予約は過去の時間帯を断るため）。
+     * 合言葉（PUSH_TOKEN）が要り、画面からは使えない。終わっていない予約・重複する予約は入れずに返す
+     */
+    importPast(body) {
+      this.memo = { admin: {} };
+      if (!this.isPrimary()) return fail('Cloudflare が正本になっていません。', 'NOT_PRIMARY');
+      const rows = (body && Array.isArray(body.rows) ? body.rows : []).slice(0, 500);
+      let res;
+      try {
+        res = this.db.txn(() => {
+          this.memo.wrote = false;
+          const ctx = this.context({});
+          const now = nowStr('yyyy-MM-dd HH:mm:ss');
+          const skipped = [];
+          let count = 0;
+          rows.forEach((x) => {
+            const v = validateBooking(ctx, Object.assign({}, x, { pin: '' }), true);
+            if (v.error) { skipped.push({ row: x, reason: v.error }); return; }
+            const r = v.value;
+            if (!isPast(r.date, r.end)) { skipped.push({ row: x, reason: 'まだ終わっていない予約です（ふつうの予約で入れてください）。' }); return; }
+            const conflict = findConflict.call(this, r, null);
+            if (conflict) { skipped.push({ row: x, reason: '重複（' + describe(conflict) + '）' }); return; }
+            const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: now, updatedAt: '', color: '' });
+            this.insertRes(created);
+            this.log('取り込み（りざぶ郎・過去分）', created, '');
+            count++;
+          });
+          return { ok: true, count, skipped };
+        });
+      } catch (e) {
+        console.error(e);
+        return fail('サーバーでエラーが発生しました。', 'SERVER_ERROR');
+      }
+      if (this.memo.wrote && this.hooks.changed) { try { this.hooks.changed(); } catch (e) { /* 無視 */ } }
+      return res;
+    }
+
     status() {
       const count = (t) => Number((this.db.exec(`SELECT COUNT(*) AS n FROM ${t}`)[0] || {}).n || 0);
       return {
@@ -1280,6 +1319,7 @@
     if (req.path === '/mirror/changes' && req.method === 'GET') return { status: 200, body: core.sync('changes', { after: req.query.get('after') }) };
     if (req.path === '/mirror/full' && req.method === 'GET') return { status: 200, body: core.sync('full') };
     if (req.path === '/store/status' && req.method === 'GET') return { status: 200, body: core.sync('status') };
+    if (req.path === '/import-past' && req.method === 'POST') return { status: 200, body: core.importPast(req.body) }; // 【一時的】りざぶ郎からの移行用
     return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
   }
 

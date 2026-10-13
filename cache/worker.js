@@ -46,7 +46,7 @@ export default {
     if (url.pathname === '/live') return live(request, env);
     try {
       if (url.pathname === '/api' && request.method === 'POST') return apiCors(await store(env).fetch(request), env);
-      if (url.pathname === '/migrate' || url.pathname.startsWith('/mirror/') || url.pathname === '/store/status') return await store(env).fetch(request);
+      if (url.pathname === '/migrate' || url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/import-past') return await store(env).fetch(request);
       if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
         // 正本になっていれば正本から（まだなら、これまでどおり写しから）
         const res = await store(env).fetch(request);

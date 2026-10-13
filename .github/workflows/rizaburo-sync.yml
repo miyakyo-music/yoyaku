@@ -1,0 +1,42 @@
+# 【一時的】りざぶ郎の予約を、この予約システムへ5分ごとに移す（migrate/rizaburo_sync.py）。
+# りざぶ郎から切り替わったら、このファイル・migrate/・cache/store.js の importPast と /import-past を消す。
+# 手で流すときは「Run workflow」で期間も指定できる（過去分の取り込みなど）。
+# 使う秘密の値: R326_GROUP（りざぶ郎の予約表 URL の g= のあと）、CACHE_PUSH_TOKEN（終わった予約を入れるとき）
+name: りざぶ郎から予約を移す
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      from:
+        description: '開始日（例: 2026-09-01。空なら今日）'
+        required: false
+      to:
+        description: '終了日（空なら、開始日を入れたときは今日、入れないときは再来週の日曜）'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rizaburo-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: migrate
+      - name: 移す
+        env:
+          R326_GROUP: ${{ secrets.R326_GROUP }}
+          CACHE_PUSH_TOKEN: ${{ secrets.CACHE_PUSH_TOKEN }}
+          FROM: ${{ inputs.from }}
+          TO: ${{ inputs.to }}
+        run: |
+          if [ -n "$FROM" ]; then python3 migrate/rizaburo_sync.py "$FROM" "${TO:-$(TZ=Asia/Tokyo date +%F)}"
+          else python3 migrate/rizaburo_sync.py; fi
