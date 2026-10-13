@@ -411,17 +411,40 @@
           this.memo.wrote = false;
           const m = this.master();
           const ctx = { settings: m.settings, rooms: m.rooms, closures: m.closures, limited: { ok: true }, isAdmin: true };
-          const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, same: 0, overlap: 0, problems: [] });
+          const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, fixed: 0, same: 0, overlap: 0, problems: [] });
           lines.forEach((line) => {
             const x = rizaburoRow(m.rooms, String(line));
-            const v = x.error ? x : validateBooking(ctx, x.value, true);
-            const r = v.value;
-            const problem = v.error || closureError(ctx, r);
-            if (problem) { out.problems.push((x.value ? x.value.date + ' ' + x.value.start + ' ' + x.value.roomId + ' ' : '') + problem); return; }
-            const conflict = findConflict.call(this, r, null);
-            if (conflict) {
-              if (conflict.start === r.start && conflict.end === r.end && conflict.affiliation === r.affiliation && conflict.name === r.name) out.same++;
+            if (x.error) { out.problems.push(x.error); return; }
+            const where = x.value.date + ' ' + x.times[0].start + ' ' + x.value.roomId + ' ';
+            // 前に入れた同じ予約（同じ部屋・氏名で、時刻の差が5分未満。前は学籍番号だけの人も学籍番号/所属に入れていた）
+            const prev = this.resWhere('WHERE date = ? AND room_id = ? AND st < ? AND en > ?', x.value.date, x.value.roomId, hhmm(x.raw.e0 + 5), hhmm(x.raw.s0 - 5))
+              .find((r) => r.name === x.value.name && (r.affiliation === x.value.affiliation || (!x.value.affiliation && r.affiliation === r.name)) &&
+                Math.abs(toMin(r.start) - x.raw.s0) < 5 && Math.abs(toMin(r.end) - x.raw.e0) < 5);
+            // 5分刻みの時刻のうち、ほかの予約に重ならない、元の時刻にいちばん近いもの
+            let r = null;
+            let problem = '';
+            for (const t of x.times) {
+              const v = validateBooking(ctx, Object.assign({}, x.value, t), true);
+              if (v.error) { problem = problem || v.error; continue; }
+              const closed = closureError(ctx, v.value);
+              if (closed) { problem = problem || closed; continue; }
+              if (findConflict.call(this, v.value, prev ? prev.id : null)) continue;
+              r = v.value;
+              break;
+            }
+            if (!r) {
+              if (prev) out.same++; // 前に入れたものをそのまま残す
+              else if (problem) out.problems.push(where + problem);
               else out.overlap++;
+              return;
+            }
+            if (prev) {
+              if (prev.start === r.start && prev.end === r.end && prev.affiliation === r.affiliation) { out.same++; return; }
+              const fixed = Object.assign({}, prev, { start: r.start, end: r.end, affiliation: r.affiliation, updatedAt: head.at });
+              this.insertRes(fixed);
+              this.log('取り込み（りざぶ郎）の直し', fixed, (prev.affiliation !== r.affiliation ? '学籍番号/所属を空に' : '') +
+                (prev.start !== r.start || prev.end !== r.end ? (prev.affiliation !== r.affiliation ? '・' : '') + '時刻 ' + prev.start + '〜' + prev.end + ' から' : ''));
+              out.fixed++;
               return;
             }
             const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: head.at, updatedAt: '', color: '' });
@@ -497,7 +520,8 @@
   /**
    * 【一時的】りざぶ郎の CSV の1行（部屋,テキスト,開始,終了,予約者,…）を予約の入力に直す。
    * 部屋は名前の番号と「P.n」（電子ピアノの番号）で当てる。予約者は先頭の英数字を学籍番号/所属、残りを氏名にする
-   * （氏名がなければ学籍番号を、英数字がなければ全体を氏名に）。時刻は5分刻みに（開始は切り下げ、終了は切り上げ）
+   * （英数字だけなら、それを氏名にして学籍番号/所属は空に。英数字がなければ全体を氏名に）。
+   * 時刻が5分刻みでないときは、5分刻みの時刻の組み合わせ（times）を、元の時刻に近い順に返す（どれを使うかは importRizaburo が決める）
    */
   function rizaburoRow(rooms, line) {
     const f = csvFields(line);
@@ -510,17 +534,23 @@
     const p = (roomName.match(/P\.(\d+)/) || [])[1];
     const hit = num ? rooms.filter((r) => r.name === '練習室' + Number(num) && (!p || r.tags === '電子P.' + p)) : [];
     if (hit.length !== 1) return { error: '部屋が決まらない: ' + roomName };
-    const time = (t, up) => {
-      const m0 = Number(t.slice(8, 10)) * 60 + Number(t.slice(10, 12));
-      const m = up ? Math.ceil(m0 / 5) * 5 : Math.floor(m0 / 5) * 5;
-      return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60);
-    };
+    const s0 = Number(s.slice(8, 10)) * 60 + Number(s.slice(10, 12));
+    const e0 = Number(e.slice(8, 10)) * 60 + Number(e.slice(10, 12));
+    const near = (m) => Array.from(new Set([Math.round(m / 5) * 5, Math.floor(m / 5) * 5, Math.ceil(m / 5) * 5]));
+    const times = [];
+    near(s0).forEach((st) => near(e0).forEach((en) => { if (st < en) times.push({ st, en, gap: Math.abs(st - s0) + Math.abs(en - e0) }); }));
+    times.sort((x, y) => x.gap - y.gap);
+    if (!times.length) return { error: '時刻が読めない行' };
     const who = String(f[4] || '').normalize('NFKC').trim();
     const w = who.match(/^([A-Za-z0-9]*\d[A-Za-z0-9]*)\s*・?\s*(.*)$/);
-    const affiliation = w ? w[1].toUpperCase() : '';
-    const name = (w ? w[2].trim() : who) || affiliation;
-    return { value: { date: s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8), roomId: hit[0].id, start: time(s, false), end: time(e, true), affiliation, name, memo: '', pin: '' } };
+    const affiliation = w && w[2].trim() ? w[1].toUpperCase() : '';
+    const name = w ? (w[2].trim() || w[1].toUpperCase()) : who;
+    return {
+      value: { date: s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8), roomId: hit[0].id, affiliation, name, memo: '', pin: '' },
+      raw: { s0, e0 }, times: times.map((t) => ({ start: hhmm(t.st), end: hhmm(t.en) })),
+    };
   }
+  function hhmm(m) { return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
   function csvFields(line) {
     const out = [];
     let cur = '';
