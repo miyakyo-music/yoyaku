@@ -245,10 +245,7 @@ html.dark .tl-scale span.now { background: rgba(10, 132, 255, .16); }
 /* ダークでは、これからの予約を背景より明るい板にして浮かせ、終わった予約は背景になじむ暗さに沈める
    （くすんだ灰色のままだと、朝のまだ何も終わっていない時間でも全部が「済み」に見えたため） */
 html.dark .blk.res::after { background: linear-gradient(var(--res), var(--res)), linear-gradient(180deg, #55585f, #474950); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .2), inset 0 0 0 .5px rgba(255, 255, 255, .08), 0 1px 3px rgba(0, 0, 0, .6); }
-html.dark .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, #55585f, #474950); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .2), inset 0 0 0 .5px rgba(10, 132, 255, .4), 0 1px 3px rgba(0, 0, 0, .6); }
-html.dark .blk.res.mine:where(:not(.c-red, .c-purple, .c-green)) { color: #fff; }
-html.dark .blk.res.mine:where(:not(.c-red, .c-purple, .c-green))::after { background: linear-gradient(180deg, #2f6fd6, #255cb6); }
-html.dark .blk.res.mine:where(:not(.c-red, .c-purple, .c-green))::before { background: #cfe3ff; }
+html.dark .blk.res.mine::after { background: linear-gradient(var(--mine), var(--mine)), linear-gradient(180deg, rgba(44, 44, 46, .95), rgba(36, 36, 38, .9)); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .18), inset 0 0 0 .5px rgba(10, 132, 255, .5), 0 1px 3px rgba(0, 0, 0, .6); }
 html.dark .blk.res.ended { opacity: 1; color: #8e8e93; }
 html.dark .blk.res.ended::after { background: #2a2a2d; box-shadow: none; }
 html.dark .blk.res.ended::before { background: #55575d; }
