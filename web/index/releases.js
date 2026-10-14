@@ -3,6 +3,7 @@
 
 // 利用者に関係する変更だけを、新しい順に書く。内部の仕組みの変更や細かな修正は書かない（GitHub の履歴に残る）。
 // admin: true は管理者だけが使う変更（「管理」の札を付ける）
+// まだ版を上げていない変更は、先頭に ver: '' の項目を作ってそこに足す（見出しは日付だけ）。版を上げたら ver を入れる
 const RELEASES = [
   { ver: 'v0.8.1-beta', date: '2026-10-13', items: [
     '予約を取り消したあと5秒間は「元に戻す」で取り消しをやめられるようにしました',
@@ -62,7 +63,7 @@ function renderReleases() {
       const o = typeof it === 'string' ? { text: it } : it;
       return `<li>${o.admin ? '<span class="rel-who">管理</span>' : ''}${esc(o.text)}</li>`;
     }).join('');
-    return `<section class="rel-ver"><h3>${esc(r.ver)}<small>${d.getMonth() + 1}/${d.getDate()}</small></h3><ul>${items}</ul></section>`;
+    return `<section class="rel-ver"><h3>${r.ver ? `${esc(r.ver)}<small>${d.getMonth() + 1}/${d.getDate()}</small>` : `${d.getMonth() + 1}/${d.getDate()}`}</h3><ul>${items}</ul></section>`;
   }).join('');
 }
 function openReleases() {
