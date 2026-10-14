@@ -209,6 +209,22 @@ function fitLabelColumn() {
   applyHourWidth(state.hourBase * state.zoom);
 }
 
+let scaleTextCache = { key: '', w: 0 };
+/** 時刻の見出し（12px のとき）でいちばん長い文字の幅。書体と時刻の並びが同じ間は覚えておく */
+function scaleTextWidth(tl) {
+  const spans = [...tl.querySelectorAll('.tl-scale span')];
+  if (!spans.length) return 36;
+  const cs = getComputedStyle(spans[0]);
+  const font = `${cs.fontWeight} 12px ${cs.fontFamily}`;
+  const key = font + spans.map((s) => s.textContent).join();
+  if (scaleTextCache.key !== key) {
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = font;
+    scaleTextCache = { key, w: Math.max(...spans.map((s) => ctx.measureText(s.textContent).width)) };
+  }
+  return scaleTextCache.w;
+}
+
 /** 時間軸の1時間の幅を設定する。拡大率は「既定の幅（画面に合わせた幅）」に対する比で覚えておく */
 function applyHourWidth(w) {
   const tl = $('main').querySelector('.tl');
@@ -216,8 +232,10 @@ function applyHourWidth(w) {
   // 1時間の幅は偶数px にして、30分の線が半端な位置でぼやけたり消えたりしないようにする
   const hourW = Math.round(Math.min(MAX_HOUR_W, Math.max(state.hourMin, w)) / 2) * 2;
   tl.style.setProperty('--hour-w', `${hourW}px`);
-  tl.classList.toggle('narrow', hourW < 44);
-  tl.classList.toggle('tiny', hourW < 28);
+  // 時刻の文字が隣の線にかかり始めたら、2時間おき・3時間おきに減らす（文字の幅は実際の書体で測る）
+  const textW = scaleTextWidth(tl);
+  tl.classList.toggle('narrow', hourW < textW + 8);
+  tl.classList.toggle('tiny', hourW * 2 < textW * 11 / 12 + 6);
   state.hourW = hourW;
   state.zoom = hourW === state.hourBase ? 1 : hourW / state.hourBase;
   // 幅を変えている間は、左上の「部屋 ＼ 時刻」の所に「幅をリセット」を出す
