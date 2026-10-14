@@ -11,12 +11,10 @@ body {
 button, input, select, textarea { font: inherit; color: inherit; }
 /* 画面の本体（帯・上部・表・＋ボタン）。小窓を開くと少し暗くなり、閉じると戻る。
    暗くするのは幕（::backdrop）ではなくこちらで行う。幕は閉じた瞬間に消えるので、暗さがぱっと戻って見えたため。
-   （以前は iPhone のシートのように少し縮めて奥へ下げていたが、ライトでは Safari の明るいバーとのすき間の境目が直せず、2026-10-11 にやめた）
-   filter で暗くすると、iPhone の Safari（ダーク）で開閉のたびに上部の設備・日付の行が上下に動いたので、黒い幕を重ねて暗くする（2026-10-14） */
-.page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.page::after { content: ""; position: fixed; inset: 0; z-index: 150; background: #000; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
-html.dlg-open .page::after { opacity: .22; }
-html.dark.dlg-open .page::after { opacity: .18; }
+   （以前は iPhone のシートのように少し縮めて奥へ下げていたが、ライトでは Safari の明るいバーとのすき間の境目が直せず、2026-10-11 にやめた） */
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; transition: filter .3s ease; }
+html.dlg-open .page { filter: brightness(.78); }
+html.dark.dlg-open .page { filter: brightness(.82); }
 .sat { color: var(--sat); }
 .sun { color: var(--sun); }
 .sm { display: none; }
