@@ -24,10 +24,11 @@ html.dark {
 /* Chrome など（屈折あり）の小窓は、縁の屈折を見せるためにぼかしを弱くしている（index/glass.js の LENS.dialog の blur）。カードも同じにする */
 html.refract, html.dark.refract { --morph-blur: blur(5px) saturate(180%); }
 body.vt-morph dialog { transition: none !important; }
-/* 動きの間、後ろの画面（root）は「前の姿」と「後の姿」を重ねて切り替えず、後の姿をそのまま見せる。後ろの画面は
-   暗くなる・戻る変化（.page）を自分で行うので、重ねると2枚がずれて、上部の帯から下の表が二重に透けて見えた */
-html.vt-morph::view-transition-old(root) { animation: none; opacity: 0; }
-html.vt-morph::view-transition-new(root) { animation: none; }
+/* 動きの間、後ろの画面（root）は写しを撮らず、本物の画面をそのまま見せる。後ろの画面は暗くなる・戻る変化（.page）を
+   自分で行うので、前後の写しを重ねると2枚がずれて、上部の帯から下の表が二重に透けて見えた。
+   また、後の姿の写しだけを見せる方法でも、iPhone の Safari ではその写しが本物と上下にずれて置かれ、詳細の開け閉めの
+   たびに上部の設備・日付の行が上下に動いて見えた（2026-10-14） */
+html.vt-morph { view-transition-name: none; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
   overflow: clip; border-radius: 22px;
