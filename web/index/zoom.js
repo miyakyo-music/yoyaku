@@ -56,17 +56,11 @@ let touch = null;
 const SCROLL_SETTLE_MS = 300;
 let lastScrollAt = 0;
 $('main').addEventListener('scroll', () => { lastScrollAt = Date.now(); clearPick(); }, { passive: true });
-// スマホの「＋」: 表の下のフッターが見えている分だけ持ち上げ、表の下端の上に乗せる。
-// ただし部屋が少なく表の下が空いていて、フッターが「＋」より上に収まるときは、持ち上げずに右下の空いた所に置く（表に重ねない）
+// スマホの「＋」: 表の下のフッターが見えている分だけ持ち上げ、表の下端の上に乗せる
 function liftFab() {
-  const fab = $('fabBtn'), foot = $('main').querySelector('.main-foot');
-  let lift = 0;
-  if (foot) {
-    const r = foot.getBoundingClientRect();
-    const fabTop = fab.getBoundingClientRect().top + (parseFloat(fab.style.getPropertyValue('--fab-lift')) || 0);
-    if (r.bottom + 12 > fabTop) lift = Math.max(0, $('main').getBoundingClientRect().bottom - r.top);
-  }
-  fab.style.setProperty('--fab-lift', `${Math.round(lift)}px`);
+  const foot = $('main').querySelector('.main-foot');
+  const lift = foot ? Math.max(0, $('main').getBoundingClientRect().bottom - foot.getBoundingClientRect().top) : 0;
+  $('fabBtn').style.setProperty('--fab-lift', `${Math.round(lift)}px`);
 }
 $('main').addEventListener('scroll', liftFab, { passive: true });
 window.addEventListener('resize', liftFab);
