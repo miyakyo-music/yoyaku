@@ -150,7 +150,7 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
    帯の外側に描くと、左右の透明な 1px の余白のぶんだけ枠と色がずれ、上下では隣の行の線にかぶるため */
 .blk:focus-visible { outline: none; }
 .blk:not(.res):focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-.blk.res:focus-visible::after { box-shadow: inset 0 0 0 2px var(--accent) !important; }
+.blk.res:focus-visible::after, .blk.res.viewing::after { box-shadow: inset 0 0 0 2px var(--accent) !important; }
 @media (hover: hover) {
   .blk.res:hover::after { filter: brightness(.96); }
 }

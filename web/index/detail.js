@@ -54,7 +54,13 @@ function openDetail(id) {
     else { add.href = icsUrl(r, room) || '#'; add.removeAttribute('target'); }
   }
   $('detailDialog').showModal();
+  // 詳細を開いている間も、閉じた後と同じ青い枠でその帯を囲む
+  const band = bandEl(r.id);
+  if (band) band.classList.add('viewing');
 }
+$('detailDialog').addEventListener('close', () => {
+  for (const el of $('main').querySelectorAll('.blk.viewing')) el.classList.remove('viewing');
+});
 
 $('dCopy').addEventListener('click', () => {
   const r = state.detail;
