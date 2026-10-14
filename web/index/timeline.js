@@ -171,11 +171,11 @@ function renderTimeline() {
   renderDraft();
 }
 
-/** 予約表の下端（操作の案内・不具合報告） */
+/** 予約表の下端（操作の案内・版〈押すと更新情報〉・不具合報告） */
 function footHtml(text) {
   // 「不具合を報告」はフッタに常に出す（試験運用中は上端の帯にも出す）
   return `<footer class="main-foot">${text ? `<p class="foot-text">${esc(text)}</p>` : ''}` +
-    `<p class="site-foot"><span>${esc(APP_VERSION)}</span><button type="button" data-bug>不具合を報告</button>` +
+    `<p class="site-foot"><button type="button" data-releases>${esc(APP_VERSION)}</button><button type="button" data-bug>不具合を報告</button>` +
     '<a href="privacy.html">プライバシーポリシー</a></p></footer>';
 }
 

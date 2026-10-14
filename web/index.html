@@ -53,6 +53,7 @@
 <link rel="stylesheet" href="index/hovercard.css">
 <link rel="stylesheet" href="index/fab.css">
 <link rel="stylesheet" href="index/morph.css">
+<link rel="stylesheet" href="index/releases.css">
 <link rel="stylesheet" href="shared/button.css">
 <link rel="stylesheet" href="index/fallback.css">
 </head>
@@ -328,6 +329,15 @@
   <!-- PC で予約の帯にマウスを乗せたときの詳細カード -->
   <div class="hovercard" id="hoverCard" role="tooltip" hidden></div>
 
+  <!-- 更新情報（フッタの版を押したとき。中身は index/releases.js） -->
+  <dialog id="releasesDialog">
+    <div class="body">
+      <h2 tabindex="-1">更新情報</h2>
+      <div class="rel-list" id="releasesList"></div>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
+    </div>
+  </dialog>
+
   <!-- 不具合報告 -->
   <dialog id="bugDialog">
     <form id="bugForm" novalidate>
@@ -373,6 +383,7 @@
 <script src="index/dialog.js"></script>
 <script src="index/live.js"></script>
 <script src="index/bug.js"></script>
+<script src="index/releases.js"></script>
 <script src="index/boot.js"></script>
 </body>
 </html>

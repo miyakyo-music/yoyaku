@@ -1,0 +1,8 @@
+/* 予約表: 更新情報（フッタの版を押すと開く小窓） */
+.rel-list { max-height: min(60vh, 520px); overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.rel-ver + .rel-ver { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.rel-ver h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: baseline; gap: 8px; }
+.rel-ver h3 small { font-size: 12px; font-weight: normal; color: var(--muted); }
+.rel-ver ul { margin: 0; padding-left: 1.2em; font-size: 14px; line-height: 1.6; }
+.rel-ver li + li { margin-top: 2px; }
+.rel-who { margin-right: 6px; padding: 0 5px; border-radius: 4px; font-size: 11px; color: var(--muted); background: rgba(118, 118, 128, .14); }
