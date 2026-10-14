@@ -20,9 +20,9 @@ html.dark [data-panel="stats"] { --heat: #30d158; }
 .heat .hd.sun { color: var(--danger); }
 .heat .hd.sat { color: var(--accent); }
 .heat .hx { height: 22px; border-radius: 4px; background: color-mix(in srgb, var(--heat) calc(var(--v) * 88% + 5%), transparent); }
-.bars { display: flex; flex-direction: column; gap: 6px; }
-.bar { display: grid; grid-template-columns: minmax(0, 9em) 1fr auto; align-items: center; gap: 8px; font-size: 13px; }
+.bars { display: grid; grid-template-columns: minmax(0, 9em) 1fr auto auto; align-items: center; gap: 6px 8px; font-size: 13px; }
+.bar { display: contents; } /* 全行で列をそろえる（棒の幅・数字の位置が行ごとにずれないように） */
 .bar .bn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar .bt { height: 10px; border-radius: 5px; background: var(--fill-field); overflow: hidden; }
 .bar .bt i { display: block; height: 100%; border-radius: 5px; background: var(--accent); }
-.bar .bv { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.bar .bv, .bar .bp { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; white-space: nowrap; text-align: right; }
