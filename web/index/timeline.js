@@ -236,7 +236,7 @@ function applyHourWidth(w) {
   // 時刻の文字が隣の線にかかり始めたら、2時間おき・3時間おきに減らす（文字の幅は実際の書体で測る）
   const textW = scaleTextWidth(tl);
   tl.classList.toggle('narrow', hourW < textW + 8);
-  tl.classList.toggle('tiny', hourW * 2 < textW * 11 / 12 + 6);
+  tl.classList.toggle('tiny', hourW * 2 < textW + 8);
   state.hourW = hourW;
   state.zoom = hourW === state.hourBase ? 1 : hourW / state.hourBase;
   // 幅を変えている間は、左上の「部屋 ＼ 時刻」の所に「幅をリセット」を出す

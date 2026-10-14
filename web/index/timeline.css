@@ -25,10 +25,10 @@ body.loading .main > * { opacity: .65; transition: opacity .2s; }
 }
 .tl-scale span.now { color: var(--accent); }
 /* 時間軸を縮めて時刻の文字が入らないときは、2時間おき・3時間おきに表示する */
-.tl.narrow .tl-scale span { font-size: 11px; padding-left: 2px; }
-.tl.narrow .tl-scale span:nth-child(even) { color: transparent; }
-.tl.tiny .tl-scale span:nth-child(even) { color: var(--muted); }
-.tl.tiny .tl-scale span:not(:nth-child(3n+1)) { color: transparent; }
+/* 文字の大きさは変えない。消した時刻の見出しの縦線も消し、残した時刻の文字に線がかからないようにする（表の中の線はそのまま） */
+.tl.narrow .tl-scale span:nth-child(even) { color: transparent; border-left-color: transparent; }
+.tl.tiny .tl-scale span:nth-child(even) { color: var(--muted); border-left-color: var(--line-strong); }
+.tl.tiny .tl-scale span:not(:nth-child(3n+1)) { color: transparent; border-left-color: transparent; }
 .tl.narrow .tl-scale span.now:not(:nth-child(even)), .tl.tiny .tl-scale span.now:nth-child(3n+1) { color: var(--accent); }
 .tl-scale span:last-child { box-shadow: inset -1px 0 0 var(--line-strong); }
 .tl-row { display: flex; border-bottom: 1px solid var(--line); }
