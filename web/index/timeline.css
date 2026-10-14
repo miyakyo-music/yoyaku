@@ -175,7 +175,7 @@ body.moving, body.moving * { cursor: grabbing !important; }
 .ghost.pick b { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
 .ghost.draft { border-style: dashed; background: rgba(37, 99, 235, .14); overflow: hidden; text-overflow: ellipsis; }
 .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
-.main-foot { position: sticky; left: 0; margin: 0; padding: 14px 12px calc(18px + env(safe-area-inset-bottom)); font-size: 12px; color: var(--muted); }
+.main-foot { position: sticky; left: 0; margin: 0; border-top: .5px solid var(--sep); padding: 14px 12px calc(18px + env(safe-area-inset-bottom)); font-size: 12px; color: var(--muted); }
 .main-foot p { margin: 0; }
 .foot-text { text-align: center; margin-bottom: 6px !important; }
 .zoom-reset {
