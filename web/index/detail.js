@@ -25,7 +25,7 @@ function openDetail(id) {
   $('dMemo').hidden = $('dMemoDt').hidden = !r.memo;
   $('dError').textContent = '';
 
-  const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
+  const ended = isEnded(r);
   const mine = isMine(r.id);
   const admin = isAdminMode();
   // 編集用パスワード欄は「編集用パスワードが設定された予約」を管理者モード以外で操作するときだけ出す

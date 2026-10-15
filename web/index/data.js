@@ -251,6 +251,11 @@ function visibleReservations() {
   return list;
 }
 
+/** その日・部屋で、時間（分）が重なる表示中の予約（exceptId の予約は除く）。なければ undefined */
+function findClash(date, roomId, start, end, exceptId) {
+  return visibleReservations().find((r) => r.id !== exceptId && r.date === date && r.roomId === roomId && toMin(r.start) < end && start < toMin(r.end));
+}
+
 function applySettings() {
   const s = state.settings;
   save_(LS.closeTime, s.closeTime);

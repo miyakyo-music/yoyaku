@@ -89,6 +89,8 @@ function toMin(t) { const [h, m] = String(t).split(':').map(Number); return h * 
 function toHHMM(min) { return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`; }
 function hm(t) { return String(t).replace(/^0(\d)/, '$1'); }
 function nowMin() { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
+/** 予約が終わっているか（終了の時刻を過ぎた）。today・now を先に取っている所は渡す */
+function isEnded(r, today = todayStr(), now = nowMin()) { return r.date < today || (r.date === today && toMin(r.end) <= now); }
 function weekday(s) { return parseDate(s).getDay(); }
 function dayClass(s) { const w = weekday(s); return w === 6 ? 'sat' : w === 0 ? 'sun' : ''; }
 function mdLabel(s) { const d = parseDate(s); return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAY_NAMES[d.getDay()]})`; }

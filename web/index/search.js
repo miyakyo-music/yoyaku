@@ -39,7 +39,7 @@ function runSearch() {
   const now = nowMin(), today = todayStr();
   const roomOf = (id) => sr.rooms.find((x) => x.id === id) || roomById(id);
   const hits = sr.list.filter((r) => {
-    if (r.date === today && toMin(r.end) <= now) return false; // 今日の終わった予約は出さない
+    if (isEnded(r, today, now)) return false; // 今日の終わった予約は出さない（読むのは今日から先だけ）
     const rm = roomOf(r.roomId);
     return normText([r.name, r.affiliation, r.memo, rm ? roomText(rm) : ''].join(' ')).includes(q);
   });
@@ -64,12 +64,5 @@ $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e
 $('searchBtn').addEventListener('click', openSearch);
 $('searchList').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-id]');
-  if (!b) return;
-  $('searchDialog').close();
-  state.view = 'day';
-  save_(LS.view, 'day');
-  state.date = b.dataset.date;
-  if (state.data) applySettings();
-  updateChrome();
-  load({ then: () => openDetail(b.dataset.id) });
+  if (b) openReservationAt($('searchDialog'), b.dataset.date, b.dataset.id);
 });

@@ -141,7 +141,7 @@ function renderTimeline() {
     for (const r of reservations) {
       const cls = ['blk', 'res'];
       if (Object.prototype.hasOwnProperty.call(mine, r.id)) cls.push('mine');
-      if (r.date < today || (r.date === today && toMin(r.end) <= now)) cls.push('ended');
+      if (isEnded(r, today, now)) cls.push('ended');
       if (r.pending) cls.push('mine', 'pending'); // 送信中の予約も自分の予約の色で表示する
       if ($('detailDialog').open && state.detail && state.detail.id === r.id) cls.push('viewing'); // 詳細を開いている予約（描き直しても青い枠を残す）
       if (RES_COLORS.includes(r.color)) cls.push('c-' + r.color); // 重要な予定の色（自分の予約の青より優先）

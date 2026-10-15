@@ -428,8 +428,7 @@ async function submitBooking(e) {
   const seriesEdit = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
   if (edit && !seriesEdit && state.booking.orig) {
     if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
-      const clash = visibleReservations().find((r) => r.id !== state.booking.id && r.date === payload.date && r.roomId === payload.roomId &&
-        toMin(r.start) < toMin(payload.end) && toMin(payload.start) < toMin(r.end));
+      const clash = findClash(payload.date, payload.roomId, toMin(payload.start), toMin(payload.end), state.booking.id);
       if (clash) return fail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
     }
     updateOptimistic(payload, state.booking.orig);
@@ -438,8 +437,7 @@ async function submitBooking(e) {
   // 1件の新規予約は、サーバーの結果を待たずに画面へ反映する（失敗したら元に戻す）
   if (!edit && !bulk) {
     if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
-      const clash = visibleReservations().find((r) => r.date === payload.date && r.roomId === payload.roomId &&
-        toMin(r.start) < toMin(payload.end) && toMin(payload.start) < toMin(r.end));
+      const clash = findClash(payload.date, payload.roomId, toMin(payload.start), toMin(payload.end));
       if (clash) return fail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
       // 休館・定休日と重なる時間は、画面に反映せずにその場で知らせる
       const closed = closuresFor(payload.date, payload.roomId)

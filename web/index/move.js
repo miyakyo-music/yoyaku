@@ -11,8 +11,7 @@ function hideHoverCard() { $('hoverCard').hidden = true; }
 function canMove(r) {
   if (!r || r.pending || r.settling) return false;
   const room = roomById(r.roomId);
-  const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
-  return !ended && !(room && room.restriction === ADMIN_ONLY && !isAdminMode());
+  return !isEnded(r) && !(room && room.restriction === ADMIN_ONLY && !isAdminMode());
 }
 function beginMove(blk, clientX) {
   const r = visibleReservations().find((x) => x.id === blk.dataset.id);
@@ -45,7 +44,7 @@ function updateMoveAt(clientX, clientY) {
   const end = start + move.len;
   const r = move.r;
   const today = todayStr();
-  const clash = visibleReservations().some((x) => x.id !== r.id && x.date === row.date && x.roomId === row.roomId && toMin(x.start) < end && start < toMin(x.end))
+  const clash = !!findClash(row.date, row.roomId, start, end, r.id)
     || closuresFor(row.date, row.roomId).some((c) => c.start < end && start < c.end);
   const past = row.date < today || (row.date === today && start < nowMin());
   move.ok = !clash && !past && !row.stopped;
