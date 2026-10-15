@@ -27,6 +27,18 @@ function myPeriodRange(p) {
   const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
   return { from: `${fy}-04-01`, to: `${fy + 1}-03-31` };
 }
+/** 予約を id で読み直す（サーバーは1回300件までなので、分けて読む）。部屋の一覧も返す */
+async function fetchByIds(ids) {
+  const reservations = [];
+  let rooms = null;
+  for (let i = 0; i < ids.length; i += 300) {
+    const res = await api('getReservationsByIds', { ids: ids.slice(i, i + 300) });
+    if (!res.ok) throw new Error(res.message);
+    reservations.push(...res.reservations);
+    rooms = res.rooms;
+  }
+  return { reservations, rooms };
+}
 async function loadMyStats() {
   const body = $('myStatsBody');
   const h = load_(LS.history, {});
@@ -34,14 +46,9 @@ async function loadMyStats() {
   if (!ids.length) { state.myStats = []; renderMyStats(); return; }
   body.innerHTML = '<p class="ms-empty">読み込み中…</p>';
   try {
-    const list = [];
-    for (let i = 0; i < ids.length; i += 300) { // サーバーは1回300件まで
-      const res = await api('getReservationsByIds', { ids: ids.slice(i, i + 300) });
-      if (!res.ok) throw new Error(res.message);
-      list.push(...res.reservations);
-      state.myStatsRooms = res.rooms;
-    }
-    state.myStats = list;
+    const res = await fetchByIds(ids);
+    state.myStatsRooms = res.rooms;
+    state.myStats = res.reservations;
     renderMyStats();
   } catch (e) {
     if (!(e instanceof AuthError)) body.innerHTML = `<p class="ms-empty">${esc(errMessage(e))}</p>`;
@@ -55,7 +62,7 @@ function renderMyStats() {
   const { from, to } = myPeriodRange(p);
   const today = todayStr(), now = nowMin();
   const inRange = list.filter((r) => r.date >= from && r.date <= to);
-  const ended = (r) => r.date < today || (r.date === today && toMin(r.end) <= now);
+  const ended = (r) => isEnded(r, today, now);
   const dur = (r) => toMin(r.end) - toMin(r.start);
   const done = inRange.filter(ended);
   const planned = inRange.filter((r) => !ended(r));
@@ -95,12 +102,11 @@ async function openMyList() {
   placeUnderBtn($('myDialog'), $('myBtn'));
   if (!ids.length) { list.innerHTML = '<li class="hint">予約はありません。</li>'; return; }
   try {
-    const res = await api('getReservationsByIds', { ids });
-    if (!res.ok) throw new Error(res.message);
+    const res = await fetchByIds(ids);
     const found = new Set(res.reservations.map((r) => r.id));
     removeMine(ids.filter((id) => !found.has(id))); // 取り消された予約は一覧から消す
     const now = nowMin();
-    const upcoming = res.reservations.filter((r) => r.date > today || toMin(r.end) > now);
+    const upcoming = res.reservations.filter((r) => !isEnded(r, today, now));
     list.innerHTML = upcoming.length ? upcoming.map((r) => {
       const room = res.rooms.find((x) => x.id === r.roomId);
       return `<li><button type="button" data-date="${r.date}" data-id="${esc(r.id)}">` +
@@ -112,14 +118,17 @@ async function openMyList() {
   }
 }
 
-$('myList').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-id]');
-  if (!b) return;
-  $('myDialog').close();
+/** 一覧の結果（自分の予約・検索）を押したとき: 小窓を閉じ、その日の一覧を出して予約の詳細を開く */
+function openReservationAt(dlg, date, id) {
+  dlg.close();
   state.view = 'day';
   save_(LS.view, 'day');
-  state.date = b.dataset.date;
+  state.date = date;
   if (state.data) applySettings();
   updateChrome();
-  load({ then: () => openDetail(b.dataset.id) });
+  load({ then: () => openDetail(id) });
+}
+$('myList').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-id]');
+  if (b) openReservationAt($('myDialog'), b.dataset.date, b.dataset.id);
 });

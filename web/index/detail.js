@@ -14,7 +14,7 @@ function personText(r) { return r.affiliation ? `${r.name}（${r.affiliation}）
 function openDetail(id) {
   const r = visibleReservations().find((x) => x.id === id);
   if (!r) return;
-  if (r.pending) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
+  if (r.pending || r.settling) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
   state.detail = r;
   const room = roomById(r.roomId);
   $('dRoom').textContent = room ? roomText(room) : r.roomId;
@@ -25,7 +25,7 @@ function openDetail(id) {
   $('dMemo').hidden = $('dMemoDt').hidden = !r.memo;
   $('dError').textContent = '';
 
-  const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
+  const ended = isEnded(r);
   const mine = isMine(r.id);
   const admin = isAdminMode();
   // 編集用パスワード欄は「編集用パスワードが設定された予約」を管理者モード以外で操作するときだけ出す
@@ -58,6 +58,8 @@ function openDetail(id) {
   const band = bandEl(r.id);
   if (band) band.classList.add('viewing');
 }
+// Esc で予約の詳細を閉じるときも、帯へ縮んで戻る
+$('detailDialog').addEventListener('cancel', (e) => { if (VT_OK) { e.preventDefault(); closeDetail(); } });
 $('detailDialog').addEventListener('close', () => {
   for (const el of $('main').querySelectorAll('.blk.viewing')) el.classList.remove('viewing');
 });

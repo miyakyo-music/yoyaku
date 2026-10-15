@@ -75,7 +75,9 @@ async function updateOptimistic(payload, orig) {
     const res = await api('updateReservation', Object.assign({}, payload, { id: orig.id }));
     if (!res || !res.ok) throw Object.assign(new Error((res && res.message) || '変更できませんでした。'), { code: res && res.code });
     entry.status = 'done';
-    entry.r = Object.assign({}, res.reservation, { id: temp.id }); // 再取得で台帳に反映されるまで、変更後の姿を出しておく
+    // 再取得で台帳に反映されるまで、変更後の姿を出しておく。仮の id なので、その間は押しても詳細・動かす操作をさせない（settling）
+    entry.r = Object.assign({}, res.reservation, { id: temp.id, settling: true });
+    if (isMine(orig.id)) addMine([res.reservation]); // 日付を変えたときも、この端末の記録の日付を新しい日にする
     toast('予約を変更しました');
     invalidate([orig.date, payload.date]);
     await load({ force: true });

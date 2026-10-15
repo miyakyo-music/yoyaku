@@ -28,7 +28,7 @@ function collectEnv() {
 function openBug() {
   $('bugMsg').value = '';
   $('bugError').textContent = '';
-  $('bugEnv').textContent = Object.entries(collectEnv()).map(([k, v]) => `${k}: ${v}`).join('\n');
+  $('bugEnv').textContent = Object.entries(collectEnv()).map(([k, v]) => `${k}: ${v && typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n');
   $('bugDialog').showModal();
 }
 document.addEventListener('click', (e) => { if (e.target.closest('[data-bug]')) openBug(); });

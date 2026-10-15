@@ -30,3 +30,16 @@ $('equipFilter').addEventListener('change', (e) => {
   }
   state.equipOnce = null; save_(LS.filter, v); if (state.data) render();
 });
+$('freeBtn').addEventListener('click', () => {
+  state.freeNow = !state.freeNow;
+  $('freeBtn').setAttribute('aria-pressed', String(state.freeNow));
+  // 今日以外を表示しているときは今日に移る
+  if (state.freeNow && state.date !== todayStr()) { setDate(todayStr()); return; }
+  if (state.data) { render(); scrollToNow(); }
+});
+$('roomSelect').addEventListener('change', (e) => {
+  if (state.view === 'month') state.monthRoomId = e.target.value;
+  else { state.roomId = e.target.value; save_(LS.room, state.roomId); }
+  updateChrome();
+  if (state.data) render();
+});

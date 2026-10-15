@@ -17,8 +17,6 @@ $('loginForm').addEventListener('submit', (e) => {
   load({ force: true });
 });
 $('loginDialog').addEventListener('cancel', (e) => e.preventDefault());
-// Esc で予約の詳細を閉じるときも、帯へ縮んで戻る
-$('detailDialog').addEventListener('cancel', (e) => { if (VT_OK) { e.preventDefault(); closeDetail(); } });
 
 // ---------------- 限定公開の部屋（演習室など） ----------------
 // 一般の利用者には存在を知らせないため、入口は …/yoyaku/?limited の URL だけ。パスワードを確かめてから端末に記憶する。
@@ -48,6 +46,7 @@ $('limitedForm').addEventListener('submit', async (e) => {
   $('limError').textContent = '';
   try {
     const res = await api('getSchedule', Object.assign(currentRange(), { limitedKey: key }));
+    if (res && res.limitedLocked) throw new Error('しばらくしてからもう一度お試しください。');
     if (!res || !res.limitedAccess) throw new Error((res && !res.ok && res.message) || 'パスワードが違います。');
     state.limitedKey = key;
     save_(LS.limitedKey, key);

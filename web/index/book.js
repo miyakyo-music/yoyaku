@@ -5,7 +5,7 @@ function defaultStart(date) {
   const s = state.settings;
   const open = toMin(s.openTime);
   if (date !== todayStr()) return open;
-  return Math.max(open, ceilTo(nowMin(), 30));
+  return Math.max(open, ceilTo(nowMin(), slotStep()));
 }
 
 /**
@@ -51,7 +51,9 @@ function openBooking(o) {
   $('bRoomQuickField').hidden = !quick;
   $('bRoomField').hidden = quick;
 
-  const date = at ? at.date : edit ? r.date : (o.date || state.date);
+  let date = at ? at.date : edit ? r.date : (o.date || state.date);
+  // 今日の利用時間が終わったあとに開いた新規予約（時刻の指定なし）は、翌日にする（今日の時刻は選べないため）
+  if (!edit && o.start == null && date === todayStr() && defaultStart(date) + s.unitMinutes > toMin(s.closeTime)) date = addDays(date, 1);
   $('bDate').value = date;
   $('bDate').min = edit ? '' : todayStr();
   fillTimeSelects($('bStartH'), $('bStartM'));
@@ -371,12 +373,20 @@ function resetConflicts() {
   $('bSubmit').disabled = false;
 }
 
-async function submitBooking(e) {
-  e.preventDefault();
+/** 予約画面の下に知らせを出し、直す欄があればそこへ移る */
+function bookingFail(msg, focusId) {
+  $('bError').textContent = msg;
+  if (focusId) ($(focusId).wheel || $(focusId)).focus();
+}
+
+/**
+ * 予約画面の入力を読み取って確かめる。だめなら知らせを出して null を返す。
+ * 通れば、送る中身（payload）と、どの送り方か（変更か・まとめて変更か・まとめて予約か）を返す
+ */
+function readBookingPayload() {
   const s = state.settings;
   const edit = state.booking.mode === 'edit';
-  const err = $('bError');
-  const fail = (msg, focusId) => { err.textContent = msg; if (focusId) ($(focusId).wheel || $(focusId)).focus(); };
+  const fail = (msg, focusId) => { bookingFail(msg, focusId); return null; };
   if (isOffline()) return fail(OFFLINE_MSG);
   if (!$('bRoomQuickField').hidden) return fail('部屋を選んでください。');
   const payload = {
@@ -421,14 +431,22 @@ async function submitBooking(e) {
   if (!edit && $('bRepeat').checked && !dates.length) return fail('最終日を正しく指定してください。', 'bUntil');
   if (bulk && total > s.maxBulkCount) return fail(`まとめて予約は最大${s.maxBulkCount}件までです（今回${total}件）。部屋か期間を減らしてください。`);
   if (!edit) save_(LS.profile, { affiliation: payload.affiliation, name: payload.name, pin: payload.pin }); // 予約確定時にこの端末へ保存
+  // まとめ予約の1件を変更するときに「この日以降もまとめて変更」を選んだか
+  const seriesEdit = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
+  return { payload, edit, seriesEdit, bulk, total, roomIds, dates, pairs };
+}
+
+async function submitBooking(e) {
+  e.preventDefault();
+  const b = readBookingPayload();
+  if (!b) return;
+  const { payload, edit, seriesEdit, bulk } = b;
 
   // 1件の変更（まとめて変更でないもの）も、サーバーの結果を待たずに画面へ反映する（失敗したら元に戻す）
-  const seriesEdit = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
   if (edit && !seriesEdit && state.booking.orig) {
     if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
-      const clash = visibleReservations().find((r) => r.id !== state.booking.id && r.date === payload.date && r.roomId === payload.roomId &&
-        toMin(r.start) < toMin(payload.end) && toMin(payload.start) < toMin(r.end));
-      if (clash) return fail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
+      const clash = findClash(payload.date, payload.roomId, toMin(payload.start), toMin(payload.end), state.booking.id);
+      if (clash) return bookingFail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
     }
     updateOptimistic(payload, state.booking.orig);
     return;
@@ -436,18 +454,22 @@ async function submitBooking(e) {
   // 1件の新規予約は、サーバーの結果を待たずに画面へ反映する（失敗したら元に戻す）
   if (!edit && !bulk) {
     if (state.data && payload.date >= state.data.from && payload.date <= state.data.to) {
-      const clash = visibleReservations().find((r) => r.date === payload.date && r.roomId === payload.roomId &&
-        toMin(r.start) < toMin(payload.end) && toMin(payload.start) < toMin(r.end));
-      if (clash) return fail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
+      const clash = findClash(payload.date, payload.roomId, toMin(payload.start), toMin(payload.end));
+      if (clash) return bookingFail(`すでに存在する予約と時間が重複しています（${hm(clash.start)}〜${hm(clash.end)} ${clash.name}）。`);
       // 休館・定休日と重なる時間は、画面に反映せずにその場で知らせる
       const closed = closuresFor(payload.date, payload.roomId)
         .find((c) => c.start < toMin(payload.end) && toMin(payload.start) < c.end);
-      if (closed) return fail(`${hm(toHHMM(closed.start))}〜${hm(toHHMM(closed.end))} は利用できません（${closed.reason}）。`);
+      if (closed) return bookingFail(`${hm(toHHMM(closed.start))}〜${hm(toHHMM(closed.end))} は利用できません（${closed.reason}）。`);
     }
     createOptimistic(payload);
     return;
   }
+  sendBulkBooking(b);
+}
 
+/** まとめて予約・まとめて変更を送る（結果を待つ。予約できない日があれば一覧を出し、できる分だけ予約するボタンにする） */
+async function sendBulkBooking({ payload, edit, seriesEdit, bulk, total, roomIds, dates, pairs }) {
+  const err = $('bError');
   const btn = $('bSubmit');
   const label = btn.textContent;
   btn.disabled = true;
@@ -455,14 +477,14 @@ async function submitBooking(e) {
   err.textContent = '';
   try {
     let res;
-    const series = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
-    if (edit) res = await api('updateReservation', Object.assign(payload, { id: state.booking.id }, series ? { scope: 'following' } : {}));
+    if (edit) res = await api('updateReservation', Object.assign(payload, { id: state.booking.id }, seriesEdit ? { scope: 'following' } : {}));
     else if (bulk) res = await api('createBulkReservations', Object.assign(payload, { roomIds, dates, skipConflicts: state.skipConflicts }, state.booking.copy ? { pairs } : {}));
     else res = await api('createReservation', payload);
 
     if (res && res.ok) {
       const list = res.reservations || [res.reservation];
       if (!edit) addMine(list);
+      else if (list.some((r) => isMine(r.id))) addMine(list.filter((r) => isMine(r.id))); // 変更後の日付で記録し直す
       $('bookDialog').close();
       const skipped = res.skipped && res.skipped.length ? `（予約できなかった${res.skipped.length}件を除く）` : '';
       toast(edit ? (list.length > 1 ? `${list.length}件の予約をまとめて変更しました` : '予約を変更しました') : `${list.length}件予約しました${skipped}`);
@@ -498,3 +520,19 @@ $('bRepeat').addEventListener('change', (e) => { $('bRepeatArea').hidden = !e.ta
 $('bPin').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
 });
+
+$('bookForm').addEventListener('submit', submitBooking);
+$('bookDialog').addEventListener('close', renderDraft); // 閉じたら仮予約の帯を消す
+$('bRoom').addEventListener('change', () => { state.extraRooms.delete($('bRoom').value); renderRoomPicker(); });
+$('bRoomQuick').addEventListener('click', (e) => {
+  const b = e.target.closest('.rq');
+  if (!b) return;
+  $('bRoom').value = b.dataset.id;
+  $('bRoom').dispatchEvent(new Event('change'));
+  $('bRoomQuickField').hidden = true;
+  $('bRoomField').hidden = false;
+  renderDraft();
+  $('bError').textContent = '';
+  if (!$('bPerson').value) $('bPerson').focus();
+});
+$('bSeries').addEventListener('change', updateBookingUi);
