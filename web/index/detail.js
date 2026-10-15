@@ -131,6 +131,13 @@ async function sendCancel(r, pin, scope, series, targets, keepalive) {
     const res = await api('cancelReservation', { id: r.id, pin, scope }, { keepalive });
     if (!res || !res.ok) throw Object.assign(new Error((res && res.message) || '取り消しに失敗しました。'), { code: res && res.code });
     removeMine(res.cancelledIds);
+    // 管理者のみの部屋・見えない部屋・終わった分は、サーバーが取り消さずに残す。画面にも戻して知らせる
+    const kept = targets.filter((x) => !(res.cancelledIds || []).includes(x.id));
+    if (res.cancelledIds && kept.length) {
+      kept.forEach((x) => state.hidden.delete(x.id));
+      render();
+      toast(`${kept.length}件は取り消せないため、残しました`);
+    }
     invalidate(series ? undefined : [r.date]); // くり返し予約は他の日にもまたがるのですべて取り直す
     load({ force: true });
   } catch (ex) {

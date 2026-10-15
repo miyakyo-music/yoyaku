@@ -217,15 +217,16 @@ let lastScrollAt = 0;
 $('main').addEventListener('scroll', () => { lastScrollAt = Date.now(); clearPick(); }, { passive: true });
 $('main').addEventListener('touchstart', (e) => {
   const track = e.target.closest('.tl-track');
+  if (touch) clearTimeout(touch.timer); // 2本目の指（ピンチ）や次のタッチで、前の長押しを止める
   if (!track || e.touches.length !== 1 || e.target.closest('.blk')) { touch = null; return; }
   const t = e.touches[0];
-  touch = {
+  const me = touch = {
     track, x: t.clientX, y: t.clientY, moved: false, dragging: false,
     scrolling: Date.now() - lastScrollAt < SCROLL_SETTLE_MS,
     onPick: !!e.target.closest('.ghost.pick'),
   };
   touch.timer = setTimeout(() => {
-    if (!touch || touch.moved) return;
+    if (touch !== me || me.moved) return;
     if (beginDrag(track, touch.x)) {
       touch.dragging = true;
       if (navigator.vibrate) navigator.vibrate(15);

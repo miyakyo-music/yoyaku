@@ -45,7 +45,8 @@ function showAdmin() {
   if (!state.dirty.rooms) loadRooms(d.rooms);
   state.closures = d.closures.slice();
   renderRooms();
-  if (!state.dirty.settings) fillSettings(d.settings); else fillPasswords(d.settings);
+  if (!state.dirty.settings) fillSettings(d.settings);
+  else { fillPasswords(d.settings); $('settingsError').textContent = ''; $('settingsWarn').textContent = ''; }
   renderClosureForm();
   renderExportForm();
   renderClosures();

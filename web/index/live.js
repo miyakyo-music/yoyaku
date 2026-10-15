@@ -9,7 +9,7 @@ for (const type of ['pointerdown', 'pointermove', 'touchstart', 'touchmove', 'wh
 }
 /** 操作中か（指やマウスで触れている・ダイアログを開いている・直前に操作した） */
 function userBusy() {
-  return !!(touch || pinch || mouse || drag) || anyDialogOpen() || Date.now() - lastActive < IDLE_MS;
+  return !!(touch || pinch || mouse || drag || move || moveMouse || moveTouch) || anyDialogOpen() || Date.now() - lastActive < IDLE_MS;
 }
 setInterval(() => {
   if (!document.hidden && state.data && !userBusy()) load({ force: true, background: true });

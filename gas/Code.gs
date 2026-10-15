@@ -1276,7 +1276,8 @@ function writeSettingsSheet_(ss, values) {
  * 操作ログは丸ごとの中身に入っていないので、先に積まれた変更を写しておく（まだ写していないログを捨てないように）
  */
 function mirrorFull_(ss) {
-  mirrorPullLocked_(ss);
+  // 差分の写しが失敗し続けていても、写し直しと GAS への戻しはできるようにする（そのときはまだ写していないログをあきらめる）
+  try { mirrorPullLocked_(ss); } catch (e) { console.error('先に差分を写せませんでした: ' + e); }
   const res = cfCall_('get', '/mirror/full');
   if (!res.ok) throw new Error(res.message || res.code);
   replaceRows_(ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations), HEADERS.reservations.length, res.reservations);
