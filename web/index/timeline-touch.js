@@ -208,3 +208,50 @@ document.addEventListener('mouseup', () => {
   if (m.dragging) finishDrag();
   else tapTrack(m.track, m.x);
 });
+
+// タッチ: タップで予約画面、長押ししてからなぞると時間指定（通常のスワイプはスクロール）
+let touch = null;
+// スクロール中・直後のタップは、スクロールを止めるためのタップとみなして予約の操作にしない
+const SCROLL_SETTLE_MS = 300;
+let lastScrollAt = 0;
+$('main').addEventListener('scroll', () => { lastScrollAt = Date.now(); clearPick(); }, { passive: true });
+$('main').addEventListener('touchstart', (e) => {
+  const track = e.target.closest('.tl-track');
+  if (!track || e.touches.length !== 1 || e.target.closest('.blk')) { touch = null; return; }
+  const t = e.touches[0];
+  touch = {
+    track, x: t.clientX, y: t.clientY, moved: false, dragging: false,
+    scrolling: Date.now() - lastScrollAt < SCROLL_SETTLE_MS,
+    onPick: !!e.target.closest('.ghost.pick'),
+  };
+  touch.timer = setTimeout(() => {
+    if (!touch || touch.moved) return;
+    if (beginDrag(track, touch.x)) {
+      touch.dragging = true;
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
+  }, LONG_PRESS_MS);
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (!touch) return;
+  const t = e.touches[0];
+  if (touch.dragging) { e.preventDefault(); updateDrag(t.clientX); return; }
+  if (Math.abs(t.clientX - touch.x) > 10 || Math.abs(t.clientY - touch.y) > 10) { touch.moved = true; clearTimeout(touch.timer); }
+}, { passive: false });
+document.addEventListener('touchend', (e) => {
+  if (!touch) return;
+  const t = touch;
+  touch = null;
+  clearTimeout(t.timer);
+  if (t.dragging) { e.preventDefault(); finishDrag(); return; }
+  if (t.moved) return;
+  e.preventDefault();
+  if (t.scrolling || Date.now() - lastScrollAt < SCROLL_SETTLE_MS) return;
+  if (t.onPick && state.pick) {
+    const slot = state.pick;
+    morph($('main').querySelector('.ghost.pick'), () => { clearPick(); openBooking(slot); }, () => $('bookDialog'));
+    return;
+  }
+  pickSlot(t.track, t.x);
+}, { passive: false });
+document.addEventListener('touchcancel', () => { if (touch) clearTimeout(touch.timer); touch = null; cancelDrag(); });

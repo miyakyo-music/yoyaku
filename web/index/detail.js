@@ -58,6 +58,8 @@ function openDetail(id) {
   const band = bandEl(r.id);
   if (band) band.classList.add('viewing');
 }
+// Esc で予約の詳細を閉じるときも、帯へ縮んで戻る
+$('detailDialog').addEventListener('cancel', (e) => { if (VT_OK) { e.preventDefault(); closeDetail(); } });
 $('detailDialog').addEventListener('close', () => {
   for (const el of $('main').querySelectorAll('.blk.viewing')) el.classList.remove('viewing');
 });

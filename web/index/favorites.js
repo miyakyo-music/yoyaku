@@ -25,32 +25,3 @@ $('favDialog').addEventListener('close', () => {
   state.equipOnce = null;
   if (state.data) render();
 });
-$('freeBtn').addEventListener('click', () => {
-  state.freeNow = !state.freeNow;
-  $('freeBtn').setAttribute('aria-pressed', String(state.freeNow));
-  // 今日以外を表示しているときは今日に移る
-  if (state.freeNow && state.date !== todayStr()) { setDate(todayStr()); return; }
-  if (state.data) { render(); scrollToNow(); }
-});
-$('roomSelect').addEventListener('change', (e) => {
-  if (state.view === 'month') state.monthRoomId = e.target.value;
-  else { state.roomId = e.target.value; save_(LS.room, state.roomId); }
-  updateChrome();
-  if (state.data) render();
-});
-
-$('bookForm').addEventListener('submit', submitBooking);
-$('bookDialog').addEventListener('close', renderDraft); // 閉じたら仮予約の帯を消す
-$('bRoom').addEventListener('change', () => { state.extraRooms.delete($('bRoom').value); renderRoomPicker(); });
-$('bRoomQuick').addEventListener('click', (e) => {
-  const b = e.target.closest('.rq');
-  if (!b) return;
-  $('bRoom').value = b.dataset.id;
-  $('bRoom').dispatchEvent(new Event('change'));
-  $('bRoomQuickField').hidden = true;
-  $('bRoomField').hidden = false;
-  renderDraft();
-  $('bError').textContent = '';
-  if (!$('bPerson').value) $('bPerson').focus();
-});
-$('bSeries').addEventListener('change', updateBookingUi);

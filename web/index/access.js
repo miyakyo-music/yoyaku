@@ -17,8 +17,6 @@ $('loginForm').addEventListener('submit', (e) => {
   load({ force: true });
 });
 $('loginDialog').addEventListener('cancel', (e) => e.preventDefault());
-// Esc で予約の詳細を閉じるときも、帯へ縮んで戻る
-$('detailDialog').addEventListener('cancel', (e) => { if (VT_OK) { e.preventDefault(); closeDetail(); } });
 
 // ---------------- 限定公開の部屋（演習室など） ----------------
 // 一般の利用者には存在を知らせないため、入口は …/yoyaku/?limited の URL だけ。パスワードを確かめてから端末に記憶する。

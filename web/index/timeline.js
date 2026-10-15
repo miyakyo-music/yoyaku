@@ -1,4 +1,4 @@
-// 予約表: 一覧・部屋別の描画（時間軸・部屋名の列・空室ランプ・時間軸の幅）
+// 予約表: 一覧・部屋別の描画（時間軸・部屋名の列・空室ランプ・時間軸の幅）と、表を押したときの振り分け
 'use strict';
 
 // ---------------- 描画 ----------------
@@ -271,3 +271,34 @@ function scrollToNow() {
   const ratio = (nowMin() - state.geo.t0) / state.geo.total;
   main.scrollLeft = Math.max(0, ratio * track.offsetWidth - track.offsetWidth / state.geo.total * 60);
 }
+
+// スマホの「＋」: 表の下のフッターが見えている分だけ持ち上げ、表の下端の上に乗せる
+function liftFab() {
+  const foot = $('main').querySelector('.main-foot');
+  const lift = foot ? Math.max(0, $('main').getBoundingClientRect().bottom - foot.getBoundingClientRect().top) : 0;
+  $('fabBtn').style.setProperty('--fab-lift', `${Math.round(lift)}px`);
+}
+$('main').addEventListener('scroll', liftFab, { passive: true });
+window.addEventListener('resize', liftFab);
+
+// 表を押したとき: 帯は予約の詳細、カレンダーの日・部屋別の日付はその日の一覧、一覧の部屋名はその部屋の部屋別へ
+$('main').addEventListener('click', (e) => {
+  const blk = e.target.closest('.blk.res');
+  if (blk && Date.now() < moveClickBlockUntil) return; // 動かし終えた直後のクリックでは詳細を開かない
+  if (blk) { morph(blk, () => openDetail(blk.dataset.id), () => $('detailDialog')); return; }
+  const cell = e.target.closest('.mc[data-date]');
+  if (cell) { state.date = cell.dataset.date; setView('day'); return; }
+  const dayLabel = e.target.closest('.tl-label[data-date]');
+  if (dayLabel) { state.date = dayLabel.dataset.date; setView('day'); return; }
+  const label = e.target.closest('.tl-label[data-room]');
+  if (label) {
+    state.roomId = label.dataset.room;
+    save_(LS.room, state.roomId);
+    setView('room');
+  }
+});
+$('main').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('.blk.res, .mc[data-date], .tl-label[data-room], .tl-label[data-date]');
+  if (el) { e.preventDefault(); el.click(); }
+});
