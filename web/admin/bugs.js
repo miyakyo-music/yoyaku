@@ -59,7 +59,7 @@ $('bugList').addEventListener('change', async (e) => {
     toast('状態を変更しました');
   } catch (ex) {
     $('bugsError').textContent = errMessage(ex);
-    sel.disabled = false;
+    renderBugs(); // 選択欄を元の状態に戻す
   }
 });
 $('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });
