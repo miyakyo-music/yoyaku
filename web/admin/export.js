@@ -65,6 +65,7 @@ function openCols(mode) {
 function closeCols() {
   $('xColsPop').hidden = true;
   $('xPrintBtn').setAttribute('aria-expanded', 'false');
+  $('xFmtBtn').setAttribute('aria-expanded', 'false');
 }
 $('xPrintBtn').addEventListener('click', () => {
   toggleFmt(false);
@@ -91,7 +92,11 @@ document.addEventListener('pointerdown', (e) => {
   if (!$('xFmtPop').hidden) toggleFmt(false);
   if (!$('xColsPop').hidden) closeCols();
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('xFmtPop').hidden) { toggleFmt(false); $('xFmtBtn').focus(); } });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('xFmtPop').hidden) { toggleFmt(false); $('xFmtBtn').focus(); }
+  if (!$('xColsPop').hidden) { closeCols(); $(colsMode === 'pdf' ? 'xFmtBtn' : 'xPrintBtn').focus(); }
+});
 const EXPORTERS = { csv: exportCsv, xlsx: exportXlsx, pdf: exportPdf };
 $('xFmtPop').addEventListener('click', (e) => {
   const b = e.target.closest('[data-fmt]');
