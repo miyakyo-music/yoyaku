@@ -28,7 +28,9 @@
     MAX_ADMIN_DELETE: 2000,
     LOG_PAGE: 200,
     MAX_LIMITED_FAILURES: 30,
+    MAX_VIEW_FAILURES: 30,
     FAILURE_LOCK_SECONDS: 600,
+    PASSKEY_TOKEN_HOURS: 12, // パスキーでのログインの印の有効時間（worker.js の TOKEN_HOURS と同じ）
     MAX_WRITES_PER_MINUTE: 60, // GAS のときより速いので、上限は GAS の倍にする（いたずらで埋め尽くされないための上限）
     MAX_ADMIN_DEVICES: 30,
     PBKDF2_ROUNDS: 20000, // 管理用パスワードを、元に戻せない形（ハッシュ）にして置くときの計算回数
@@ -72,7 +74,7 @@
       this.db = db;
       this.env = env || {};
       this.hooks = hooks || {};
-      this.memo = {};
+      this.memo = {}; // 呼び出しごとの覚えは forCall で分ける（ここは、テスト環境などで直接呼んだとき用）
       this.device = '';
       this.init();
     }
@@ -113,41 +115,53 @@
     isPrimary() { return this.kget('primary') === '1'; }
 
     // ---------------- 画面からの呼び出し（POST /api） ----------------
+    /**
+     * 1回の呼び出しだけで使う覚え（memo・device）を持った、自分の写し。計算を待っている間に別の呼び出しが来ても、
+     * 互いの覚え（管理用パスワードの確認結果・端末の印など）を書き換えないように、呼び出しごとに分ける
+     */
+    forCall(device) {
+      const call = Object.create(this);
+      call.memo = { admin: {} };
+      call.device = device || '';
+      return call;
+    }
+
     async api(req) {
       const action = String((req && req.action) || '');
       const p = (req && req.params && typeof req.params === 'object') ? req.params : {};
-      this.memo = { admin: {} };
-      this.device = String(p.adminDevice || '').slice(0, 64);
+      const call = this.forCall(String(p.adminDevice || '').slice(0, 64));
       if (!this.isPrimary()) return withVersion(Object.assign({}, MOVED));
       const fn = Object.prototype.hasOwnProperty.call(API, action) ? API[action] : null;
       if (!fn) return withVersion(fail('不明な操作です。', 'BAD_REQUEST'));
 
       // 合言葉・パスワードの確認は時間のかかる計算（待ちが入る）なので、先に済ませておく。
       // このあとの処理は待たずに一気に行う（その間に別の書き込みが割り込まない）
-      await this.upgradePassword();
-      await this.prepareAdmin(p.adminPassword);
+      await call.upgradePassword();
+      await call.prepareAdmin(p.adminPassword);
+      // 編集用パスワードの欄に入れた管理用パスワード（4桁の数字以外）は、変更・取消で管理用パスワードがないときだけ使う
+      // （gas/Code.gs の checkPin_ と同じ。ほかの操作で前もって確かめると、使わない値まで誤入力として数えてしまう）
       const pin = String(p.pin || '').trim();
-      if (pin && !/^\d{4}$/.test(pin)) await this.prepareAdmin(pin);
+      if (pin && !/^\d{4}$/.test(pin) && !p.adminPassword && (action === 'updateReservation' || action === 'cancelReservation')) await call.prepareAdmin(pin);
       // 新しいパスワードの計算（時間がかかる）は、管理者だと確かめてからにする（誰でも重い計算を起こせないように）
-      if (action === 'adminChangePassword' && this.memo.admin[String(p.adminPassword || '')] === null && String(p.newPassword || '').length >= 6) {
-        this.memo.newHash = await hashPassword(String(p.newPassword));
+      if (action === 'adminChangePassword' && call.memo.admin[String(p.adminPassword || '')] === null && String(p.newPassword || '').length >= 6) {
+        call.memo.newHash = await hashPassword(String(p.newPassword));
       }
       if (action === 'adminPasskeyTicket' && this.passkeyKey()) {
         const exp = Math.floor(Date.now() / 1000) + 300;
-        this.memo.ticket = 'pkt.' + exp + '.' + await hmac(this.passkeyKey(), 'pkt.' + exp);
+        call.memo.ticket = 'pkt.' + exp + '.' + await hmac(this.passkeyKey(), 'pkt.' + exp);
       }
 
       let result;
       try {
         result = this.db.txn(() => {
-          this.memo.wrote = false;
-          return fn.call(this, p);
+          call.memo.wrote = false;
+          return fn.call(call, p);
         });
       } catch (e) {
         console.error(e);
         result = fail('サーバーでエラーが発生しました。時間をおいて再度お試しください。', 'SERVER_ERROR');
       }
-      if (result && result.ok && this.memo.wrote && this.hooks.changed) {
+      if (result && result.ok && call.memo.wrote && this.hooks.changed) {
         try { this.hooks.changed(); } catch (e) { /* 合図の失敗で処理を失敗させない */ }
       }
       return withVersion(result || { ok: true });
@@ -203,9 +217,17 @@
       const key = this.passkeyKey();
       if (!m || !key || !safeEqual(await hmac(key, 'pk1.' + m[1] + '.' + m[2]), m[3])) return '管理用パスワードが一致しません。';
       if (Number(m[1]) < Date.now() / 1000) return 'パスキーでのログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
+      // パスキーの削除・管理用パスワードの変更より前に出た印は使えない（なくした端末に残った印で入られないように）
+      if (Number(m[1]) - SYSTEM.PASSKEY_TOKEN_HOURS * 3600 <= Number(this.kget('pkNotBefore') || 0)) {
+        return 'パスキーの削除か管理用パスワードの変更があったため、ログインし直してください（パスキーか管理用パスワード）。';
+      }
       return null;
     }
     passkeyKey() { return String(this.env.PUSH_TOKEN || '').trim(); }
+    /** この時刻（秒）までに出たパスキーでのログインの印を使えなくする（今より前の時刻には戻さない。gas/Code.gs の revokePasskeyTokens_ と同じ） */
+    revokePasskeyTokens(at) {
+      if (at > Number(this.kget('pkNotBefore') || 0)) this.kput('pkNotBefore', at);
+    }
 
     /** 先に確かめておいた結果を返す。一致すれば null、違えばメッセージ */
     verifyAdmin(password) {
@@ -275,13 +297,18 @@
       const rooms = limited.ok ? m.rooms : m.rooms.filter((r) => r.restriction !== ROOM_RESTRICTIONS.LIMITED);
       return { settings: m.settings, rooms, limited, isAdmin, closures: m.closures };
     }
+    /** 限定公開の部屋を見られるか（gas/Code.gs の limitedAccess_ と同じ。誤入力が続いて止めている間は locked） */
     limitedAccess(settings, p, isAdmin) {
       const pw = settings.limitedPassword;
       const key = String(p.limitedKey || '');
       if (key) {
         const failures = Number(this.kget('limitedFailures') || 0);
-        if (pw && failures < SYSTEM.MAX_LIMITED_FAILURES && safeEqual(key, pw)) return { ok: true };
-        this.kput('limitedFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
+        if (failures < SYSTEM.MAX_LIMITED_FAILURES) {
+          if (pw && safeEqual(key, pw)) return { ok: true };
+          this.kput('limitedFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
+        } else if (!isAdmin) {
+          return { ok: false, locked: true };
+        }
       }
       if (isAdmin) return { ok: true };
       return key ? { ok: false, denied: true } : { ok: false };
@@ -321,18 +348,18 @@
     // ---------------- 公開されている予約表（GET /schedule） ----------------
     /** 誰でも見られる形の予約表。正本でない・閲覧パスワードを使っている・範囲が広すぎるときは null */
     publicSchedule(from, to) {
-      this.memo = { admin: {} };
       if (!this.isPrimary()) return null;
       if (!isValidDate(from) || !isValidDate(to) || from > to || daysBetween(from, to) >= SYSTEM.MAX_RANGE_DAYS) return null;
-      const ctx = this.context({});
+      const call = this.forCall();
+      const ctx = call.context({});
       if (ctx.settings.viewPassword) return null;
-      const res = scheduleOf.call(this, ctx, from, to);
+      const res = scheduleOf.call(call, ctx, from, to);
       return withVersion(Object.assign(res, { serverNow: nowStr('yyyy-MM-dd HH:mm'), primary: true }));
     }
 
     // ---------------- GAS とのやりとり（合言葉つき。待ちのない処理だけ） ----------------
     /**
-     * @param op 'begin' | 'reservations' | 'master' | 'finish' | 'disable' | 'status' | 'changes' | 'full'
+     * @param op 'begin' | 'reservations' | 'master' | 'finish' | 'disable' | 'status' | 'changes' | 'full' | 'revoke'
      */
     sync(op, body) {
       body = body || {};
@@ -349,9 +376,14 @@
         if (op === 'full') return this.mirrorFull();
         if (op === 'disable') { this.kput('primary', '0'); return { ok: true }; }
         if (op === 'finish') { this.kput('primary', '1'); return this.status(); }
+        // パスキーが削除された（worker.js の /passkey/delete から）。それまでに出たログインの印を使えなくする
+        if (op === 'revoke') { this.revokePasskeyTokens(Math.floor(Date.now() / 1000)); return { ok: true }; }
         if (this.isPrimary()) return fail('すでに Cloudflare が正本になっています。先に GAS へ戻してから移し直してください。', 'ALREADY');
         if (op === 'begin') {
-          for (const t of ['reservations', 'rooms', 'closures', 'settings', 'bugs', 'changes']) this.db.exec(`DELETE FROM ${t}`);
+          // 前に Cloudflare が正本だったときの操作ログと管理用パスワードも消す（ログはシートに写してある。
+          // パスワードは GAS のものを master で入れ直す。GAS で無効にしていたら、ここでも無効のまま）
+          for (const t of ['reservations', 'rooms', 'closures', 'settings', 'bugs', 'changes', 'oplog']) this.db.exec(`DELETE FROM ${t}`);
+          this.kdel('adminPw');
           return { ok: true };
         }
         if (op === 'reservations') {
@@ -386,6 +418,7 @@
           });
           if (body.adminPassword) this.kput('adminPw', 'plain$' + String(body.adminPassword));
           if (body.adminDevices) this.kput('adminDevices', String(body.adminDevices));
+          this.revokePasskeyTokens(Number(body.pkNotBefore) || 0);
           if (body.spreadsheetUrl) this.kput('spreadsheetUrl', String(body.spreadsheetUrl));
           return { ok: true };
         }
@@ -399,17 +432,17 @@
      * 結果は kv の rizaburoLast に残し、GET /rizaburo/last で誰でも見られる（件数だけで、名前は入れない）
      */
     importRizaburo(body) {
-      this.memo = { admin: {} };
       body = body || {};
       const head = { at: nowStr('yyyy-MM-dd HH:mm:ss'), from: String(body.from || ''), to: String(body.to || ''), fetchMs: Number(body.fetchMs) || 0 };
       if (body.error) { this.kput('rizaburoLast', JSON.stringify(Object.assign(head, { ok: false, error: String(body.error) }))); return { ok: false }; }
       if (!this.isPrimary()) return fail('Cloudflare が正本になっていません。', 'NOT_PRIMARY');
       const lines = (Array.isArray(body.lines) ? body.lines : []).slice(0, 3000);
+      const call = this.forCall();
       let res;
       try {
         res = this.db.txn(() => {
-          this.memo.wrote = false;
-          const m = this.master();
+          call.memo.wrote = false;
+          const m = call.master();
           const ctx = { settings: m.settings, rooms: m.rooms, closures: m.closures, limited: { ok: true }, isAdmin: true };
           const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, fixed: 0, same: 0, overlap: 0, problems: [] });
           lines.forEach((line) => {
@@ -417,7 +450,7 @@
             if (x.error) { out.problems.push(x.error); return; }
             const where = x.value.date + ' ' + x.times[0].start + ' ' + x.value.roomId + ' ';
             // 前に入れた同じ予約（同じ部屋・氏名で、時刻の差が5分未満。前は学籍番号だけの人も学籍番号/所属に入れていた）
-            const prev = this.resWhere('WHERE date = ? AND room_id = ? AND st < ? AND en > ?', x.value.date, x.value.roomId, hhmm(x.raw.e0 + 5), hhmm(x.raw.s0 - 5))
+            const prev = call.resWhere('WHERE date = ? AND room_id = ? AND st < ? AND en > ?', x.value.date, x.value.roomId, hhmm(x.raw.e0 + 5), hhmm(x.raw.s0 - 5))
               .find((r) => r.name === x.value.name && (r.affiliation === x.value.affiliation || (!x.value.affiliation && r.affiliation === r.name)) &&
                 Math.abs(toMin(r.start) - x.raw.s0) < 5 && Math.abs(toMin(r.end) - x.raw.e0) < 5);
             // 5分刻みの時刻のうち、ほかの予約に重ならない、元の時刻にいちばん近いもの
@@ -428,7 +461,7 @@
               if (v.error) { problem = problem || v.error; continue; }
               const closed = closureError(ctx, v.value);
               if (closed) { problem = problem || closed; continue; }
-              if (findConflict.call(this, v.value, prev ? prev.id : null)) continue;
+              if (findConflict.call(call, v.value, prev ? prev.id : null)) continue;
               r = v.value;
               break;
             }
@@ -441,15 +474,15 @@
             if (prev) {
               if (prev.start === r.start && prev.end === r.end && prev.affiliation === r.affiliation) { out.same++; return; }
               const fixed = Object.assign({}, prev, { start: r.start, end: r.end, affiliation: r.affiliation, updatedAt: head.at });
-              this.insertRes(fixed);
-              this.log('取り込み（りざぶ郎）の直し', fixed, (prev.affiliation !== r.affiliation ? '学籍番号/所属を空に' : '') +
+              call.insertRes(fixed);
+              call.log('取り込み（りざぶ郎）の直し', fixed, (prev.affiliation !== r.affiliation ? '学籍番号/所属を空に' : '') +
                 (prev.start !== r.start || prev.end !== r.end ? (prev.affiliation !== r.affiliation ? '・' : '') + '時刻 ' + prev.start + '〜' + prev.end + ' から' : ''));
               out.fixed++;
               return;
             }
             const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: head.at, updatedAt: '', color: '' });
-            this.insertRes(created);
-            this.log('取り込み（りざぶ郎）', created, '');
+            call.insertRes(created);
+            call.log('取り込み（りざぶ郎）', created, '');
             out.added++;
           });
           out.problems = out.problems.slice(0, 20);
@@ -460,7 +493,7 @@
         console.error(e);
         return fail('サーバーでエラーが発生しました。', 'SERVER_ERROR');
       }
-      if (this.memo.wrote && this.hooks.changed) { try { this.hooks.changed(); } catch (e) { /* 無視 */ } }
+      if (call.memo.wrote && this.hooks.changed) { try { this.hooks.changed(); } catch (e) { /* 無視 */ } }
       return res;
     }
 
@@ -494,6 +527,7 @@
         rooms: this.readRooms().map(roomRow),
         closures: this.db.exec('SELECT * FROM closures ORDER BY n').map((c) => [c.date, c.room_id, c.st, c.en, c.reason]),
         settings: raw,
+        pkNotBefore: Number(this.kget('pkNotBefore') || 0), // GAS に戻したあとも、使えなくしたパスキーでのログインの印を使わせない
         bugs: this.db.exec('SELECT * FROM bugs ORDER BY received_at, id').map((b) => [b.id, b.received_at, b.status, b.message, b.contact, b.user_agent, b.screen, b.page, b.env]),
       };
     }
@@ -503,10 +537,18 @@
   // 画面から呼べる処理（中身は gas/Code.gs の同じ名前の処理と同じ。this は StoreCore）
   // ---------------------------------------------------------------------------
 
+  /** 閲覧パスワードを確かめる（gas/Code.gs の checkView_ と同じ。誤入力が全体で続いたら一定時間断り、その間は回数を増やさない） */
   function checkView(ctx, viewKey) {
     const pw = ctx.settings.viewPassword;
-    if (!pw || safeEqual(String(viewKey || ''), pw)) return null;
-    return fail(viewKey ? '閲覧パスワードが違います。' : '閲覧パスワードを入力してください。', 'AUTH_REQUIRED');
+    if (!pw) return null;
+    const key = String(viewKey || '');
+    const failures = Number(this.kget('viewFailures') || 0);
+    if (key && failures >= SYSTEM.MAX_VIEW_FAILURES) {
+      return fail('閲覧パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。', 'AUTH_REQUIRED');
+    }
+    if (safeEqual(key, pw)) return null;
+    if (key) this.kput('viewFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
+    return fail(key ? '閲覧パスワードが違います。' : '閲覧パスワードを入力してください。', 'AUTH_REQUIRED');
   }
   function visibleIn(ctx) {
     const ids = new Set(ctx.rooms.map((r) => r.id));
@@ -514,6 +556,7 @@
   }
   function limitedInfo(ctx) {
     if (ctx.limited.ok) return { limitedAccess: true };
+    if (ctx.limited.locked) return { limitedLocked: true };
     if (ctx.limited.denied) return { limitedDenied: true };
     return {};
   }
@@ -582,7 +625,7 @@
 
   function getSchedule(p) {
     const ctx = this.context(p);
-    const denied = checkView(ctx, p.viewKey);
+    const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const from = normDate(p.from);
     const to = normDate(p.to || p.from);
@@ -594,7 +637,7 @@
 
   function getReservationsByIds(p) {
     const ctx = this.context(p);
-    const denied = checkView(ctx, p.viewKey);
+    const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const ids = Array.from(new Set((Array.isArray(p.ids) ? p.ids : []).slice(0, 300).map(String)));
     const visible = visibleIn(ctx);
@@ -613,7 +656,7 @@
     const limited = this.writeLimit();
     if (limited) return limited;
     const ctx = this.context(p);
-    const denied = checkView(ctx, p.viewKey);
+    const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const admin = this.resolveAdmin(p.adminPassword);
     if (admin.error) return fail(admin.error);
@@ -635,7 +678,7 @@
     const limited = this.writeLimit();
     if (limited) return limited;
     const ctx = this.context(p);
-    const denied = checkView(ctx, p.viewKey);
+    const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     // 件数の上限は、一覧を作る前に確かめる（非常に長い一覧を送られても、重い処理をしないように）
     const maxN = ctx.settings.maxBulkCount;
@@ -700,7 +743,7 @@
     const limited = this.writeLimit();
     if (limited) return limited;
     const ctx = this.context(p);
-    const denied = checkView(ctx, p.viewKey);
+    const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const id = String(p.id || '').trim();
     if (!id) return fail('予約IDが指定されていません。');
@@ -758,7 +801,7 @@
     const limited = this.writeLimit();
     if (limited) return limited;
     const ctx = this.context(p);
-    const denied = checkView(ctx, p.viewKey);
+    const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const id = String(p.id || '').trim();
     if (!id) return fail('予約IDが指定されていません。');
@@ -766,9 +809,14 @@
     if (!target || !visibleIn(ctx)(target)) return fail('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
     const auth = checkPin.call(this, target, p.pin, p.adminPassword);
     if (auth.error) return fail(auth.error);
+    if (!auth.admin && isPast(target.date, target.end)) return fail('終了した予約は取り消せません。');
     if (!auth.admin && roomOf(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) return fail('この部屋の予約は管理者のみ取り消せます。');
+    // 管理者でなければ、終わった分・見えない部屋（限定公開）の分・管理者のみの部屋の分は取り消さずに残す
+    const visible = visibleIn(ctx);
     const targets = p.scope === 'following' && target.groupId
       ? this.resWhere('WHERE group_id = ? AND date >= ? ORDER BY date, st', target.groupId, target.date)
+        .filter((r) => r.id === target.id || auth.admin ||
+          (!isPast(r.date, r.end) && visible(r) && roomOf(ctx, r.roomId).restriction !== ROOM_RESTRICTIONS.ADMIN_ONLY))
       : [target];
     this.deleteRes(targets.map((r) => r.id));
     this.log(auth.admin ? '取消（管理者）' : '取消', target, targets.length > 1 ? targets.length + '件（' + targets.map((t) => t.date).join(', ') + '）' : '');
@@ -816,7 +864,6 @@
     this.db.exec('INSERT INTO bugs (id, received_at, status, message, contact, user_agent, screen, page, env) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', ...row);
     this.change('bug', row);
     this.memo.wrote = false; // 予約表には関係しないので、開いている画面には知らせない（写しは5分ごとのトリガーで）
-    this.memo.mirrorOnly = true;
     return { ok: true, id: row[0] };
   }
 
@@ -988,7 +1035,6 @@
     this.db.exec('UPDATE bugs SET status = ? WHERE id = ?', status, id);
     this.change('bug', [b.id, b.received_at, status, b.message, b.contact, b.user_agent, b.screen, b.page, b.env]);
     this.memo.wrote = false;
-    this.memo.mirrorOnly = true;
     return { ok: true };
   }
 
@@ -1024,6 +1070,7 @@
     const next = String(p.newPassword || '');
     if (next.length < 6 || !this.memo.newHash) return fail('新しいパスワードは6文字以上にしてください。');
     this.kput('adminPw', this.memo.newHash);
+    this.revokePasskeyTokens(Math.floor(Date.now() / 1000)); // パスキーでのログイン中の人も、ログインし直しにする
     this.logAdmin('管理用パスワード変更', '');
     return { ok: true };
   }
@@ -1392,7 +1439,8 @@
   function routeSync(core, req) {
     if (req.path === '/schedule' && req.method === 'GET') {
       const res = core.publicSchedule(req.query.get('from') || '', req.query.get('to') || req.query.get('from') || '');
-      return { status: 200, body: res || { ok: false, code: 'MISS' } };
+      // 正本のときに返せない（閲覧パスワード・範囲が広すぎる）なら primary を付ける。worker.js は D1 の古い写しを返さず、画面は正本の /api へ行く
+      return { status: 200, body: res || (core.isPrimary() ? { ok: false, code: 'MISS', primary: true } : { ok: false, code: 'MISS' }) };
     }
     // 【一時的】りざぶ郎からの移行の、最後の結果（件数だけ）
     if (req.path === '/rizaburo/last' && req.method === 'GET') return { status: 200, body: JSON.parse(core.kget('rizaburoLast') || '{"ok":null}') };
@@ -1403,6 +1451,7 @@
     if (req.path === '/mirror/changes' && req.method === 'GET') return { status: 200, body: core.sync('changes', { after: req.query.get('after') }) };
     if (req.path === '/mirror/full' && req.method === 'GET') return { status: 200, body: core.sync('full') };
     if (req.path === '/store/status' && req.method === 'GET') return { status: 200, body: core.sync('status') };
+    if (req.path === '/passkey/revoked' && req.method === 'POST') return { status: 200, body: core.sync('revoke') };
     if (req.path === '/rizaburo' && req.method === 'POST') return { status: 200, body: core.importRizaburo(req.body) }; // 【一時的】りざぶ郎からの移行用
     return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
   }
@@ -1410,4 +1459,5 @@
   g.StoreCore = StoreCore;
   g.StoreCore.handleHttp = handleHttp;
   g.StoreCore.routeSync = routeSync;
+  g.StoreCore.util = { hmac, b64url, safeEqual }; // worker.js も同じものを使う（パスキーの署名は Worker・Store・GAS で同じ形でなければ通らない）
 })(globalThis);

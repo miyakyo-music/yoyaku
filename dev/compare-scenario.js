@@ -10,6 +10,12 @@
   const rec = (name, r, extra) => { out.push([name, r.ok, r.code || '', (r.message || '').replace(/res_\w+/g, 'ID'), extra === undefined ? '' : extra]); return r; };
   const c = (fn, p) => callApi(fn, p);
   const base = { roomId: 'room_07', date: D, affiliation: 'G1', name: '甲', memo: '', pin: '1111' };
+  // 終わった予約は API では作れないので、両方の保存先（シートと Cloudflare）へ直接入れる（流していない方の分は使われない）
+  const put = (x) => {
+    const row = toRow_(Object.assign({ affiliation: '', pin: '', createdAt: T + ' 06:00:00', groupId: '', memo: '', updatedAt: '', color: '' }, x));
+    appendRows_(getSpreadsheet_().getSheetByName('予約台帳'), [row]);
+    devCf.core.db.exec('INSERT INTO reservations (id, date, room_id, st, en, affiliation, name, pin, created_at, group_id, memo, updated_at, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', ...row);
+  };
 
   let r = rec('sched', await c('getSchedule', { from: T, to: D }), null);
   out[out.length - 1][4] = [r.reservations.length, r.rooms.length, r.closures.length, r.settings.unitMinutes, r.settings.viewPasswordRequired];
@@ -57,6 +63,10 @@
   out[out.length - 1][4] = r.deletedIds && r.deletedIds.length;
   CacheService.getScriptCache().remove('writes_' + Math.floor(Date.now() / 60000)); // 削除の分で、書き込みの上限に当たらないよう数え直す
   devCf.core.kdel('writes_' + Math.floor(Date.now() / 60000));
+  // 終了した予約の取消（管理者だけができる）
+  put({ id: 'res_dev_past', date: T, roomId: 'room_13', start: '07:00', end: '08:00', name: '過去' });
+  rec('cancelPast', await c('cancelReservation', { id: 'res_dev_past' }));
+  rec('cancelPastAdmin', await c('cancelReservation', { id: 'res_dev_past', adminPassword: A }));
   rec('bug', await c('submitBugReport', { message: '=テスト', contact: 'x', env: { userAgent: 'UA', screen: '1x1', page: 'p' } }), null);
   r = rec('bugs', await c('adminGetBugReports', { adminPassword: A }));
   ids.bug = r.reports && r.reports[0] && r.reports[0].id;
@@ -88,6 +98,18 @@
   const minuteKey = 'writes_' + Math.floor(Date.now() / 60000);
   CacheService.getScriptCache().remove(minuteKey);
   devCf.core.kdel(minuteKey);
+  // まとめ予約の「この日以降を取り消す」: 管理者以外は、終わった分・見えない部屋（限定公開）・管理者のみの部屋の分を残す
+  r = await c('adminGetData', { adminPassword: A });
+  await c('adminSaveRooms', { adminPassword: A, rooms: r.rooms.map((x) => Object.assign({}, x, x.id === 'room_15' ? { restriction: '管理者のみ' } : {})) });
+  const series = [['s1', 'room_14', T, '10:00', '11:00'], ['s0', 'room_12', T, '07:00', '08:00'], ['s2', 'room_14', D7, '10:00', '11:00'],
+    ['s3', 'room_15', D7, '10:00', '11:00'], ['s4', newRoom, D7, '10:00', '11:00']];
+  series.forEach(([n, roomId, date, start, end]) => put({ id: 'res_dev_' + n, date, roomId, start, end, name: n, groupId: 'grp_dev_series' }));
+  r = rec('cancelFollowing', await c('cancelReservation', { id: 'res_dev_s1', scope: 'following' }));
+  out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.slice().sort().join(',');
+  r = rec('cancelFollowingLeft', await c('getReservationsByIds', { adminPassword: A, ids: series.map((x) => 'res_dev_' + x[0]) }));
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.name).sort().join(',');
+  r = rec('cancelFollowingAdmin', await c('cancelReservation', { id: 'res_dev_s0', adminPassword: A, scope: 'following' }));
+  out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.slice().sort().join(',');
   // 限定公開
   r = await c('adminGetData', { adminPassword: A });
   await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { limitedPassword: 'secret1' }) });
@@ -100,6 +122,16 @@
   r = rec('limitedBook', await c('createReservation', Object.assign({}, base, { roomId: newRoom, start: '10:00', end: '11:00', limitedKey: 'secret1', color: 'green' })));
   out[out.length - 1][4] = r.reservation && r.reservation.color;
   rec('limitedBookNo', await c('createReservation', Object.assign({}, base, { roomId: newRoom, start: '12:00', end: '13:00' })));
+  // 誤入力が続いて止めている間は、正しいパスワードでも通さず（端末の覚えは消させない）、回数も増やさない
+  for (let i = 0; i < 30; i++) await c('getSchedule', { from: D, to: D, limitedKey: 'bad' + i });
+  r = rec('limitedLocked', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedLocked || false, r.limitedDenied || false];
+  r = rec('limitedLockedAdmin', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1', adminPassword: A }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedLocked || false];
+  CacheService.getScriptCache().remove('limitedFailures');
+  devCf.core.kdel('limitedFailures');
+  r = rec('limitedAfterLock', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false];
   // 閲覧パスワード
   r = await c('adminGetData', { adminPassword: A });
   await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { viewPassword: 'view' }) });
@@ -107,6 +139,12 @@
   rec('viewBad', await c('getSchedule', { from: D, to: D, viewKey: 'x' }));
   r = rec('viewOk', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   out[out.length - 1][4] = r.settings && r.settings.viewPasswordRequired;
+  for (let i = 0; i < 30; i++) await c('getSchedule', { from: D, to: D, viewKey: 'x' + i });
+  rec('viewLocked', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
+  rec('viewLockedEmpty', await c('getSchedule', { from: D, to: D }));
+  CacheService.getScriptCache().remove('viewFailures');
+  devCf.core.kdel('viewFailures');
+  rec('viewAfterLock', await c('getSchedule', { from: D, to: D, viewKey: 'view' }), null);
   await c('adminSaveSettings', { adminPassword: A, settings: Object.assign({}, r.settings, { viewPassword: '', limitedPassword: 'secret1', closedWeekdays: [] }) });
   // 変更履歴（予約 ID は両方で違うので比べない）
   const logLine = (e) => [e.action, e.date, e.roomId, e.time, e.who].join(' ');
@@ -119,9 +157,15 @@
   r = rec('logQuery', await c('adminGetLog', { adminPassword: A, q: base.name + ' 変更' }));
   out[out.length - 1][4] = r.entries && r.entries.map(logLine).join(';');
   rec('logNoAdmin', await c('adminGetLog', {}));
-  // パスワード変更・パスキー
+  // パスワード変更・パスキー（パスワードを変えると、それより前に出たパスキーでのログインの印は使えない）
+  const pkToken = (exp) => 'pk1.' + exp + '.devtag.' + hmac_('devtoken', 'pk1.' + exp + '.devtag');
+  const nowSec = Math.floor(Date.now() / 1000);
+  const pkOld = pkToken(nowSec + 12 * 3600 - 60);
+  rec('pkBefore', await c('adminGetData', { adminPassword: pkOld }), null);
   rec('pwShort', await c('adminChangePassword', { adminPassword: A, newPassword: '123' }));
   rec('pwChange', await c('adminChangePassword', { adminPassword: A, newPassword: 'newpass1' }));
+  rec('pkAfter', await c('adminGetData', { adminPassword: pkOld }));
+  rec('pkNew', await c('adminGetData', { adminPassword: pkToken(nowSec + 12 * 3600 + 60) }), null);
   rec('pwOld', await c('adminGetData', { adminPassword: A }));
   rec('pwNew', await c('adminGetData', { adminPassword: 'newpass1' }), null);
   rec('pwBack', await c('adminChangePassword', { adminPassword: 'newpass1', newPassword: A }));

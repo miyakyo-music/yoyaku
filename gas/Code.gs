@@ -17,6 +17,7 @@
  * スクリプトプロパティ:
  *   ADMIN_PASSWORD  … 管理用パスワード（メニューから設定）。どの予約も変更・取消でき、各種制限を受けない。
  *   SPREADSHEET_ID  … （任意）データ保存先スプレッドシートのID
+ *   PK_NOT_BEFORE   … この時刻（秒）より前に出たパスキーでのログインの印は使えない（パスキーの削除・管理用パスワードの変更で入る）
  *   PRIMARY         … 'cloudflare' のとき、予約の正本は Cloudflare（cache/store.js）。このスクリプトは画面からの呼び出しに
  *                     「MOVED（Cloudflare を使って）」と返し、Cloudflare の変更をスプレッドシートへ写す係だけをする。
  *                     メニュー「Cloudflare に移す」「GAS に戻す」で切り替える（仕様書 4.6）
@@ -55,7 +56,9 @@ const SYSTEM = {
   MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
   LOG_PAGE: 200, // 管理画面の変更履歴を一度に読む件数
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
+  MAX_VIEW_FAILURES: 30, // 閲覧パスワードを、全体でこの回数間違えると一定時間受け付けない
   FAILURE_LOCK_SECONDS: 600,
+  PASSKEY_TOKEN_HOURS: 12, // パスキーでのログインの印の有効時間（cache/worker.js の TOKEN_HOURS と同じ）
   // 予約の登録・変更・取消を、全体で1分あたりこの件数までにする（Google の無料枠を使い切らないための上限）。
   // 1件の処理に約1秒かかり、同時には1件ずつしか書き込めないので、実際に受け付けられるのは多くても毎分60件ほど。
   // 練習室の予約で毎分30件を超えることは通常ないため、ふだんの利用には影響しない
@@ -70,7 +73,7 @@ let REQ_DEVICE_ = '';
  * 1回の呼び出しの中だけで使い回す覚え（doPost の最初に空にする）。速くするため、同じものを何度も読まない。
  *   ss: 開いたスプレッドシート / master: 設定・部屋・休館 / admin: 管理用パスワードの照合結果 /
  *   resAfter: 書き込んだ後の予約台帳（ロックの中で読んだものに変更を足したもの。写しづくりに使う） /
- *   pushVersion: 写しの版（ロックの中で決める）
+ *   pushVersion: 写しの版（ロックの中で決める） / locked: withLock_ のロックを持っている間 true
  */
 let MEMO_ = {};
 
@@ -128,6 +131,7 @@ const API = {
   adminChangePassword: adminChangePassword,
   adminPasskeyTicket: adminPasskeyTicket,
   mirrorNow: mirrorNow,
+  passkeyRevoked: passkeyRevoked,
 };
 
 /**
@@ -142,9 +146,8 @@ function doPost(e) {
     MEMO_ = {};
     REQ_DEVICE_ = String((req.params && req.params.adminDevice) || '').slice(0, 64);
     const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
-    if (fn && req.action !== 'mirrorNow' && isCloudflarePrimary_()) {
-      // 正本は Cloudflare に移っている。画面はこれを受けて Cloudflare へ送り直す（web/api.js）
-      result = { ok: false, code: 'MOVED', primary: 'cloudflare', message: '予約システムの保存先が切り替わりました。ページを再読み込みしてください。' };
+    if (fn && req.action !== 'mirrorNow' && req.action !== 'passkeyRevoked' && isCloudflarePrimary_()) {
+      result = moved_(); // 正本は Cloudflare に移っている。画面はこれを受けて Cloudflare へ送り直す（web/api.js）
     } else {
       result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
     }
@@ -160,6 +163,11 @@ function doPost(e) {
 /** 動作確認用（ブラウザで URL を開くと、API が動いているかがわかる） */
 function doGet() {
   return json_({ ok: true, service: '練習室予約API', apiVersion: API_VERSION, serverNow: nowStr_('yyyy-MM-dd HH:mm') });
+}
+
+/** 正本が Cloudflare に移っているときの応答 */
+function moved_() {
+  return { ok: false, code: 'MOVED', primary: 'cloudflare', message: '予約システムの保存先が切り替わりました。ページを再読み込みしてください。' };
 }
 
 function json_(obj) {
@@ -455,12 +463,17 @@ function cancelReservation(p) {
     if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
     const auth = checkPin_(target, p.pin, p.adminPassword);
     if (auth.error) return fail_(auth.error);
+    if (!auth.admin && isPast_(target.date, target.end)) return fail_('終了した予約は取り消せません。');
     if (!auth.admin && roomOf_(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) {
       return fail_('この部屋の予約は管理者のみ取り消せます。');
     }
 
+    // 管理者でなければ、終わった分・見えない部屋（限定公開）の分・管理者のみの部屋の分は取り消さずに残す
+    const visible = visibleIn_(ctx);
     const targets = p.scope === 'following' && target.groupId
       ? rows.filter(r => r.groupId === target.groupId && r.date >= target.date)
+        .filter(r => r.id === target.id || auth.admin ||
+          (!isPast_(r.date, r.end) && visible(r) && roomOf_(ctx, r.roomId).restriction !== ROOM_RESTRICTIONS.ADMIN_ONLY))
       : [target];
     // 下の行から削除して行番号のずれを防ぐ
     targets.map(r => r.row).sort((a, b) => b - a).forEach(row => ctx.resSheet.deleteRow(row));
@@ -501,9 +514,8 @@ function adminDeleteReservations(p) {
     MEMO_.resAfter = rows.filter(x => !gone.has(x.id));
     if (targets.length) {
       try {
-        const log = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
         const at = nowStr_('yyyy-MM-dd HH:mm:ss');
-        appendRows_(log, targets.map(r => [at, '削除（管理者）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
+        appendLog_(ss, targets.map(r => [at, '削除（管理者）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
           (r.affiliation ? r.affiliation + ' ' : '') + r.name, r.memo || '']));
       } catch (e) {
         console.error(e); // ログの失敗で削除自体は失敗させない
@@ -603,25 +615,8 @@ function adminSaveSettings(p) {
 
   return withLock_(() => {
     const ss = getSpreadsheet_();
-    const sheet = ensureSheet_(ss, SHEETS.settings, HEADERS.settings);
-    sheet.getRange('B:B').setNumberFormat('@');
-    const table = readTable_(sheet, 2);
-    const labels = table.map(r => r[0].trim());
-    const before = {};
-    SETTINGS.forEach(def => {
-      const idx = [def.label].concat(def.aliases || []).map(l => labels.indexOf(l)).find(i => i >= 0);
-      if (idx !== undefined) before[def.key] = table[idx][1];
-    });
-    SETTINGS.forEach(def => {
-      const idx = [def.label].concat(def.aliases || []).map(l => labels.indexOf(l)).find(i => i >= 0);
-      if (idx !== undefined) {
-        // 旧い項目名の行は新しい項目名に書き換える
-        sheet.getRange(idx + 2, 1, 1, 3).setValues([[def.label, v.value[def.key], def.desc]]);
-      } else {
-        sheet.getRange(sheet.getLastRow() + 1, 1, 1, 3).setValues([[def.label, v.value[def.key], def.desc]]);
-        labels.push(def.label);
-      }
-    });
+    const before = rawSettings_(ss);
+    writeSettingsSheet_(ss, v.value);
     SpreadsheetApp.flush();
     invalidateMaster_();
     const settings = loadSettings_(ss);
@@ -884,7 +879,9 @@ function adminChangePassword(p) {
   if (denied) return denied;
   const next = String(p.newPassword || '');
   if (next.length < 6) return fail_('新しいパスワードは6文字以上にしてください。');
+  if (cloudflarePrimaryNow_()) return moved_(); // 確かめている間に正本が Cloudflare に移っていたら変えない（移した後の値が届かないため）
   setProp_('ADMIN_PASSWORD', next);
+  revokePasskeyTokens_(Math.floor(Date.now() / 1000)); // パスキーでのログイン中の人も、ログインし直しにする
   logAdmin_(getSpreadsheet_(), '管理用パスワード変更', '');
   return { ok: true };
 }
@@ -983,9 +980,7 @@ function settingsDiff_(before, after) {
 
 function logAdmin_(ss, action, detail) {
   try {
-    const sheet = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
-    const row = [nowStr_('yyyy-MM-dd HH:mm:ss'), action, '', '', '', '', '管理者', detail];
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+    appendLog_(ss, [[nowStr_('yyyy-MM-dd HH:mm:ss'), action, '', '', '', '', '管理者', detail]]);
   } catch (e) {
     console.error(e);
   }
@@ -1138,11 +1133,32 @@ function cfCall_(method, path, body) {
   return data;
 }
 
-/** Cloudflare からの合図（予約が変わった）。誰が呼んでも、することは「Cloudflare から合言葉つきで読んで写す」だけ */
+/**
+ * Cloudflare からの合図（予約が変わった）。誰が呼んでも、することは「Cloudflare から合言葉つきで読んで写す」だけ。
+ * 誰でも呼べるので、続けて呼ばれても外への通信（1日の上限がある）が増えすぎないよう、8秒に1回までにする
+ * （Cloudflare の合図は10秒以上あけて届く。間引いた分は5分ごとの見回り cacheRetry が写す）
+ */
 function mirrorNow() {
   if (!isCloudflarePrimary_()) return { ok: true, skipped: true };
+  const cache = CacheService.getScriptCache();
+  if (Date.now() - Number(cache.get('mirrorNowAt') || 0) < 8000) return { ok: true, skipped: true };
+  cache.put('mirrorNowAt', String(Date.now()), 60);
   const r = mirrorPull_();
   return { ok: r.ok };
+}
+
+/**
+ * Cloudflare（worker.js）からの知らせ: パスキーが削除された。合言葉で署名してある（pkr.時刻）。
+ * この時刻より前に出たパスキーでのログインの印を使えなくする。正本がどちらでも受ける
+ */
+function passkeyRevoked(p) {
+  const key = passkeyKey_();
+  const at = Number(p && p.at);
+  if (!key || !Number.isInteger(at) || Math.abs(at - Date.now() / 1000) > 600 || String(p.sig || '') !== hmac_(key, 'pkr.' + at)) {
+    return fail_('署名が正しくありません。', 'UNAUTHORIZED');
+  }
+  revokePasskeyTokens_(at);
+  return { ok: true };
 }
 
 /** Cloudflare に積まれた変更を、順番どおりにスプレッドシートへ写す。{ok, applied} / {ok:false, message} */
@@ -1151,28 +1167,32 @@ function mirrorPull_() {
   // ほかの写しが動いていれば、それが終わるのを待ってから続きを写す（その間に積まれた変更を取りこぼさない）
   if (!lock.tryLock(8000)) return { ok: true, applied: 0, busy: true };
   try {
-    const ss = getSpreadsheet_();
-    const props = PropertiesService.getScriptProperties();
-    let applied = 0;
-    for (let round = 0; round < 10; round++) {
-      const after = Number(props.getProperty('MIRROR_SEQ') || 0);
-      const res = cfCall_('get', '/mirror/changes?after=' + after);
-      if (!res.ok) return { ok: false, message: res.message || res.code };
-      if (res.changes.length) {
-        applyMirror_(ss, res.changes);
-        SpreadsheetApp.flush();
-        applied += res.changes.length;
-      }
-      props.setProperty('MIRROR_SEQ', String(res.seq));
-      if (!res.more) break;
-    }
-    return { ok: true, applied: applied };
+    return { ok: true, applied: mirrorPullLocked_(getSpreadsheet_()) };
   } catch (e) {
     console.error(e);
     return { ok: false, message: String(e && e.message || e).slice(0, 300) };
   } finally {
     lock.releaseLock();
   }
+}
+
+/** mirrorPull_ の中身（ロックの中で呼ぶ）。写した変更の件数を返す。読めなければ例外 */
+function mirrorPullLocked_(ss) {
+  const props = PropertiesService.getScriptProperties();
+  let applied = 0;
+  for (let round = 0; round < 10; round++) {
+    const after = Number(props.getProperty('MIRROR_SEQ') || 0);
+    const res = cfCall_('get', '/mirror/changes?after=' + after);
+    if (!res.ok) throw new Error(res.message || res.code);
+    if (res.changes.length) {
+      applyMirror_(ss, res.changes);
+      SpreadsheetApp.flush();
+      applied += res.changes.length;
+    }
+    props.setProperty('MIRROR_SEQ', String(res.seq));
+    if (!res.more) break;
+  }
+  return applied;
 }
 
 /** 変更の一覧を写す。予約は ID ごとに最後の状態だけを反映する（書き換え → 消す → 足す の順） */
@@ -1222,10 +1242,7 @@ function applyMirror_(ss, changes) {
       sheet.getRange(row, 1, 1, HEADERS.bugs.length).setNumberFormat('@').setValues([bugs[id]]);
     });
   }
-  if (logs.length) {
-    const sheet = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
-    sheet.getRange(sheet.getLastRow() + 1, 1, logs.length, HEADERS.log.length).setNumberFormat('@').setValues(logs);
-  }
+  appendLog_(ss, logs); // 失敗したら例外にして、写した番号（MIRROR_SEQ）を進めない（次にやり直す）
 }
 
 /** シートの2行目から下を、rows で置き換える */
@@ -1254,8 +1271,12 @@ function writeSettingsSheet_(ss, values) {
   });
 }
 
-/** Cloudflare の中身で、スプレッドシートを丸ごと写し直す（ロックの中で呼ぶ）。写した予約の件数を返す */
+/**
+ * Cloudflare の中身で、スプレッドシートを丸ごと写し直す（ロックの中で呼ぶ）。写した予約の件数を返す。
+ * 操作ログは丸ごとの中身に入っていないので、先に積まれた変更を写しておく（まだ写していないログを捨てないように）
+ */
 function mirrorFull_(ss) {
+  mirrorPullLocked_(ss);
   const res = cfCall_('get', '/mirror/full');
   if (!res.ok) throw new Error(res.message || res.code);
   replaceRows_(ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations), HEADERS.reservations.length, res.reservations);
@@ -1265,19 +1286,29 @@ function mirrorFull_(ss) {
   replaceRows_(ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs), HEADERS.bugs.length, res.bugs);
   SpreadsheetApp.flush();
   PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', String(res.seq));
+  revokePasskeyTokens_(Number(res.pkNotBefore) || 0); // Cloudflare で使えなくしたパスキーでのログインの印は、GAS でも使わない
   return res.reservations.length;
 }
 
 /** メニュー: Cloudflare の中身で、スプレッドシートを丸ごと写し直す（写しがずれたと思ったとき） */
 function mirrorFullMenu() {
   if (!isCloudflarePrimary_()) { alert_('いまは GAS（このスプレッドシート）が正本です。写し直す必要はありません。'); return; }
+  withMenuLock_(() => {
+    try {
+      const n = mirrorFull_(getSpreadsheet_());
+      alert_('Cloudflare の内容で写し直しました（予約 ' + n + ' 件）。');
+    } catch (e) {
+      alert_('写し直せませんでした。\n理由: ' + (e && e.message || e));
+    }
+  });
+}
+
+/** メニューの処理を、スクリプトのロックの中で行う（予約の書き込みや写しと重ならないように。取れなければ知らせて終える） */
+function withMenuLock_(fn) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) { alert_('他の処理が実行中です。少し待ってから再度実行してください。'); return; }
   try {
-    const n = mirrorFull_(getSpreadsheet_());
-    alert_('Cloudflare の内容で写し直しました（予約 ' + n + ' 件）。');
-  } catch (e) {
-    alert_('写し直せませんでした。\n理由: ' + (e && e.message || e));
+    fn();
   } finally {
     lock.releaseLock();
   }
@@ -1294,48 +1325,47 @@ function migrateToCloudflare() {
   if (!confirm_('予約の正本を Cloudflare に移します（1分ほどかかり、その間は予約を受け付けません）。\n' +
     '移したあとは、このスプレッドシートは写しになります（ここを書き換えても予約表には反映されません。変更は管理画面から）。\n' +
     'よろしいですか？')) return;
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(30000)) { alert_('他の処理が実行中です。少し待ってから再度実行してください。'); return; }
-  try {
-    setProp_('PRIMARY', 'cloudflare'); // 先に GAS での書き込みを止める（移している間に入った予約が取り残されないように）
-    const ss = getSpreadsheet_();
-    const begin = cfCall_('post', '/migrate', { op: 'begin' });
-    if (!begin.ok) throw new Error(begin.message || begin.code);
-    const rows = readTable_(getSheet_(ss, SHEETS.reservations), HEADERS.reservations.length).filter(r => String(r[0]).trim());
-    for (let i = 0; i < rows.length; i += 500) {
-      const part = cfCall_('post', '/migrate', { op: 'reservations', rows: rows.slice(i, i + 500) });
-      if (!part.ok) throw new Error(part.message || part.code);
+  withMenuLock_(() => {
+    try {
+      setProp_('PRIMARY', 'cloudflare'); // 先に GAS での書き込みを止める（移している間に入った予約が取り残されないように）
+      const ss = getSpreadsheet_();
+      const begin = cfCall_('post', '/migrate', { op: 'begin' });
+      if (!begin.ok) throw new Error(begin.message || begin.code);
+      const rows = readTable_(getSheet_(ss, SHEETS.reservations), HEADERS.reservations.length).filter(r => String(r[0]).trim());
+      for (let i = 0; i < rows.length; i += 500) {
+        const part = cfCall_('post', '/migrate', { op: 'reservations', rows: rows.slice(i, i + 500) });
+        if (!part.ok) throw new Error(part.message || part.code);
+      }
+      const closureSheet = ss.getSheetByName(SHEETS.closures);
+      const bugSheet = ss.getSheetByName(SHEETS.bugs);
+      const master = cfCall_('post', '/migrate', {
+        op: 'master',
+        rooms: readTable_(getSheet_(ss, SHEETS.rooms), HEADERS.rooms.length),
+        closures: closureSheet ? readTable_(closureSheet, HEADERS.closures.length) : [],
+        settings: rawSettings_(ss),
+        bugs: bugSheet ? readTable_(bugSheet, HEADERS.bugs.length).filter(r => String(r[0]).trim()) : [],
+        adminPassword: prop_('ADMIN_PASSWORD'),
+        adminDevices: prop_('ADMIN_DEVICES') || '{}',
+        pkNotBefore: Number(prop_('PK_NOT_BEFORE') || 0),
+        spreadsheetUrl: ss.getUrl(),
+      });
+      if (!master.ok) throw new Error(master.message || master.code);
+      const ids = new Set(rows.map(r => String(r[0]).trim()));
+      const check = cfCall_('get', '/store/status');
+      if (check.reservations !== ids.size) throw new Error('予約の件数が合いません（スプレッドシート ' + ids.size + ' 件、Cloudflare ' + check.reservations + ' 件）。');
+      const done = cfCall_('post', '/migrate', { op: 'finish' }); // ここから Cloudflare で受付を始める
+      if (!done.ok) throw new Error(done.message || done.code);
+      PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', '0');
+      logAdmin_(ss, '正本を Cloudflare に移動', '予約 ' + ids.size + ' 件');
+      alert_('予約の正本を Cloudflare に移しました（予約 ' + ids.size + ' 件・部屋 ' + done.rooms + ' 室・休館 ' + done.closures + ' 件・不具合報告 ' + done.bugs + ' 件）。\n' +
+        '開いている予約表は、次の操作のときに自動で Cloudflare に切り替わります。');
+    } catch (e) {
+      console.error(e);
+      try { cfCall_('post', '/migrate', { op: 'disable' }); } catch (e2) { /* 届かなければ、もともと受け付けていない */ }
+      setProp_('PRIMARY', '');
+      alert_('移せませんでした。GAS（このスプレッドシート）が正本のままです。\n理由: ' + (e && e.message || e));
     }
-    const closureSheet = ss.getSheetByName(SHEETS.closures);
-    const bugSheet = ss.getSheetByName(SHEETS.bugs);
-    const master = cfCall_('post', '/migrate', {
-      op: 'master',
-      rooms: readTable_(getSheet_(ss, SHEETS.rooms), HEADERS.rooms.length),
-      closures: closureSheet ? readTable_(closureSheet, HEADERS.closures.length) : [],
-      settings: rawSettings_(ss),
-      bugs: bugSheet ? readTable_(bugSheet, HEADERS.bugs.length).filter(r => String(r[0]).trim()) : [],
-      adminPassword: prop_('ADMIN_PASSWORD'),
-      adminDevices: prop_('ADMIN_DEVICES') || '{}',
-      spreadsheetUrl: ss.getUrl(),
-    });
-    if (!master.ok) throw new Error(master.message || master.code);
-    const ids = new Set(rows.map(r => String(r[0]).trim()));
-    const check = cfCall_('get', '/store/status');
-    if (check.reservations !== ids.size) throw new Error('予約の件数が合いません（スプレッドシート ' + ids.size + ' 件、Cloudflare ' + check.reservations + ' 件）。');
-    const done = cfCall_('post', '/migrate', { op: 'finish' }); // ここから Cloudflare で受付を始める
-    if (!done.ok) throw new Error(done.message || done.code);
-    PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', '0');
-    logAdmin_(ss, '正本を Cloudflare に移動', '予約 ' + ids.size + ' 件');
-    alert_('予約の正本を Cloudflare に移しました（予約 ' + ids.size + ' 件・部屋 ' + done.rooms + ' 室・休館 ' + done.closures + ' 件・不具合報告 ' + done.bugs + ' 件）。\n' +
-      '開いている予約表は、次の操作のときに自動で Cloudflare に切り替わります。');
-  } catch (e) {
-    console.error(e);
-    try { cfCall_('post', '/migrate', { op: 'disable' }); } catch (e2) { /* 届かなければ、もともと受け付けていない */ }
-    setProp_('PRIMARY', '');
-    alert_('移せませんでした。GAS（このスプレッドシート）が正本のままです。\n理由: ' + (e && e.message || e));
-  } finally {
-    lock.releaseLock();
-  }
+  });
 }
 
 /**
@@ -1345,30 +1375,28 @@ function migrateToCloudflare() {
 function rollbackToGas() {
   if (!isCloudflarePrimary_()) { alert_('いまは GAS（このスプレッドシート）が正本です。'); return; }
   if (!confirm_('予約の正本を GAS（このスプレッドシート）に戻します。\nCloudflare の最新の内容でシートを写し直してから切り替えます。よろしいですか？')) return;
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(30000)) { alert_('他の処理が実行中です。少し待ってから再度実行してください。'); return; }
-  let stopped = false;
-  try {
-    const off = cfCall_('post', '/migrate', { op: 'disable' }); // Cloudflare での受付を止める
-    if (!off.ok) throw new Error(off.message || off.code);
-    stopped = true;
-    const ss = getSpreadsheet_();
-    const n = mirrorFull_(ss);
-    setProp_('PRIMARY', '');
-    invalidateMaster_();
-    bumpScheduleVersion_();
-    MEMO_ = {};
-    pushCache_(); // 高速キャッシュの写しも、シートの内容で作り直す
-    logAdmin_(ss, '正本を GAS に戻す', '予約 ' + n + ' 件');
-    alert_('予約の正本を GAS に戻しました（予約 ' + n + ' 件）。\n' +
-      '管理用パスワードは、Cloudflare に移す前のもの（スクリプトプロパティの ADMIN_PASSWORD）に戻ります。');
-  } catch (e) {
-    console.error(e);
-    if (stopped) { try { cfCall_('post', '/migrate', { op: 'finish' }); } catch (e2) { /* 下で知らせる */ } }
-    alert_('戻せませんでした。Cloudflare が正本のままです。\n理由: ' + (e && e.message || e));
-  } finally {
-    lock.releaseLock();
-  }
+  withMenuLock_(() => {
+    let stopped = false;
+    try {
+      const off = cfCall_('post', '/migrate', { op: 'disable' }); // Cloudflare での受付を止める
+      if (!off.ok) throw new Error(off.message || off.code);
+      stopped = true;
+      const ss = getSpreadsheet_();
+      const n = mirrorFull_(ss);
+      setProp_('PRIMARY', '');
+      invalidateMaster_();
+      bumpScheduleVersion_();
+      MEMO_ = {};
+      pushCache_(); // 高速キャッシュの写しも、シートの内容で作り直す
+      logAdmin_(ss, '正本を GAS に戻す', '予約 ' + n + ' 件');
+      alert_('予約の正本を GAS に戻しました（予約 ' + n + ' 件）。\n' +
+        '管理用パスワードは、Cloudflare に移す前のもの（スクリプトプロパティの ADMIN_PASSWORD）に戻ります。');
+    } catch (e) {
+      console.error(e);
+      if (stopped) { try { cfCall_('post', '/migrate', { op: 'finish' }); } catch (e2) { /* 下で知らせる */ } }
+      alert_('戻せませんでした。Cloudflare が正本のままです。\n理由: ' + (e && e.message || e));
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1438,6 +1466,8 @@ function setup() {
  * 今年度以降の予約（年度をまたいで先に入っている予約）は台帳に残る。
  */
 function archivePreviousFiscalYear() {
+  // Cloudflare が正本のときは、写しのシートからだけ消えて正本には残り、GAS に戻したときに台帳とアーカイブで二重になる
+  if (isCloudflarePrimary_()) { alert_('予約の正本が Cloudflare にある間は、アーカイブできません。先に「予約の正本を GAS に戻す」を行ってください。'); return; }
   const ss = getSpreadsheet_();
   const sheet = getSheet_(ss, SHEETS.reservations);
   const now = new Date();
@@ -1450,19 +1480,17 @@ function archivePreviousFiscalYear() {
 
   if (!confirm_(cutoff + ' より前の予約を「' + archiveName + '」シートへ移動します。よろしいですか？')) return;
 
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(30000)) {
-    alert_('他の処理が実行中です。少し待ってから再度実行してください。');
-    return;
-  }
-  try {
+  let moved = 0;
+  let message = '';
+  withMenuLock_(() => {
+    if (cloudflarePrimaryNow_()) { message = '予約の正本が Cloudflare に移ったため、アーカイブしませんでした。'; return; }
     const last = sheet.getLastRow();
     const values = last >= 2 ? sheet.getRange(2, 1, last - 1, width).getDisplayValues() : [];
     const rows = values.filter(r => String(r[0]).trim());
     const old = rows.filter(r => normDate_(r[1]) < cutoff);
     const keep = rows.filter(r => !(normDate_(r[1]) < cutoff));
     if (!old.length) {
-      alert_('アーカイブ対象（' + cutoff + ' より前）の予約はありません。');
+      message = 'アーカイブ対象（' + cutoff + ' より前）の予約はありません。';
       return;
     }
     const archive = ensureSheet_(ss, archiveName, HEADERS.reservations);
@@ -1470,10 +1498,15 @@ function archivePreviousFiscalYear() {
     sheet.getRange(2, 1, values.length, width).clearContent();
     if (keep.length) sheet.getRange(2, 1, keep.length, width).setNumberFormat('@').setValues(keep);
     SpreadsheetApp.flush();
-    alert_(old.length + ' 件を「' + archiveName + '」へ移動しました（台帳に残った予約: ' + keep.length + ' 件）。');
-  } finally {
-    lock.releaseLock();
+    moved = old.length;
+    message = old.length + ' 件を「' + archiveName + '」へ移動しました（台帳に残った予約: ' + keep.length + ' 件）。';
+  });
+  if (moved) {
+    // 覚えていた予約表と高速キャッシュの写しからも、移した予約を消す
+    bumpScheduleVersion_();
+    pushCache_();
   }
+  if (message) alert_(message);
 }
 
 function setAdminPassword() {
@@ -1483,7 +1516,6 @@ function setAdminPassword() {
     ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
   const value = res.getResponseText().trim();
-  const props = PropertiesService.getScriptProperties();
   if (!value) {
     setProp_('ADMIN_PASSWORD', '');
     ui.alert('管理用パスワードを無効化しました。');
@@ -1494,6 +1526,7 @@ function setAdminPassword() {
     return;
   }
   setProp_('ADMIN_PASSWORD', value);
+  revokePasskeyTokens_(Math.floor(Date.now() / 1000)); // パスキーでのログイン中の人も、ログインし直しにする
   ui.alert('管理用パスワードを設定しました。');
 }
 
@@ -1557,15 +1590,22 @@ function onEdit() {
   try { invalidateMaster_(); bumpScheduleVersion_(); } catch (e) { /* 単純トリガーで使えない環境では、最長2分で反映 */ }
 }
 
-/** 限定公開の部屋を見られるか。{ok} / {ok:false, denied:true}（パスワードが違う） */
+/**
+ * 限定公開の部屋を見られるか。{ok} / {ok:false, denied:true}（パスワードが違う） /
+ * {ok:false, locked:true}（誤入力が続いて止めている。止めている間は合っていても通さず、回数も増やさない。
+ * 止める時間が延び続けたり、正しいパスワードを覚えた端末から消されたりしないように）
+ */
 function limitedAccess_(settings, p, isAdmin) {
   const pw = settings.limitedPassword;
   const key = String(p.limitedKey || '');
   if (key) {
-    const cache = CacheService.getScriptCache();
-    const failures = Number(cache.get('limitedFailures') || 0);
-    if (pw && failures < SYSTEM.MAX_LIMITED_FAILURES && key === pw) return { ok: true };
-    cache.put('limitedFailures', String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS); // 総当たり対策
+    const failures = Number(CacheService.getScriptCache().get('limitedFailures') || 0);
+    if (failures < SYSTEM.MAX_LIMITED_FAILURES) {
+      if (pw && key === pw) return { ok: true };
+      countFailure_('limitedFailures'); // 総当たり対策
+    } else if (!isAdmin) {
+      return { ok: false, locked: true };
+    }
   }
   if (isAdmin) return { ok: true };
   return key ? { ok: false, denied: true } : { ok: false };
@@ -1580,14 +1620,37 @@ function visibleIn_(ctx) {
 /** 画面に返す、限定公開の状態（パスワードを入れていない人には何も返さない） */
 function limitedInfo_(ctx) {
   if (ctx.limited.ok) return { limitedAccess: true };
+  if (ctx.limited.locked) return { limitedLocked: true };
   if (ctx.limited.denied) return { limitedDenied: true };
   return {};
 }
 
+/** 閲覧パスワードを確かめる。誤入力が全体で続いたら一定時間断る（その間は合っていても通さず、回数も増やさない） */
 function checkView_(ctx, viewKey) {
   const pw = ctx.settings.viewPassword;
-  if (!pw || String(viewKey || '') === pw) return null;
-  return fail_(viewKey ? '閲覧パスワードが違います。' : '閲覧パスワードを入力してください。', 'AUTH_REQUIRED');
+  if (!pw) return null;
+  const key = String(viewKey || '');
+  if (key && Number(CacheService.getScriptCache().get('viewFailures') || 0) >= SYSTEM.MAX_VIEW_FAILURES) {
+    return fail_('閲覧パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。', 'AUTH_REQUIRED');
+  }
+  if (key === pw) return null;
+  if (key) countFailure_('viewFailures');
+  return fail_(key ? '閲覧パスワードが違います。' : '閲覧パスワードを入力してください。', 'AUTH_REQUIRED');
+}
+
+/**
+ * 誤入力の回数を1つ増やす（10分で消える）。同時にたくさん送られても数えもらさないよう、ロックの中で読んで足す
+ * （予約の書き込みのロック withLock_ の中なら、すでに持っているのでそのまま足す）。正しいときはロックを使わない
+ */
+function countFailure_(key) {
+  const cache = CacheService.getScriptCache();
+  const lock = MEMO_.locked ? null : LockService.getScriptLock();
+  const got = !lock || lock.tryLock(2000);
+  try {
+    cache.put(key, String(Number(cache.get(key) || 0) + 1), SYSTEM.FAILURE_LOCK_SECONDS);
+  } finally {
+    if (lock && got) lock.releaseLock();
+  }
 }
 
 /** 管理用パスワードが指定されていれば照合する。{ok:true} / {ok:false} / {error} */
@@ -1614,13 +1677,12 @@ function verifyAdminOnce_(password) {
   // （誰かがわざと間違え続けて全体がロックされても、いつもの端末からは管理者が入れるように）
   const trusted = isTrustedDevice_(REQ_DEVICE_);
   const failKey = trusted ? 'adminfail_' + REQ_DEVICE_ : 'adminfail';
-  const cache = CacheService.getScriptCache();
-  const failures = Number(cache.get(failKey) || 0);
+  const failures = Number(CacheService.getScriptCache().get(failKey) || 0);
   if (failures >= SYSTEM.MAX_PIN_FAILURES * 2) {
     return '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
   }
   if (String(password) !== adminPassword) {
-    cache.put(failKey, String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS);
+    countFailure_(failKey);
     return '管理用パスワードが一致しません。';
   }
   return null;
@@ -1635,7 +1697,16 @@ function verifyPasskeyToken_(token) {
   const key = passkeyKey_();
   if (!m || !key || hmac_(key, 'pk1.' + m[1] + '.' + m[2]) !== m[3]) return '管理用パスワードが一致しません。';
   if (Number(m[1]) < Date.now() / 1000) return 'パスキーでのログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
+  // パスキーの削除・管理用パスワードの変更より前に出た印は使えない（なくした端末に残った印で入られないように）
+  if (Number(m[1]) - SYSTEM.PASSKEY_TOKEN_HOURS * 3600 <= Number(prop_('PK_NOT_BEFORE') || 0)) {
+    return 'パスキーの削除か管理用パスワードの変更があったため、ログインし直してください（パスキーか管理用パスワード）。';
+  }
   return null;
+}
+
+/** この時刻（秒）までに出たパスキーでのログインの印を使えなくする（今より前の時刻には戻さない） */
+function revokePasskeyTokens_(at) {
+  if (at > Number(prop_('PK_NOT_BEFORE') || 0)) setProp_('PK_NOT_BEFORE', String(at));
 }
 
 /** パスキーの印の署名に使う鍵（高速キャッシュとの合言葉）。設定されていなければ空 */
@@ -1713,7 +1784,7 @@ function checkPin_(target, pin, adminPassword) {
     cache.remove(failKey);
     return { admin: false };
   }
-  cache.put(failKey, String(failures + 1), SYSTEM.FAILURE_LOCK_SECONDS);
+  countFailure_(failKey);
   return { error: '編集用パスワードが一致しません。' };
 }
 
@@ -1995,12 +2066,21 @@ function appendRows_(sheet, rows) {
 
 function log_(ss, action, r, detail) {
   try {
-    const sheet = ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log);
-    const row = [nowStr_('yyyy-MM-dd HH:mm:ss'), action, r.id, r.date, r.roomId, r.start + '〜' + r.end, (r.affiliation ? r.affiliation + ' ' : '') + r.name, detail || r.memo || ''];
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+    appendLog_(ss, [[nowStr_('yyyy-MM-dd HH:mm:ss'), action, r.id, r.date, r.roomId, r.start + '〜' + r.end, (r.affiliation ? r.affiliation + ' ' : '') + r.name, detail || r.memo || '']]);
   } catch (e) {
     console.error(e); // ログの失敗で予約処理自体は失敗させない
   }
+}
+
+/** 操作ログのシートに行を足す（失敗したら例外。予約の処理からは log_・logAdmin_ を通して、失敗しても続ける） */
+function appendLog_(ss, rows) {
+  if (!rows.length) return;
+  appendRows_(ss.getSheetByName(SHEETS.log) || ensureSheet_(ss, SHEETS.log, HEADERS.log), rows);
+}
+
+/** 今の正本が Cloudflare か（覚えた値を使わず、スクリプトプロパティから読む。ロックを待つ間に移った場合も見落とさない） */
+function cloudflarePrimaryNow_() {
+  return PropertiesService.getScriptProperties().getProperty('PRIMARY') === 'cloudflare';
 }
 
 function withLock_(fn, opts) {
@@ -2010,8 +2090,10 @@ function withLock_(fn, opts) {
   }
   const push = !(opts && opts.noPush);
   let result;
+  MEMO_.locked = true;
   try {
-    result = fn();
+    // ロックを待っている間に、正本が Cloudflare に移されていたら書き込まない（移した後のシートに書いても正本に入らない）
+    result = cloudflarePrimaryNow_() ? moved_() : fn();
     // 書き込み（操作ログも含む）は、ロックを外す前に確定させる（次の人が古い内容を読んだり、同じ行に書いたりしないように）
     SpreadsheetApp.flush();
     if (result && result.ok && push) {
@@ -2019,6 +2101,7 @@ function withLock_(fn, opts) {
       MEMO_.pushVersion = Date.now(); // 写しの版はロックの中で決める（書き込んだ順＝版の順になり、古い写しで上書きされない）
     }
   } finally {
+    MEMO_.locked = false;
     lock.releaseLock();
   }
   // 高速キャッシュ（Cloudflare）を使っているときは、変わった予約表の写しを送る（ロックを外してから。失敗しても予約は成功のまま）

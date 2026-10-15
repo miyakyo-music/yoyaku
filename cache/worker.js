@@ -1,12 +1,16 @@
 /**
  * 練習室予約の「高速キャッシュ」（Cloudflare Workers ＋ D1）
  *
- * 予約の正本はスプレッドシート（GAS）。ここは、予約表に出す分の写しを置いて速く返すだけ。
- * - GAS が予約・設定の変更のたびに、写しをまとめて POST /push で送ってくる（合言葉つき）。
+ * 予約の正本は、GAS（スプレッドシート）か、下の Store（store.js）のどちらか（GAS のメニューで切り替える。仕様書 4.6）。
+ * - GAS が正本のとき: D1 に予約表の写しを置いて速く返す。GAS が予約・設定の変更のたびに、写しをまとめて
+ *   POST /push で送ってくる（合言葉つき）。
+ * - Cloudflare が正本のとき: 予約表は Store が返す。GAS は /push を送らないので、D1 の写しは移した時点のまま
+ *   古くなる。そのため移したとき（/migrate の finish）に D1 の写しを使わない印（disabled）を付け、使わない。
  * - 予約表は GET /schedule?from=YYYY-MM-DD&to=YYYY-MM-DD で読む。返す形は GAS の getSchedule と同じ。
- * - 写しの範囲外・写しがない・閲覧パスワード使用中などは { ok:false, code:'MISS' } を返し、予約表は GAS から読み直す。
+ * - 写しの範囲外・写しがない・閲覧パスワード使用中などは { ok:false, code:'MISS' } を返し、予約表は GAS から読み直す
+ *   （Cloudflare が正本なら、GAS が「MOVED」と返し、画面は Store の /api から読む）。
  *
- * 置くのは、予約表を開けば誰でも見られる内容だけ（編集用パスワード・限定公開の部屋は GAS 側で除いてから送る）。
+ * D1 に置くのは、予約表を開けば誰でも見られる内容だけ（編集用パスワード・限定公開の部屋は GAS 側で除いてから送る）。
  * 外部の部品（ライブラリ）は使わない。
  *
  * もう1つの役目: 管理画面のパスキー（Face ID / Touch ID）ログイン。GAS では署名の確認ができないので、ここで確かめる。
@@ -37,6 +41,7 @@
 import './store.js';
 
 const StoreCore = globalThis.StoreCore;
+const { hmac, b64url, safeEqual } = StoreCore.util; // 合言葉の照合と署名は、Store（store.js）と同じものを使う
 let tableReady = false;
 
 export default {
@@ -45,20 +50,30 @@ export default {
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
     if (url.pathname === '/live') return live(request, env);
     try {
-      if (url.pathname === '/api' && request.method === 'POST') return apiCors(await store(env).fetch(request), env);
-      if (url.pathname === '/migrate' || url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/rizaburo/last') return await store(env).fetch(request);
-      if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
-        // 正本になっていれば正本から（まだなら、これまでどおり写しから）
+      // /api の応答は、予約表のサイトからだけ読めるようにする（本文は text/plain で届くので、事前確認は来ない）
+      if (url.pathname === '/api' && request.method === 'POST') return withCors(await store(env).fetch(request), String(env.PASSKEY_ORIGIN || '*'));
+      if (url.pathname === '/migrate') {
         const res = await store(env).fetch(request);
         const data = await res.clone().json().catch(() => null);
-        if (data && data.ok) return cors(new Response(res.body, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }));
+        // 正本を Cloudflare に移したら（finish）、もう更新されない D1 の写しは使わない
+        if (data && data.ok && data.primary === true) await disableCopy(env);
+        return res;
+      }
+      if (url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/rizaburo/last') return await store(env).fetch(request);
+      if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
+        // 正本になっていれば正本から（まだなら、これまでどおり写しから）。
+        // 正本なのに返せないとき（閲覧パスワード・範囲が広すぎる。primary 付きの MISS）は、D1 の古い写しを返さず MISS のまま返す
+        const res = await store(env).fetch(request);
+        const data = await res.clone().json().catch(() => null);
+        if (data && (data.ok || data.primary)) return cors(new Response(res.body, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }));
       }
       await ensureTable(env);
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
       if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
       if (url.pathname === '/rizaburo/run' && request.method === 'POST') return await rizaburoRun(url, request, env);
       if (url.pathname === '/push' && request.method === 'POST') return await push(request, env, ctx);
-      if (url.pathname.startsWith('/passkey/')) return passkeyCors(await passkey(url.pathname.slice(9), request, env), env);
+      // パスキーの応答は、管理画面のサイトからだけ読めるようにする
+      if (url.pathname.startsWith('/passkey/')) return withCors(await passkey(url.pathname.slice(9), request, env, ctx), String(env.PASSKEY_ORIGIN || `https://${env.PASSKEY_RP_ID}`));
       if (url.pathname === '/') return cors(json(await status(env)));
       return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
     } catch (e) {
@@ -176,7 +191,7 @@ const CHALLENGE_SEC = 180; // 確認用の文字列の有効時間
 const MAX_PASSKEYS = 30;
 
 /** /passkey/〜 の処理。本文は JSON（CORS の事前確認を避けるため、画面は text/plain で送る） */
-async function passkey(op, request, env) {
+async function passkey(op, request, env, ctx) {
   const rpId = String(env.PASSKEY_RP_ID || '').trim();
   const key = String(env.PUSH_TOKEN || '').trim();
   if (!rpId || !key) return json({ ok: false, code: 'DISABLED', message: 'パスキーは使えない設定です。' });
@@ -203,6 +218,7 @@ async function passkey(op, request, env) {
   }
   if (op === 'delete') {
     await env.DB.prepare('DELETE FROM passkeys WHERE id = ?').bind(String(body.id || '')).run();
+    await revokePasskeyTokens(env, ctx, key);
     return json({ ok: true });
   }
   if (op !== 'register' && op !== 'login') return json({ ok: false, code: 'NOT_FOUND' }, 404);
@@ -258,13 +274,23 @@ async function passkey(op, request, env) {
   return json({ ok: true, name: row.name, token: `pk1.${exp}.${tag}.${await hmac(key, `pk1.${exp}.${tag}`)}` });
 }
 
-/** パスキーの応答は、管理画面のサイトからだけ読めるようにする */
-function passkeyCors(res, env) {
-  const h = new Headers(res.headers);
-  h.set('Access-Control-Allow-Origin', String(env.PASSKEY_ORIGIN || `https://${env.PASSKEY_RP_ID}`));
-  h.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  h.set('Vary', 'Origin');
-  return new Response(res.body, { status: res.status, headers: h });
+/**
+ * パスキーを削除したら、それまでに出したログインの印（pk1）を使えなくする（なくした端末に残った印で入られないように）。
+ * 印を確かめる Store（正本の Cloudflare）と GAS の両方に、今の時刻を知らせる。GAS には合言葉の署名（pkr.時刻）を付けて送る
+ */
+async function revokePasskeyTokens(env, ctx, key) {
+  if (env.STORE) {
+    const res = await store(env).fetch('https://store/passkey/revoked', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: '{}' });
+    if (!res.ok) throw new Error('Store ' + res.status);
+  }
+  const gas = String(env.GAS_URL || '').trim();
+  if (!gas) return;
+  const at = Math.floor(Date.now() / 1000);
+  const sent = fetch(gas, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
+    body: JSON.stringify({ action: 'passkeyRevoked', params: { at, sig: await hmac(key, 'pkr.' + at) } }),
+  }).catch(() => {}); // 届かなくても、正本を切り替えるときに Store の時刻が GAS へ渡る
+  if (ctx && ctx.waitUntil) ctx.waitUntil(sent);
 }
 
 function importKey(spki, alg) {
@@ -291,12 +317,7 @@ function derToRaw(der) {
   return r && s ? concat(r, s) : null;
 }
 
-async function hmac(key, message) {
-  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return b64url(new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(message))));
-}
 async function sha256(bytes) { return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)); }
-function b64url(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function b64urlDecode(text) {
   const t = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
   try { return Uint8Array.from(atob(t + '==='.slice((t.length + 3) % 4)), (c) => c.charCodeAt(0)); } catch (e) { return new Uint8Array(0); }
@@ -307,6 +328,19 @@ function equalBytes(a, b) { return a.length === b.length && a.every((v, i) => v 
 async function readMeta(env) {
   const row = await env.DB.prepare("SELECT v FROM cache WHERE k = 'meta'").first();
   return row ? JSON.parse(row.v) : null;
+}
+
+/** D1 の写しを使わない印を付ける（正本を Cloudflare に移したとき。GAS に戻すと、GAS の /push で新しい写しが入る） */
+async function disableCopy(env) {
+  try {
+    await ensureTable(env);
+    const meta = await readMeta(env);
+    if (!meta || meta.disabled) return;
+    meta.disabled = true;
+    await env.DB.prepare("INSERT OR REPLACE INTO cache (k, v) VALUES ('meta', ?)").bind(JSON.stringify(meta)).run();
+  } catch (e) {
+    console.error(e); // 付けられなくても、正本の /schedule が primary 付きで返すので、古い写しは使われない
+  }
 }
 
 /** 動作確認用（ブラウザで開くと、写しの版と送られた時刻がわかる） */
@@ -403,7 +437,8 @@ function icsResponse(url) {
   };
   const text = (t) => String(t).replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, (c) => '\\' + c);
   const room = q('room') || '練習室';
-  const site = /^https:\/\/[\w.-]+\.github\.io\//.test(q('site')) ? q('site') : '';
+  // サイトの URL は全体を確かめる（改行などを入れて、カレンダーのファイルに好きな行を差し込ませないように）
+  const site = /^https:\/\/[\w.-]+\.github\.io\/[^\s\x00-\x1f\x7f]*$/.test(q('site')) ? q('site') : '';
   const id = (q('id').replace(/[^\w-]/g, '') || stamp(date, start)) + '@miyakyo-music.github.io';
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//miyakyo-music//yoyaku//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
@@ -427,10 +462,10 @@ function icsResponse(url) {
 
 function store(env) { return env.STORE.get(env.STORE.idFromName('main')); }
 
-/** /api の応答は、予約表のサイトからだけ読めるようにする（本文は text/plain で届くので、事前確認は来ない） */
-function apiCors(res, env) {
+/** POST の応答（/api・/passkey/〜）を、allowOrigin のサイトからだけ読めるようにする */
+function withCors(res, allowOrigin) {
   const h = new Headers(res.headers);
-  h.set('Access-Control-Allow-Origin', String(env.PASSKEY_ORIGIN || '*'));
+  h.set('Access-Control-Allow-Origin', allowOrigin);
   h.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   h.set('Vary', 'Origin');
   return new Response(res.body, { status: res.status, headers: h });
@@ -564,14 +599,6 @@ function monthsBetween(from, to) {
 function nowJst() {
   const d = new Date(Date.now() + 9 * 3600 * 1000);
   return d.toISOString().slice(0, 16).replace('T', ' ');
-}
-
-/** 合言葉の照合（文字列の長さ・中身で時間差が出ないように比べる） */
-function safeEqual(a, b) {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 function json(obj, status = 200, headers = {}) {
