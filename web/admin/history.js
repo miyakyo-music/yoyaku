@@ -231,6 +231,7 @@ $('xDelBtn').addEventListener('click', async () => {
     const res = await api('adminDeleteReservations', { ids });
     if (!res.ok) throw new Error(res.message);
     exportCache = null; // 次の表示は読み直す
+    for (const k of Object.keys(statsCache)) delete statsCache[k]; // 統計も読み直す
     toast(`${res.deletedIds.length}件を削除しました`);
     setPicking(false);
   } catch (e) {

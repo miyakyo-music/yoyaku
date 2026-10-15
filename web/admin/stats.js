@@ -6,7 +6,8 @@
 // GAS は一度に42日分までしか返さないので、期間を区切って3つずつ並べて読む。個人ごとの集計は作らない。
 const WD = '日月火水木金土';
 let statsPeriod = 'month';
-const statsCache = {};
+const statsCache = {}; // 期間ごとの読み込み（読み込み中のものも入れ、同じ期間を続けて押しても二重に読まない）
+let statsSeq = 0;
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 function statsRange(period) {
   const now = new Date();
@@ -40,21 +41,28 @@ async function fetchReservations(from, to) {
 }
 
 async function loadStats() {
-  const range = statsRange(statsPeriod);
+  const seq = ++statsSeq; // 期間をすばやく切り替えたとき、あとから届いた前の期間の結果は描かない
+  const period = statsPeriod;
+  const range = statsRange(period);
   $('statsRange').textContent = `${range.label}: ${range.from.replace(/-/g, '/')} 〜 ${range.to.replace(/-/g, '/')}`;
   const msg = $('statsMsg');
-  if (!statsCache[statsPeriod]) {
-    msg.hidden = false; msg.className = 'msg'; msg.textContent = '集計しています…（今年度は少し時間がかかります）';
-    $('statsBody').hidden = true;
-    try {
-      statsCache[statsPeriod] = await fetchReservations(range.from, range.to);
-    } catch (e) {
-      msg.className = 'msg error'; msg.textContent = errMessage(e);
-      return;
-    }
+  // 読み込み済みなら、待たずに続きへ進むので「集計しています…」は画面に出ない
+  msg.hidden = false; msg.className = 'msg'; msg.textContent = '集計しています…（今年度は少し時間がかかります）';
+  $('statsBody').hidden = true;
+  if (!statsCache[period]) statsCache[period] = fetchReservations(range.from, range.to);
+  const req = statsCache[period];
+  let list;
+  try {
+    list = await req;
+  } catch (e) {
+    if (statsCache[period] === req) delete statsCache[period]; // 次に押したときは読み直す
+    if (seq !== statsSeq) return;
+    msg.className = 'msg error'; msg.textContent = errMessage(e);
+    return;
   }
+  if (seq !== statsSeq) return;
   msg.hidden = true;
-  renderStats(range, statsCache[statsPeriod]);
+  renderStats(range, list);
   $('statsBody').hidden = false;
 }
 
