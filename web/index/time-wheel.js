@@ -175,6 +175,9 @@ for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
 }
 
 function setTime(hSel, mSel, min) {
+  // 選択肢にない時刻（予約単位の刻みでない・利用時間の外）は、欄が空になって0時と読まれるので、選べる時刻に寄せる
+  const s = state.settings, u = s.unitMinutes;
+  min = Math.max(ceilTo(toMin(s.openTime), u), Math.min(floorTo(toMin(s.closeTime), u), ceilTo(min, u)));
   hSel.value = String(Math.floor(min / 60)); mSel.value = String(min % 60);
   syncWheel(hSel); syncWheel(mSel);
 }

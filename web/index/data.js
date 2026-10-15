@@ -140,6 +140,8 @@ async function load(opts) {
     show(entry, key);
     afterShow(opts);
   } catch (e) {
+    // 前回の表・高速キャッシュの写しを出して「更新中…」にしていたら、出している表の時刻に戻す
+    if (seq === state.seq && state.data) stampStatus();
     if (opts.background) return; // 自動更新の失敗は知らせない（次の更新で取り直す）
     if (seq === state.seq && !(e instanceof AuthError)) {
       toast(errMessage(e), 'error');
@@ -164,13 +166,21 @@ function show(entry, key) {
   const keyChanged = state.shownKey !== shownKey;
   state.shownKey = shownKey;
   if (res.limitedDenied && state.limitedKey) endLimited('限定公開の部屋のパスワードが変更されたため、表示を終了しました。');
+  // パスワードは合っているが、間違いが続いてサーバーがしばらく受け付けないとき: 端末のパスワードは残し、限定公開のまま知らせる
+  // （限定公開の部屋はその間だけ表に出ない。自動更新のたびに知らせないよう、5分あける）
+  const locked = !!(res.limitedLocked && state.limitedKey && !entry.saved);
+  if (locked && !(Date.now() - (state.limitedLockedAt || 0) < 5 * 60 * 1000)) {
+    state.limitedLockedAt = Date.now();
+    toast('限定公開の部屋を表示できませんでした。しばらくしてからもう一度お試しください。', 'error');
+  }
+  if (locked && state.limitedEntry) { state.limitedEntry = false; dropLimitedQuery(); } // 入口の URL から来ても、パスワードは尋ねない
   if (state.limitedEntry && res.ok && !entry.saved) {
     // 入口の URL から来たとき: 見られれば設備の絞り込みを演習室などに合わせ、見られなければパスワードを尋ねる。
     // 端末に覚えておいた前回の表では決めない（管理者モードで覚えた表は「見られる」になっていて、尋ねずに終わっていた）
     state.limitedEntry = false;
     if (res.limitedAccess) { focusLimitedRooms(res.rooms); dropLimitedQuery(); } else askLimited();
   }
-  $('limitedMode').hidden = !(state.limitedKey && res.limitedAccess);
+  $('limitedMode').hidden = !(state.limitedKey && (res.limitedAccess || res.limitedLocked));
   // 管理者モードでは、未対応の不具合報告の件数を「管理」に出す
   const bugs = isAdminMode() ? Number(res.openBugs) || 0 : 0;
   $('bugBadge').hidden = !bugs;
@@ -200,6 +210,10 @@ function showInBackground(entry, key, seq) {
   // 中身が同じなら描き直さない（ただし ?limited から来たときは、パスワードを尋ねるかをここで決めるので描き直す）
   if (!state.limitedEntry && state.data && state.shownKey === `${state.view}|${key}` && sig(entry.res) === sig(state.data)) {
     stampStatus(entry.at);
+    // 現在時刻の線・過ぎた時間・空室ランプ・終わった帯は時刻で変わるので、今日を含む表は、描いた分から変わっていれば描き直す
+    const today = todayStr();
+    const showsToday = today >= state.data.from && today <= state.data.to;
+    if ((showsToday || !String(state.renderedAt).startsWith(today)) && state.renderedAt !== `${today} ${nowMin()}` && !userBusy()) render();
     return;
   }
   const tryShow = () => {
@@ -233,7 +247,7 @@ function visibleReservations() {
   const { from, to, reservations } = state.data;
   const ids = new Set(reservations.map((r) => r.id));
   const list = reservations.filter((r) => !state.hidden.has(r.id));
-  for (const p of state.pending) if (p.r.date >= from && p.r.date <= to && !ids.has(p.r.id)) list.push(p.r);
+  for (const p of state.pending) if (p.r.date >= from && p.r.date <= to && !ids.has(p.r.id) && !state.hidden.has(p.r.id)) list.push(p.r);
   return list;
 }
 

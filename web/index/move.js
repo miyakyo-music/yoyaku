@@ -9,7 +9,7 @@ let move = null;
 let moveClickBlockUntil = 0;
 function hideHoverCard() { $('hoverCard').hidden = true; }
 function canMove(r) {
-  if (!r || r.pending) return false;
+  if (!r || r.pending || r.settling) return false;
   const room = roomById(r.roomId);
   const ended = r.date < todayStr() || (r.date === todayStr() && toMin(r.end) <= nowMin());
   return !ended && !(room && room.restriction === ADMIN_ONLY && !isAdminMode());

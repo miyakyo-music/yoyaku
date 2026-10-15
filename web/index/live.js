@@ -48,9 +48,9 @@ function connectLive() {
     liveReload = setTimeout(() => { if (!document.hidden) load({ force: true, background: true }); }, Math.random() * 400);
   };
   ws.onclose = () => {
+    if (live !== ws) return; // 前の接続が遅れて閉じたときは、今の接続の ping や状態に触れない
     clearInterval(livePing);
     liveInfo.state = '切断'; liveInfo.closes++;
-    if (live !== ws) return;
     live = null;
     if (!document.hidden) liveTimer = setTimeout(connectLive, Math.min(60 * 1000, 2000 * 2 ** liveRetry++));
   };

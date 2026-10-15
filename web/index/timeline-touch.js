@@ -142,14 +142,14 @@ function finishDrag() {
 
 function cancelDrag() { edgeStop(); if (drag) { drag.ghost.remove(); drag = null; } }
 
-/** クリック・タップ: 30分単位の位置から1時間（空きが足りなければ空きの範囲）で予約画面を開く */
+/** クリック・タップ: 30分単位（slotStep）の位置から1時間（空きが足りなければ空きの範囲）で予約画面を開く */
 function slotAt(track, clientX) {
   const row = state.rows[Number(track.dataset.i)];
   if (row.stopped) { toast('この部屋は現在使用停止中です。', 'error'); return null; }
   const m = minuteAt(track, clientX);
   const free = freeSpanAt(row, m);
   if (!free) return null;
-  const start = Math.max(free[0], floorTo(m, 30));
+  const start = Math.max(free[0], floorTo(m, slotStep()));
   const end = Math.min(free[1], start + 60);
   return { mode: 'create', roomId: row.roomId, date: row.date, start, end };
 }

@@ -48,6 +48,7 @@ $('limitedForm').addEventListener('submit', async (e) => {
   $('limError').textContent = '';
   try {
     const res = await api('getSchedule', Object.assign(currentRange(), { limitedKey: key }));
+    if (res && res.limitedLocked) throw new Error('しばらくしてからもう一度お試しください。');
     if (!res || !res.limitedAccess) throw new Error((res && !res.ok && res.message) || 'パスワードが違います。');
     state.limitedKey = key;
     save_(LS.limitedKey, key);

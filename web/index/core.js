@@ -67,6 +67,7 @@ const state = {
   pending: [],          // 楽観的に画面へ反映した新規予約 { r, status: 'sending' | 'done' }
   hidden: new Map(),    // 楽観的に画面から消した予約 id → 予約日
   lastError: '',
+  renderedAt: '',       // 最後に表を描いた日と時刻（分）
 };
 
 // ---------------- 汎用 ----------------
@@ -98,6 +99,8 @@ function durationLabel(min) {
 }
 function floorTo(m, u) { return Math.floor(m / u) * u; }
 function ceilTo(m, u) { return Math.ceil(m / u) * u; }
+/** 押した所・今の時刻から予約画面を開くときの刻み: 30分。予約単位が30分を割り切れない（12・20・60分）ときは1時間（予約単位はどれも60を割り切る） */
+function slotStep() { return 30 % state.settings.unitMinutes === 0 ? 30 : 60; }
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

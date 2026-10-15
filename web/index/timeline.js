@@ -15,6 +15,7 @@ function closuresFor(date, roomId) {
 }
 
 function render() {
+  state.renderedAt = `${todayStr()} ${nowMin()}`; // 描いた日と時刻（分）。自動更新で中身が同じでも、分が変われば描き直すため
   if (isOffline() && state.shownKey !== `${state.view}|${rangeKey(currentRange())}`) {
     $('main').innerHTML = '<p class="empty">オフラインのため、この期間の予約を表示できません。</p>';
     liftFab();

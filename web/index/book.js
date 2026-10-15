@@ -5,7 +5,7 @@ function defaultStart(date) {
   const s = state.settings;
   const open = toMin(s.openTime);
   if (date !== todayStr()) return open;
-  return Math.max(open, ceilTo(nowMin(), 30));
+  return Math.max(open, ceilTo(nowMin(), slotStep()));
 }
 
 /**
@@ -51,7 +51,9 @@ function openBooking(o) {
   $('bRoomQuickField').hidden = !quick;
   $('bRoomField').hidden = quick;
 
-  const date = at ? at.date : edit ? r.date : (o.date || state.date);
+  let date = at ? at.date : edit ? r.date : (o.date || state.date);
+  // 今日の利用時間が終わったあとに開いた新規予約（時刻の指定なし）は、翌日にする（今日の時刻は選べないため）
+  if (!edit && o.start == null && date === todayStr() && defaultStart(date) + s.unitMinutes > toMin(s.closeTime)) date = addDays(date, 1);
   $('bDate').value = date;
   $('bDate').min = edit ? '' : todayStr();
   fillTimeSelects($('bStartH'), $('bStartM'));
@@ -463,6 +465,7 @@ async function submitBooking(e) {
     if (res && res.ok) {
       const list = res.reservations || [res.reservation];
       if (!edit) addMine(list);
+      else if (list.some((r) => isMine(r.id))) addMine(list.filter((r) => isMine(r.id))); // 変更後の日付で記録し直す
       $('bookDialog').close();
       const skipped = res.skipped && res.skipped.length ? `（予約できなかった${res.skipped.length}件を除く）` : '';
       toast(edit ? (list.length > 1 ? `${list.length}件の予約をまとめて変更しました` : '予約を変更しました') : `${list.length}件予約しました${skipped}`);

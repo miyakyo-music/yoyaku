@@ -14,7 +14,7 @@ function personText(r) { return r.affiliation ? `${r.name}（${r.affiliation}）
 function openDetail(id) {
   const r = visibleReservations().find((x) => x.id === id);
   if (!r) return;
-  if (r.pending) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
+  if (r.pending || r.settling) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
   state.detail = r;
   const room = roomById(r.roomId);
   $('dRoom').textContent = room ? roomText(room) : r.roomId;
