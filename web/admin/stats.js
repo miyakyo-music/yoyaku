@@ -4,9 +4,9 @@
 // ---------------- 統計 ----------------
 // 予約表と同じ getSchedule（管理者なので限定公開の部屋も含む）で期間の予約を読み、ここで集計する。
 // GAS は一度に42日分までしか返さないので、期間を区切って3つずつ並べて読む。個人ごとの集計は作らない。
-const WD = '日月火水木金土';
 let statsPeriod = 'month';
-const statsCache = {};
+const statsCache = {}; // 期間ごとの読み込み（読み込み中のものも入れ、同じ期間を続けて押しても二重に読まない）
+let statsSeq = 0;
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 function statsRange(period) {
   const now = new Date();
@@ -40,21 +40,28 @@ async function fetchReservations(from, to) {
 }
 
 async function loadStats() {
-  const range = statsRange(statsPeriod);
+  const seq = ++statsSeq; // 期間をすばやく切り替えたとき、あとから届いた前の期間の結果は描かない
+  const period = statsPeriod;
+  const range = statsRange(period);
   $('statsRange').textContent = `${range.label}: ${range.from.replace(/-/g, '/')} 〜 ${range.to.replace(/-/g, '/')}`;
   const msg = $('statsMsg');
-  if (!statsCache[statsPeriod]) {
-    msg.hidden = false; msg.className = 'msg'; msg.textContent = '集計しています…（今年度は少し時間がかかります）';
-    $('statsBody').hidden = true;
-    try {
-      statsCache[statsPeriod] = await fetchReservations(range.from, range.to);
-    } catch (e) {
-      msg.className = 'msg error'; msg.textContent = errMessage(e);
-      return;
-    }
+  // 読み込み済みなら、待たずに続きへ進むので「集計しています…」は画面に出ない
+  msg.hidden = false; msg.className = 'msg'; msg.textContent = '集計しています…（今年度は少し時間がかかります）';
+  $('statsBody').hidden = true;
+  if (!statsCache[period]) statsCache[period] = fetchReservations(range.from, range.to);
+  const req = statsCache[period];
+  let list;
+  try {
+    list = await req;
+  } catch (e) {
+    if (statsCache[period] === req) delete statsCache[period]; // 次に押したときは読み直す
+    if (seq !== statsSeq) return;
+    msg.className = 'msg error'; msg.textContent = errMessage(e);
+    return;
   }
+  if (seq !== statsSeq) return;
   msg.hidden = true;
-  renderStats(range, statsCache[statsPeriod]);
+  renderStats(range, list);
   $('statsBody').hidden = false;
 }
 
@@ -64,7 +71,7 @@ function renderStats(range, list) {
   const s = state.data.settings;
   const open = toMin(s.openTime), close = toMin(s.closeTime);
   const rooms = state.data.rooms;
-  const days = daysIn(range.from, range.to).filter((d) => !s.closedWeekdays.includes(new Date(d + 'T00:00').getDay()));
+  const days = daysIn(range.from, range.to).filter((d) => !s.closedWeekdays.includes(weekdayOf(d)));
   const total = list.reduce((a, r) => a + (toMin(r.end) - toMin(r.start)), 0);
   $('stCount').textContent = `${list.length}件`;
   $('stHours').textContent = hoursText(total);
@@ -74,9 +81,9 @@ function renderStats(range, list) {
   const h0 = Math.floor(open / 60), h1 = Math.ceil(close / 60);
   const grid = Array.from({ length: 7 }, () => new Array(h1 - h0).fill(0));
   const dayCount = new Array(7).fill(0);
-  for (const d of daysIn(range.from, range.to)) dayCount[new Date(d + 'T00:00').getDay()]++;
+  for (const d of daysIn(range.from, range.to)) dayCount[weekdayOf(d)]++;
   for (const r of list) {
-    const wd = new Date(r.date + 'T00:00').getDay();
+    const wd = weekdayOf(r.date);
     const a = toMin(r.start), b = toMin(r.end);
     for (let h = h0; h < h1; h++) {
       const ov = Math.min(b, (h + 1) * 60) - Math.max(a, h * 60);
@@ -87,12 +94,12 @@ function renderStats(range, list) {
   const max = Math.max(0.0001, ...avg.flat());
   let peak = null;
   avg.forEach((row, wd) => row.forEach((v, i) => { if (!peak || v > peak.v) peak = { v, wd, h: h0 + i }; }));
-  $('stPeak').textContent = peak && peak.v > 0 ? `${WD[peak.wd]}曜 ${peak.h}時台` : '—';
+  $('stPeak').textContent = peak && peak.v > 0 ? `${WEEKDAY_NAMES[peak.wd]}曜 ${peak.h}時台` : '—';
   const order = [1, 2, 3, 4, 5, 6, 0]; // 月曜はじまり
   let html = '<div class="hc"></div>' + Array.from({ length: h1 - h0 }, (_, i) => `<div class="hh">${(h0 + i) % 3 === 0 ? h0 + i : ''}</div>`).join('');
   for (const wd of order) {
-    html += `<div class="hd ${wd === 0 ? 'sun' : wd === 6 ? 'sat' : ''}">${WD[wd]}</div>`;
-    html += avg[wd].map((v, i) => `<div class="hx" style="--v:${(v / max).toFixed(3)}" title="${WD[wd]}曜 ${h0 + i}時台: 平均 ${v.toFixed(1)}部屋"></div>`).join('');
+    html += `<div class="hd ${wdClass(wd)}">${WEEKDAY_NAMES[wd]}</div>`;
+    html += avg[wd].map((v, i) => `<div class="hx" style="--v:${(v / max).toFixed(3)}" title="${WEEKDAY_NAMES[wd]}曜 ${h0 + i}時台: 平均 ${v.toFixed(1)}部屋"></div>`).join('');
   }
   const heat = $('stHeat');
   heat.style.setProperty('--cols', h1 - h0);

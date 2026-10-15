@@ -41,13 +41,15 @@ function showAdmin() {
   if (d.spreadsheetUrl) { $('sheetLink').href = d.spreadsheetUrl; $('sheetLink').hidden = false; }
   setBugBadge(d.openBugs);
   document.title = d.settings.title + '（管理画面）';
-  state.rooms = d.rooms.map((r) => ({ ...r }));
+  // ログインの印が切れてログインし直したときは、保存していない練習室・一般の編集をそのまま残す
+  if (!state.dirty.rooms) loadRooms(d.rooms);
   state.closures = d.closures.slice();
   renderRooms();
-  fillSettings(d.settings);
+  if (!state.dirty.settings) fillSettings(d.settings); else fillPasswords(d.settings);
   renderClosureForm();
   renderExportForm();
   renderClosures();
-  setDirty('rooms', false);
-  setDirty('settings', false);
+  if (!state.dirty.rooms) setDirty('rooms', false);
+  if (!state.dirty.settings) setDirty('settings', false);
 }
+$('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });

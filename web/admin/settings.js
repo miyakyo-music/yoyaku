@@ -1,8 +1,9 @@
 // 管理画面: 設定の「一般」（利用時間・予約の制限・お知らせ）
 'use strict';
 
-// ---------------- 利用時間・制限 ----------------
+// ---------------- 一般 ----------------
 function fillSettings(s) {
+  state.settingsBase = s;
   $('sTitle').value = s.title;
   $('sNotice').value = s.notice || '';
   $('sNoticeLevel').value = s.noticeLevel === '重要' ? '重要' : '通常';
@@ -16,7 +17,7 @@ function fillSettings(s) {
   $('sMaxDays').value = s.maxDaysAhead;
   $('sMaxBulk').value = s.maxBulkCount;
   $('sWeekdays').innerHTML = [...WEEKDAY_NAMES].map((w, i) =>
-    `<label class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
+    `<label class="${wdClass(i)}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
   $('sBulkAdmin').checked = !!s.bulkRequiresAdmin;
   fillPasswords(s);
   $('settingsError').textContent = '';
@@ -29,7 +30,7 @@ $('saveSettingsBtn').addEventListener('click', async () => {
   const err = $('settingsError');
   err.textContent = '';
   $('settingsWarn').textContent = '';
-  const settings = {
+  const mine = {
     title: $('sTitle').value,
     notice: $('sNotice').value,
     noticeLevel: $('sNoticeLevel').value,
@@ -41,14 +42,18 @@ $('saveSettingsBtn').addEventListener('click', async () => {
     maxBulkCount: Number($('sMaxBulk').value || 0),
     closedWeekdays: [...$('sWeekdays').querySelectorAll('input:checked')].map((c) => Number(c.value)),
     bulkRequiresAdmin: $('sBulkAdmin').checked,
-    // パスワード類は「パスワード」タブで保存する。ここでは保存済みの値をそのまま送る
-    viewPassword: state.data.settings.viewPassword || '',
-    limitedPassword: state.data.settings.limitedPassword || '',
   };
-  if (toMin(settings.closeTime) <= toMin(settings.openTime)) { err.textContent = '利用終了時刻は利用開始時刻より後にしてください。'; return; }
+  if (toMin(mine.closeTime) <= toMin(mine.openTime)) { err.textContent = '利用終了時刻は利用開始時刻より後にしてください。'; return; }
   const btn = $('saveSettingsBtn');
   btn.disabled = true;
   try {
+    // 保存の直前に最新の設定を読み直し、この画面で変えた項目だけを重ねる
+    // （開いたあとに予約表でお知らせを変えた、ほかの画面でパスワードを変えた、などを戻さないため）
+    const latest = (await fetchLatest()).settings;
+    const base = state.settingsBase || {};
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const settings = Object.assign({}, latest);
+    for (const k of Object.keys(mine)) if (!same(mine[k], base[k])) settings[k] = mine[k];
     const res = await api('adminSaveSettings', { settings });
     if (!res.ok) throw new Error(res.message);
     state.data.settings = res.settings;

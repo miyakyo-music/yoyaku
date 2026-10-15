@@ -8,6 +8,12 @@ function roomSumHtml(r) {
   const restr = r.restriction ? `<span class="chip warn">${esc(r.restriction)}</span>` : '';
   return `<span class="s-name">${esc(r.name) || '（名前未入力）'}</span>${tags}${restr}<span class="s-eq">${esc(r.equipment)}</span><span class="chev" aria-hidden="true">▾</span>`;
 }
+/** サーバーから読んだ部屋一覧を、編集中の一覧にする（ほかの画面での変更に気づけるよう、読んだ内容も覚えておく） */
+const roomsKey = (rooms) => JSON.stringify(rooms.map((r) => [r.id, r.name, r.tags, r.equipment, r.restriction, r.note].map((v) => String(v ?? ''))));
+function loadRooms(rooms) {
+  state.rooms = rooms.map((r) => ({ ...r }));
+  state.roomsBase = roomsKey(rooms);
+}
 function renderRooms() {
   const equip = [...new Set(state.rooms.map((r) => r.equipment).concat(['グランドピアノ', 'アップライトピアノ', '電子ピアノ', '大部屋']).filter(Boolean))];
   $('equipList').innerHTML = equip.map((e) => `<option value="${esc(e)}">`).join('');
@@ -28,15 +34,6 @@ function renderRooms() {
 
 $('roomList').addEventListener('input', (e) => {
   const el = e.target.closest('[data-f]');
-  if (!el) return;
-  const row = el.closest('.room');
-  const r = state.rooms[Number(row.dataset.i)];
-  r[el.dataset.f] = el.value;
-  row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
-  checkDirty('rooms');
-});
-$('roomList').addEventListener('change', (e) => {
-  const el = e.target.closest('select[data-f]');
   if (!el) return;
   const row = el.closest('.room');
   const r = state.rooms[Number(row.dataset.i)];
@@ -134,10 +131,13 @@ $('saveRoomsBtn').addEventListener('click', async () => {
   const btn = $('saveRoomsBtn');
   btn.disabled = true;
   try {
+    // 一覧は丸ごと置き換わるので、開いたあとにほかの画面で部屋が変わっていたら保存しない（足された部屋を黙って消さないため）
+    const latest = (await fetchLatest()).rooms;
+    if (roomsKey(latest) !== state.roomsBase) throw new Error('ほかの画面で練習室が変更されたため、保存しませんでした。ページを読み込み直してから変更してください。');
     const res = await api('adminSaveRooms', { rooms: state.rooms });
     if (!res.ok) throw new Error(res.message);
     state.data.rooms = res.rooms;
-    state.rooms = res.rooms.map((r) => ({ ...r }));
+    loadRooms(res.rooms);
     renderRooms();
     renderClosureForm();
     renderExportForm();

@@ -68,7 +68,9 @@ $('closureForm').addEventListener('submit', async (e) => {
     const picked = closurePick.ids();
     const ids = picked.length ? picked : [''];
     closurePick.close();
-    await saveClosures(state.closures.concat(ids.map((roomId) => ({ ...item, roomId }))), ids.length > 1 ? `${ids.length}室に追加しました` : '追加しました');
+    // ほかの画面で足した分を消さないよう、最新の一覧を読み直してから足す
+    const latest = (await fetchLatest()).closures;
+    await saveClosures(latest.concat(ids.map((roomId) => ({ ...item, roomId }))), ids.length > 1 ? `${ids.length}室に追加しました` : '追加しました');
     $('cReason').value = '';
   } catch (ex) {
     $('closureError').textContent = errMessage(ex);
@@ -83,7 +85,17 @@ $('closureList').addEventListener('click', async (e) => {
   if (!confirm(`${dateLabel(c.date).text} ${roomName(c.roomId)}「${c.reason || '利用停止'}」を削除しますか？`)) return;
   b.disabled = true;
   try {
-    await saveClosures(state.closures.filter((_, i) => i !== Number(b.dataset.del)), '削除しました');
+    // 最新の一覧を読み直し、同じ内容の1件だけを抜く（ほかの画面で足した・消した分を巻き込まないため）
+    const latest = (await fetchLatest()).closures;
+    const key = (x) => JSON.stringify([x.date, x.roomId || '', !!x.allDay, x.start, x.end, x.reason || '']);
+    const at = latest.findIndex((x) => key(x) === key(c));
+    if (at < 0) {
+      state.closures = state.data.closures = latest;
+      renderClosures();
+      toast('すでに削除されていました');
+      return;
+    }
+    await saveClosures(latest.filter((_, i) => i !== at), '削除しました');
   } catch (ex) {
     $('closureError').textContent = errMessage(ex);
     b.disabled = false;
