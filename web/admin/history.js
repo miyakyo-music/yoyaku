@@ -18,7 +18,7 @@ function renderExportForm() {
   showExportTo();
   if (!$('xWdPop').children.length) {
     $('xWdPop').innerHTML = `<label class="check"><input type="checkbox" value="">すべての曜日</label>` + [1, 2, 3, 4, 5, 6, 0].map((i) =>
-      `<label class="check ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}">${WD[i]}曜日</label>`).join('');
+      `<label class="check ${wdClass(i)}"><input type="checkbox" value="${i}">${WEEKDAY_NAMES[i]}曜日</label>`).join('');
     showWeekdays();
   }
   refilter(); // 一覧を出す（同じ期間は1分間読み直さない）
@@ -29,7 +29,7 @@ const exportWds = new Set();
 function showWeekdays() {
   $('xWdPop').querySelectorAll('input').forEach((c) => { c.checked = c.value ? exportWds.has(Number(c.value)) : !exportWds.size; });
   const list = [1, 2, 3, 4, 5, 6, 0].filter((i) => exportWds.has(i));
-  $('xWdBtn').textContent = list.length ? list.map((i) => WD[i]).join('・') : '曜日';
+  $('xWdBtn').textContent = list.length ? list.map((i) => WEEKDAY_NAMES[i]).join('・') : '曜日';
   $('xWdBtn').classList.toggle('on', !!list.length);
 }
 function toggleWd(open) {
@@ -70,11 +70,11 @@ function exportFilter() {
   const wds = [1, 2, 3, 4, 5, 6, 0].filter((i) => exportWds.has(i));
   const color = $('xColor').getAttribute('aria-pressed') === 'true';
   if (!q && !wds.length && !color) return null;
-  const label = [q ? `検索「${$('xQuery').value.trim()}」` : '', wds.length ? `曜日: ${wds.map((i) => WD[i]).join('')}` : '', color ? '重要な予定だけ' : '']
+  const label = [q ? `検索「${$('xQuery').value.trim()}」` : '', wds.length ? `曜日: ${wds.map((i) => WEEKDAY_NAMES[i]).join('')}` : '', color ? '重要な予定だけ' : '']
     .filter(Boolean).join('・');
   return {
     label,
-    test: (r) => (!wds.length || wds.includes(new Date(r.date + 'T00:00').getDay())) && (!color || !!r.color) &&
+    test: (r) => (!wds.length || wds.includes(weekdayOf(r.date))) && (!color || !!r.color) &&
       (!q || normText([r.name, r.affiliation, r.memo, roomName(r.roomId)].join(' ')).includes(q)),
   };
 }
@@ -109,14 +109,16 @@ async function exportRows() {
     stamp: `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
   };
 }
-function wdOf(d) { const [y, m, dd] = d.split('-').map(Number); return WD[new Date(y, m - 1, dd).getDay()]; }
+const wdOf = (d) => WEEKDAY_NAMES[weekdayOf(d)];
 const slash = (d) => d.replace(/-/g, '/');
 /** 表の1行（CSV・Excel の列の順） */
 const exportCells = (r) => [slash(r.date), wdOf(r.date), r.start, r.end, roomName(r.roomId), r.affiliation, r.name, r.memo];
 
-/** 押している間は、印刷・エクスポートのボタンを止めて「読み込み中…」にする */
-
 const SHOW_MAX = 2000; // 画面に並べる上限（それより多いときは、印刷・エクスポートで全部を見てもらう）
+/**
+ * 一覧の表（画面と印刷で共通）。cols は出す項目（LIST_COLS の k）。日付は日ごとに最初の行だけ。年をまたぐ期間では年も出す。
+ * clickable: 画面用。行を押すと、その予約の情報を全部その下に開く（data-i に list の番号）
+ */
 function listTable({ from, to, list }, opt) {
   opt = opt || {};
   const cols = LIST_COLS.filter((c) => (opt.cols || LIST_COLS.map((x) => x.k)).includes(c.k));
@@ -127,7 +129,7 @@ function listTable({ from, to, list }, opt) {
     prev = r.date;
     const w = wdOf(r.date);
     const cells = cols.map((c) => (c.k === 'date'
-      ? `<td class="d">${first ? `${crossYear ? slash(r.date) : slash(r.date).slice(5)}<span class="${w === '土' ? 'sat' : w === '日' ? 'sun' : ''}">(${w})</span>` : ''}</td>`
+      ? `<td class="d">${first ? `${crossYear ? slash(r.date) : slash(r.date).slice(5)}<span class="${wdClass(weekdayOf(r.date))}">(${w})</span>` : ''}</td>`
       : c.k === 'time'
         // 開始を右揃えにして「〜」の位置をそろえる（「9:25」と「10:00」で桁数が違うため）
         ? `<td class="c-time"><span class="t-s">${hm(r.start)}</span>〜${hm(r.end)}</td>`

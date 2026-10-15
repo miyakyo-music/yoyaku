@@ -1,7 +1,7 @@
 // 管理画面: 設定の「一般」（利用時間・予約の制限・お知らせ）
 'use strict';
 
-// ---------------- 利用時間・制限 ----------------
+// ---------------- 一般 ----------------
 function fillSettings(s) {
   state.settingsBase = s;
   $('sTitle').value = s.title;
@@ -17,7 +17,7 @@ function fillSettings(s) {
   $('sMaxDays').value = s.maxDaysAhead;
   $('sMaxBulk').value = s.maxBulkCount;
   $('sWeekdays').innerHTML = [...WEEKDAY_NAMES].map((w, i) =>
-    `<label class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
+    `<label class="${wdClass(i)}"><input type="checkbox" value="${i}"${s.closedWeekdays.includes(i) ? ' checked' : ''}>${w}</label>`).join('');
   $('sBulkAdmin').checked = !!s.bulkRequiresAdmin;
   fillPasswords(s);
   $('settingsError').textContent = '';

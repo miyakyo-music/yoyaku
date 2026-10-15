@@ -12,8 +12,8 @@ function showDate(input, display) {
   const v = input.value;
   if (!v) { display.textContent = '日付を選択'; return; }
   const [y, m, d] = v.split('-').map(Number);
-  const w = new Date(y, m - 1, d).getDay();
-  display.innerHTML = `${y}/${pad(m)}/${pad(d)}<span class="${w === 6 ? 'sat' : w === 0 ? 'sun' : ''}">(${WEEKDAY_NAMES[w]})</span>`;
+  const w = weekdayOf(v);
+  display.innerHTML = `${y}/${pad(m)}/${pad(d)}<span class="${wdClass(w)}">(${WEEKDAY_NAMES[w]})</span>`;
 }
 function dateField(id) {
   const show = () => showDate($(id), $(id + 'Display'));
