@@ -36,7 +36,7 @@ $('copyLimitedUrl').addEventListener('click', async () => {
   toast('入口の URL をコピーしました');
 });
 /**
- * 指定したパスワードだけを差し替えて保存する（「一般」の未保存の変更は含めない）。
+ * 指定したパスワードだけを差し替えて保存する（「設定」タブの「一般」の未保存の変更は含めない）。
  * ほかの画面で変えたお知らせなどを戻さないよう、保存の直前に最新の設定を読み直し、その上に重ねる
  */
 async function savePassword(key, inputId, btnId, errId, message) {

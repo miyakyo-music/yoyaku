@@ -28,12 +28,11 @@ async function loadBugs() {
   }
 }
 function renderBugs() {
-  const closed = ['対応済み', '対応しない'];
-  const list = bugData.reports.filter((b) => $('showDone').checked || closed.indexOf(b.status) < 0);
+  const list = bugData.reports.filter((b) => $('showDone').checked || CLOSED_BUG.indexOf(b.status) < 0);
   $('bugList').innerHTML = list.length ? list.map((b) => {
     let env = b.env;
     try { env = Object.entries(JSON.parse(b.env)).map(([k, v]) => `${k}: ${v}`).join('\n'); } catch (e) { /* そのまま表示 */ }
-    return `<div class="bug${closed.indexOf(b.status) >= 0 ? ' done' : ''}">
+    return `<div class="bug${CLOSED_BUG.indexOf(b.status) >= 0 ? ' done' : ''}">
         <div class="bug-head"><span>${esc(b.receivedAt)}</span><span>${esc(b.page)}</span>
           <select data-bug-id="${esc(b.id)}" aria-label="状態">${bugData.statuses.map((st) => `<option${st === b.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select></div>
         <div class="bug-msg">${esc(b.message)}</div>
@@ -62,4 +61,3 @@ $('bugList').addEventListener('change', async (e) => {
     renderBugs(); // 選択欄を元の状態に戻す
   }
 });
-$('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });

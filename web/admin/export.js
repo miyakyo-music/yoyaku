@@ -1,6 +1,7 @@
 // 管理画面: 予約履歴の印刷とエクスポート（CSV・Excel・PDF）
 'use strict';
 
+/** 押している間は、印刷・エクスポートのボタンを止めて「読み込み中…」にする */
 async function withExport(btn, fn) {
   const err = $('exportError');
   err.textContent = '';
@@ -97,7 +98,7 @@ document.addEventListener('keydown', (e) => {
   if (!$('xFmtPop').hidden) { toggleFmt(false); $('xFmtBtn').focus(); }
   if (!$('xColsPop').hidden) { closeCols(); $(colsMode === 'pdf' ? 'xFmtBtn' : 'xPrintBtn').focus(); }
 });
-const EXPORTERS = { csv: exportCsv, xlsx: exportXlsx, pdf: exportPdf };
+const EXPORTERS = { csv: exportCsv, xlsx: exportXlsx }; // PDF は項目を選んでから（xColsGo）
 $('xFmtPop').addEventListener('click', (e) => {
   const b = e.target.closest('[data-fmt]');
   if (!b) return;
@@ -276,7 +277,7 @@ function pdfPages({ from, to, list, rooms, stamp }, keys) {
 }
 
 async function exportPdf(data, cols) {
-  const pages = pdfPages(data, cols || savedCols());
+  const pages = pdfPages(data, cols);
   const streams = [];
   for (const p of pages) streams.push(await deflate(new TextEncoder().encode(p)));
   saveFile(pdfFile(streams), `予約一覧_${data.from}_${data.to}.pdf`);
@@ -336,10 +337,6 @@ function shortRoom(id) {
 function cellOf(r, k) {
   return k === 'time' ? `${hm(r.start)}〜${hm(r.end)}` : k === 'room' ? roomName(r.roomId) : k === 'name' ? r.name : k === 'aff' ? r.affiliation : k === 'memo' ? r.memo : '';
 }
-/**
- * 一覧の表（画面と印刷で共通）。cols は出す項目（LIST_COLS の k）。日付は日ごとに最初の行だけ。年をまたぐ期間では年も出す。
- * clickable: 画面用。行を押すと、その予約の情報を全部その下に開く（data-i に list の番号）
- */
 
 // 印刷: 選んだ項目で印刷用の表（#printArea）を作り、印刷のときはそれだけを出す（admin/history.css の @media print）
 function printList(cols) {

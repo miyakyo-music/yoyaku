@@ -2,7 +2,7 @@
 'use strict';
 
 // ---------------- 変更履歴 ----------------
-const oplog = { entries: [], next: 0, more: false, kind: '', q: '', seq: 0, loaded: false };
+const oplog = { entries: [], next: 0, more: false, kind: '', q: '', seq: 0 };
 const OPLOG_KIND_CLS = { book: 'k-book', change: 'k-change', cancel: 'k-cancel', admin: 'k-admin' };
 // 種類の決め方は gas/Code.gs の logKind_ と同じ
 function oplogKind(e) {
@@ -23,7 +23,6 @@ async function loadOplog(append) {
     oplog.entries = append ? oplog.entries.concat(res.entries) : res.entries;
     oplog.next = res.next;
     oplog.more = res.more;
-    oplog.loaded = true;
     renderOplog();
   } catch (ex) {
     if (seq !== oplog.seq) return;

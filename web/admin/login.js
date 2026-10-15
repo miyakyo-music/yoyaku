@@ -52,3 +52,4 @@ function showAdmin() {
   if (!state.dirty.rooms) setDirty('rooms', false);
   if (!state.dirty.settings) setDirty('settings', false);
 }
+$('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });

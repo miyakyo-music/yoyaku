@@ -41,15 +41,6 @@ $('roomList').addEventListener('input', (e) => {
   row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
   checkDirty('rooms');
 });
-$('roomList').addEventListener('change', (e) => {
-  const el = e.target.closest('select[data-f]');
-  if (!el) return;
-  const row = el.closest('.room');
-  const r = state.rooms[Number(row.dataset.i)];
-  r[el.dataset.f] = el.value;
-  row.querySelector('.room-sum').innerHTML = roomSumHtml(r);
-  checkDirty('rooms');
-});
 $('roomList').addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
