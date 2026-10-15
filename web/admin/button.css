@@ -16,5 +16,3 @@
 }
 .btn.small { height: 30px; padding: 0 10px; font-size: 13px; }
 .btn.danger-text { color: var(--danger); }
-.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.btn:focus-visible { outline: 0; box-shadow: var(--glass-rim), 0 0 0 2px var(--accent); }

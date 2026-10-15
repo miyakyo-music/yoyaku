@@ -1,13 +1,30 @@
 /* 予約表: ぼかしが使えない環境と、端末の「透明度を下げる」設定のときの代わりの見た目。
    ほかの部品の指定を上書きするので、いちばん最後に読み込む */
-/* ぼかしに対応していない環境・「透明度を下げる」設定の端末では、半透明をやめて不透明な面にする */
+/* ぼかしに対応していない環境・「透明度を下げる」設定の端末では、半透明をやめて不透明な面にする。
+   上部のカプセルなどは .topbar 付きの強い指定で形を付けているので、同じ強さで書いて後から上書きする。
+   ボタンの面の色は --fb-fill（ダークは暗い灰色）にし、ダークでも白い文字が読めるようにする */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root { --fb-fill: #ececf0; }
+  html.dark { --fb-fill: #3a3a3c; }
   .topbar, dialog, .hovercard { background: #fff; }
-  .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link, .hdr-pill { background-color: #ececf0; }
-  .topbar .hdr-pill > * { background-color: transparent; }
+  .btn:not(.primary):not(.danger), html.dark dialog .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link, .hdr-pill,
+  .topbar .date-step, .topbar .hdr-pill, .topbar .selects select { background-color: var(--fb-fill); }
+  /* カプセルの中のボタンは背景なし（カプセルの面だけに色を付ける） */
+  .topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status,
+  .topbar .seg .btn, .topbar .seg .btn:first-child, .topbar .seg .btn:last-child, .topbar .date-step .btn.arrow { background-color: transparent; }
+  html.dark .topbar { background: #000; }
+  html.dark dialog, html.dark .hovercard { background: #2c2c2e; }
+  html.dark .tl-head { background: #1c1c1e; }
 }
 @media (prefers-reduced-transparency: reduce) {
+  :root { --fb-fill: #ececf0; }
+  html.dark { --fb-fill: #3a3a3c; }
   .topbar, dialog, .hovercard, .tl-head, .tl-corner { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link, .hdr-pill { background-color: #ececf0; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .topbar .hdr-pill > * { background-color: transparent; }
+  .btn:not(.primary):not(.danger), html.dark dialog .btn:not(.primary):not(.danger), .date-display, .date-step, .selects select, .admin-link, .hdr-pill,
+  .topbar .date-step, .topbar .hdr-pill, .topbar .selects select { background-color: var(--fb-fill); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status,
+  .topbar .seg .btn, .topbar .seg .btn:first-child, .topbar .seg .btn:last-child, .topbar .date-step .btn.arrow { background-color: transparent; }
+  html.dark .topbar { background: #000; }
+  html.dark dialog, html.dark .hovercard { background: #2c2c2e; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html.dark .tl-head { background: #1c1c1e; }
 }

@@ -175,11 +175,8 @@ body.offline .status .ic-offline { display: block; }
   .notice { padding: 6px 9px; font-size: 13px; }
   .selects { grid-area: select; min-width: 0; }
 }
-/* 幅 380px 以下の小さなスマホでは、タブと選択欄の余白を詰めて「全設備」が切れないようにする */
+/* 幅 380px 以下の小さなスマホでは、日付欄の余白を詰める（タブ・選択欄・矢印はファイルの終わりの方） */
 @media (max-width: 380px) {
-  .tabs .btn { padding: 0 6px; }
-  .selects select { padding: 0 20px 0 6px; background-position: right 6px center; }
-  .btn.arrow { width: 40px; }
   .datenav .date-display { padding: 0 26px; }
   .datenav .date-display svg { right: 8px; }
 }
@@ -273,6 +270,9 @@ html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xml
 html.dark .seg { background-color: #1c1c1e; box-shadow: none; }
 html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
 html.dark #todayBtn.on-today { color: #409cff; }
+html.dark .topbar .free-btn[aria-pressed="true"] { color: #7ee29a; }
+html.dark .admin-mode { background: rgba(255, 69, 58, .2); color: #ff9d97; }
+html.dark .limited-mode { background: rgba(191, 90, 242, .22); color: #dcaef7; }
 /* ---------- 上部の整理（年は出さない・スマホは2段＋日付の段） ---------- */
 /* 上部の日付欄では年を出さない（毎日見る情報ではないため）。予約画面の日付欄は年をまたぐことがあるので出したまま */
 .datenav .yr { display: none; }
@@ -395,6 +395,13 @@ html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px 
 .topbar .notice .ic-info { margin-left: -2px; } /* 拡声器の絵は枠の内側に約 2px の余白があるので、その分だけ左へ寄せて線の端をそろえる */
 @media (max-width: 600px) {
   .topbar { --text-inset: 11px; }
+}
+/* 幅 380px 以下の小さなスマホでは、タブと選択欄の余白を詰めて「全設備」が切れないようにする
+   （上の .topbar 付きの指定より後ろに置いて上書きする） */
+@media (max-width: 380px) {
+  .topbar .seg .btn, .topbar .seg .btn:first-child, .topbar .seg .btn:last-child { padding: 0 6px; }
+  .topbar .selects select { padding: 0 20px 0 6px; background-position: right 6px center, 0 0; }
+  .topbar .date-step .btn.arrow { width: 40px; padding: 0 13px; } /* 矢印の絵の大きさは変えない */
 }
 /* 指でなぞって日付（月）を切り替えたとき（index/glass.js の swipeShift）: 日付欄の文字を一度ふくらませ、青く光らせる */
 .date-step .date-display.bump { animation: date-bump .45s cubic-bezier(.3, 1.5, .5, 1); }

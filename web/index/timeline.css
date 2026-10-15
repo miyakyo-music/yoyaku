@@ -240,6 +240,11 @@ html.dark .main, html.dark .tl-label, html.dark .tl-corner { background: var(--s
 html.dark .tl-head { background: rgba(28, 28, 30, .9); }
 html.dark .tl-row:nth-child(odd) .tl-label, html.dark .tl-row:nth-child(odd) .tl-track { background-color: #222224; }
 html.dark .tl-row.today .tl-label { background: #10243d; }
+/* 部屋名（日付）の欄にマウスを乗せたとき。1行おきの色・今日の行より強く書く */
+@media (hover: hover) {
+  html.dark .tl-row .tl-label[data-room]:hover, html.dark .tl-row .tl-label[data-date]:hover { background-color: #2c2c2e; }
+}
+html.dark .tl-label .free-until { color: #7ee29a; }
 /* 部屋名の列の下の区切り線は、ダークでは半透明の色だと後ろの現在時刻の赤い線が透けるので、同じ見た目の不透明な色で引く */
 html.dark .tl-label { box-shadow: 0 1px 0 #2b2b2d; }
 html.dark .tl-row.week-start .tl-label { box-shadow: 0 1px 0 #2b2b2d, 0 -2px 0 #404043; }
