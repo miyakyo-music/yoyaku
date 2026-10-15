@@ -48,10 +48,6 @@ h3 { font-size: 14px; margin: 0 0 8px; }
 .sat { color: #2563eb; }
 .sun { color: var(--danger); }
 .empty { padding: 20px; text-align: center; color: var(--muted); }
-/* 説明文は折りたためるようにする（PC では最初から開く） */
-.howto { margin: -6px 0 12px; }
-.howto summary { cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 0; }
-.howto .lead { margin: 6px 0 0; }
 @media (max-width: 600px) {
   .card { padding: 14px; }
   .wrap { padding: 12px 12px 80px; }

@@ -1,4 +1,7 @@
-/* 管理画面: 端末の「透明度を下げる」設定のときの代わりの見た目（最後に読み込む） */
+/* 管理画面: 端末の「透明度を下げる」設定のときの代わりの見た目（最後に読み込む）。
+   青・赤のボタンは色のまま（灰色のボタンだけを不透明にする）。ダークは白い文字が読めるよう暗い灰色にする */
 @media (prefers-reduced-transparency: reduce) {
-  .topbar, .card, .btn:not(.primary) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
+  .topbar, .card, .btn:not(.primary):not(.danger) { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: #fff; }
+  html.dark .topbar { background: #000; }
+  html.dark .btn:not(.primary):not(.danger) { background-color: #3a3a3c; }
 }

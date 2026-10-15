@@ -4,20 +4,13 @@
   .fab {
     display: flex; align-items: center; justify-content: center; position: fixed; z-index: 30;
     right: 18px; bottom: calc(22px + env(safe-area-inset-bottom)); width: 58px; height: 58px; border: 0; border-radius: 50%;
-    color: #fff; background-color: rgba(0, 122, 255, .96);
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, 0) 55%);
-    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .5), 0 0 0 .5px rgba(0, 60, 160, .25), 0 6px 18px rgba(0, 80, 200, .32), 0 2px 4px rgba(0, 0, 0, .12);
+    color: #fff;
     cursor: pointer; transition: transform .18s cubic-bezier(.3, 1.5, .5, 1);
     /* 表の下のフッター（版の表示など）が見えてきたら、その分だけ持ち上げて表の下端の上に乗せる（--fab-lift は index/zoom.js の liftFab が入れる） */
     translate: 0 calc(-1 * var(--fab-lift, 0px));
   }
   .fab:active { transform: scale(1.08); }
   #newBtn { display: none; }
-}
-html.dark .fab {
-  background-color: #3b8ff5;
-  background-image: radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 60%);
-  box-shadow: inset 0 0 0 1px rgba(130, 195, 255, .45), inset 0 -1.5px 2px rgba(150, 210, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .18);
 }
 /* 上部の「新規予約」と同じ青い色ガラス（上ほど明るい青・上端の白い照り・下端の青白い照り返し・青い影） */
 .fab {

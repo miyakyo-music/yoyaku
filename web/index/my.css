@@ -1,8 +1,7 @@
 /* 予約表: 自分の予約（予約の一覧・練習時間）・予約の検索・不具合報告 */
-.pill-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 3px; border-radius: 11px; background: var(--fill-field, rgba(118, 118, 128, .12)); }
-.pill-tabs button { height: 32px; border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
-.pill-tabs button[aria-pressed="true"] { background: var(--surface); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
-html.dark .pill-tabs button[aria-pressed="true"] { background: #48484c; }
+.pill-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.pill-tabs button { height: 32px; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+.pill-tabs button[aria-pressed="true"] { font-weight: 600; }
 /* 練習時間（この端末で予約した分） */
 .my-stats { display: flex; flex-direction: column; gap: 12px; }
 .ms-total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }

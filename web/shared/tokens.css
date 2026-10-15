@@ -1,5 +1,5 @@
 /* 予約表・管理画面の共通: 色と質感の名前（ライト・ダーク）。両方の画面で同じ値のものだけをここに置く。
-   画面ごとの名前は index/tokens.css（予約の帯の色など）・admin/tokens.css（--pop-bg・--warn-*）。
+   画面ごとの名前は index/tokens.css（予約の帯の色など）・admin/page.css の先頭（--pop-bg・--warn-*）。
    ガラス = 半透明の面＋背景のぼかし＋縁の光（上端の明るい線・下端の淡い反射）＋浮いた影。
    見た目を変えない整理をしたら、dev/css-swap.js か dev/fingerprint.js で前後を比べる */
 :root {

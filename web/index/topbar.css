@@ -8,34 +8,12 @@
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
 h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tools { display: flex; gap: 6px; align-items: center; margin-left: auto; }
-.admin-link {
-  font-size: 12px;
-  text-decoration: none;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 2px 6px;
-  white-space: nowrap;
-  /* 管理者モードで、未対応の不具合報告があるときの件数 */
-  position: relative;
-}
-@media (hover: hover) {
-  .admin-link:hover { color: var(--accent); border-color: var(--accent); }
-}
 .admin-link .badge {
   position: absolute; top: -7px; right: -8px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
   background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
   box-shadow: 0 0 0 1.5px var(--surface);
 }
-/* 更新: 「12:07 更新」の表示そのものを押すと最新の予約を読み込む（読み込み中は矢印が回る） */
-.status {
-  font-size: 12px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
-  flex: none; height: 26px; padding: 0 7px; border: 0; border-radius: 13px; background: none; cursor: pointer;
-}
-@media (hover: hover) {
-  .status:hover { background: #eef1f5; color: var(--text); }
-}
-.status:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* 読み込み中は、↻ の代わりに iOS と同じ「くるくる」（8本の線が濃い順に並び、1本ずつ送るように回る）を出す。
+/* 更新: 読み込み中は、↻ の代わりに iOS と同じ「くるくる」（8本の線が濃い順に並び、1本ずつ送るように回る）を出す。
    回すのは大きさ 16px（偶数）の図形を中心で回すので、軸がぶれない */
 .status .ic-spinner { display: none; }
 body.loading .status .ic-refresh { display: none; }
@@ -60,7 +38,6 @@ body.offline .status .ic-offline { display: block; }
 .notice.overflow { cursor: pointer; }
 .notice-full { margin: 0; font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 .notice.important .ic-alert { display: inline; }
-.notice.important { border-color: #f3b5b5; }
 /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
 /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
 .notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
@@ -85,10 +62,6 @@ body.offline .status .ic-offline { display: block; }
   .beta-report:hover { background: #fffbef; }
 }
 .seg { display: inline-flex; }
-.seg .btn { border-radius: 0; margin-left: -1px; }
-.seg .btn:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
-.seg .btn:last-child { border-radius: 0 8px 8px 0; }
-.seg .btn[aria-pressed="true"] { border-color: var(--accent); position: relative; z-index: 1; }
 .range-label { font-size: 15px; font-weight: 700; white-space: nowrap; }
 .selects { display: inline-flex; gap: 6px; align-items: center; }
 /* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く */
@@ -99,19 +72,12 @@ body.offline .status .ic-offline { display: block; }
 }
 /* 一覧・部屋別の日付（期間）は日付欄と表を見ればわかるので出さない。カレンダーの「○年○月」だけ出す */
 .range-label.redundant { display: none; }
-.free-btn[aria-pressed="true"] { background: #e7f6ec; border-color: #2f9e5b; }
 /* 日付欄: 曜日付きの表示の上に、透明にした標準の日付入力を重ねる（押すと標準のカレンダーが開く） */
 .datenav { display: inline-flex; align-items: center; gap: 6px; }
 .btn.arrow {
-  width: 44px;
-  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
-}
-@media (hover: hover) {
-  .btn.arrow:hover { color: var(--text); }
 }
 /* 前日・日付・翌日を1枚のガラスの面にまとめ、間を細い線で区切る */
 .date-step {
@@ -123,8 +89,6 @@ body.offline .status .ic-offline { display: block; }
 .date-step .btn.arrow, .date-step .date-display {
   background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-radius: 0;
 }
-.date-step .btn.arrow:first-child { border-radius: 11px 0 0 11px; }
-.date-step .btn.arrow:last-child { border-radius: 0 11px 11px 0; }
 .date-step .btn.arrow:active { transform: none; background-color: var(--fill-field); }
 .date-step .btn.arrow:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .date-step .date-field:focus-within .date-display { box-shadow: inset 0 0 0 2px var(--accent); }
@@ -148,11 +112,9 @@ body.offline .status .ic-offline { display: block; }
 .sw.res { background: var(--res); border: 0; border-left: 3px solid var(--res-border); }
 .sw.mine { background: var(--mine); border: 0; border-left: 3px solid var(--mine-border); }
 .sw.closed { background: var(--closed); }
-@keyframes spin { to { transform: rotate(360deg); } }
 .admin-mode {
   font-size: 11px; font-weight: 700; padding: 2px 6px; cursor: pointer; white-space: nowrap;
 }
-.limited-mode { color: #5b3a9b; background: #efe8fb; border-color: #d4c3f2; }
 /* スマートフォン: ヘッダーを固定の格子配置にして、折り返しで崩れないようにする */
 @media (max-width: 600px) {
   .topbar {
@@ -171,7 +133,6 @@ body.offline .status .ic-offline { display: block; }
   .brand h1 { min-width: 0; flex: 0 1 auto; }
   .admin-mode .lg { display: none; }
   .brand .admin-mode { font-size: 10px; padding: 1px 4px; }
-  .brand .admin-link { padding: 0 4px; }
   .topbar { overflow-x: clip; } /* 万一はみ出しても、画面全体が横にずれないようにする */
   .tools {
     flex: none;
@@ -179,12 +140,9 @@ body.offline .status .ic-offline { display: block; }
     gap: 4px;
     margin-left: 0;
   }
-  .tools .btn { padding: 0 8px; }
   .tools .lg, .admin-link .lg { display: none; }
   .tools .sm, .admin-link .sm { display: inline; }
-  .admin-link { padding: 0 6px; font-size: 16px; line-height: 26px; }
   .legend, .status #statusText { display: none; }
-  .status { width: 30px; height: 30px; padding: 0; justify-content: center; background: #f1f3f6; color: var(--text); }
   .notice-row { order: 3; flex: 1 0 100%; }
   .beta-label .wide-text { display: none; }
   .beta-label .narrow-text { display: inline; }
@@ -217,11 +175,8 @@ body.offline .status .ic-offline { display: block; }
   .notice { padding: 6px 9px; font-size: 13px; }
   .selects { grid-area: select; min-width: 0; }
 }
-/* 幅 380px 以下の小さなスマホでは、タブと選択欄の余白を詰めて「全設備」が切れないようにする */
+/* 幅 380px 以下の小さなスマホでは、日付欄の余白を詰める（タブ・選択欄・矢印はファイルの終わりの方） */
 @media (max-width: 380px) {
-  .tabs .btn { padding: 0 6px; }
-  .selects select { padding: 0 20px 0 6px; background-position: right 6px center; }
-  .btn.arrow { width: 40px; }
   .datenav .date-display { padding: 0 26px; }
   .datenav .date-display svg { right: 8px; }
 }
@@ -234,7 +189,7 @@ body.offline .status .ic-offline { display: block; }
   border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
 }
 .beta-band { position: relative; z-index: 21; }
-.selects select, .admin-link {
+.selects select {
   border: 0; border-radius: 11px; /* 全部を丸いカプセルにすると安っぽく見えるので、角丸の四角に */
   background-color: var(--glass); background-image: var(--glass-sheen);
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
@@ -245,18 +200,11 @@ body.offline .status .ic-offline { display: block; }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen);
   background-repeat: no-repeat, no-repeat; background-position: right 12px center, 0 0; background-size: auto, 100% 100%;
 }
-@media (hover: hover) {
-  .admin-link:hover { background-color: var(--glass-strong); }
-}
 #todayBtn { color: var(--text); }
 #todayBtn.on-today { color: var(--accent); font-weight: 600; }
-.free-btn[aria-pressed="true"] { background-color: rgba(52, 199, 89, .22); color: #157a35; font-weight: 600; }
-.admin-link { color: var(--muted); }
+.free-btn[aria-pressed="true"] { color: #157a35; font-weight: 600; }
 .admin-mode { border: 0; border-radius: 7px; background: rgba(255, 59, 48, .12); color: #c4261d; }
 .limited-mode { background: rgba(175, 82, 222, .14); color: #7d3aa8; }
-@media (max-width: 600px) {
-  .status { border-radius: 10px; background-color: var(--glass); background-image: var(--glass-sheen); box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift); }
-}
 /* ---------- 表示の切り替え: ガラスの溝の中を、白いガラスのつまみが滑る ---------- */
 .seg {
   position: relative; height: 34px; padding: 2px; gap: 0; border-radius: 11px;
@@ -286,25 +234,10 @@ body.offline .status .ic-offline { display: block; }
 .notice.important { background: rgba(255, 59, 48, .11); color: #a3150c; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 0 0 .5px rgba(255, 59, 48, .18); }
 .beta-band { background: rgba(255, 214, 10, .16); border-bottom: .5px solid rgba(160, 120, 0, .2); }
 .beta-report { border: 0; border-radius: 999px; background: rgba(255, 255, 255, .75); box-shadow: var(--glass-rim), 0 0 0 .5px rgba(160, 120, 0, .22); }
-/* 管理（歯車）と更新（↻）: 同じ大きさ・同じ線の太さのアイコンを、同じガラスのボタンに入れてそろえる
-   （歯車は文字の ⚙ だと iPhone で絵文字風の別デザインになるため、↻ と同じ線画のアイコンにする） */
-.admin-link, .brand .admin-link, .status {
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
-  height: 28px; padding: 0 10px; border: 0; border-radius: 9px; font-size: 12px; line-height: 1; color: #3a3a3c;
-  background-color: var(--glass); background-image: var(--glass-sheen);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
-}
-.admin-link svg { flex: none; width: 15px; height: 15px; }
-.status svg { flex: none; width: 16px; height: 16px; }
+/* 管理（歯車）と更新（↻）の中のアイコンと文字（ボタンの形は下の「1つのカプセルに」） */
+.admin-link svg, .status svg { flex: none; }
 .status #statusText { color: var(--muted); }
-@media (hover: hover) {
-  .status:hover, .admin-link:hover { background-color: var(--glass-strong); color: var(--text); }
-}
 @media (max-width: 600px) {
-  .admin-link, .brand .admin-link, .status { width: 32px; height: 32px; padding: 0; border-radius: 10px; }
-  .admin-link svg { width: 17px; height: 17px; }
-  .status svg { width: 18px; height: 18px; }
   .brand { gap: 6px; }
 }
 /* お知らせ: 管理者モードでは押すと変更の小窓を出す（index/notice.js） */
@@ -336,9 +269,10 @@ html.dark .beta-report { background: rgba(255, 255, 255, .08); color: #e8c766; }
 html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen); }
 html.dark .seg { background-color: #1c1c1e; box-shadow: none; }
 html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
-html.dark #todayBtn.on-today, html.dark .btn.arrow { color: #409cff; }
-html.dark .admin-link, html.dark .brand .admin-link, html.dark .status { color: #e5e5ea; }
-html.dark .status #statusText { color: var(--muted); }
+html.dark #todayBtn.on-today { color: #409cff; }
+html.dark .topbar .free-btn[aria-pressed="true"] { color: #7ee29a; }
+html.dark .admin-mode { background: rgba(255, 69, 58, .2); color: #ff9d97; }
+html.dark .limited-mode { background: rgba(191, 90, 242, .22); color: #dcaef7; }
 /* ---------- 上部の整理（年は出さない・スマホは2段＋日付の段） ---------- */
 /* 上部の日付欄では年を出さない（毎日見る情報ではないため）。予約画面の日付欄は年をまたぐことがあるので出したまま */
 .datenav .yr { display: none; }
@@ -353,9 +287,6 @@ html.dark .status #statusText { color: var(--muted); }
 #adminLink { order: 5; }
 #newBtn { order: 6; }
 .admin-link .lg { display: none; }
-.admin-link, .brand .admin-link, .status { height: 34px; border-radius: 10px; }
-.admin-link, .brand .admin-link { width: 34px; padding: 0; }
-.admin-link svg { width: 17px; height: 17px; }
 /* 幅 999px 以下（iPad の小さい機種の縦・スマホ）では、お知らせは次の行いっぱいに */
 @media (max-width: 999px) {
   .notice-row { order: 9; }
@@ -371,7 +302,7 @@ html.dark .status #statusText { color: var(--muted); }
   }
   .topbar .row:first-child { gap: 6px; }
   .brand h1 { font-size: 17px; }
-  .admin-link, .brand .admin-link, .status, .tools .icon-btn { width: 34px; height: 34px; border-radius: 10px; }
+  .tools .icon-btn { width: 34px; height: 34px; border-radius: 10px; }
   .tools .icon-btn svg { width: 18px; height: 18px; }
   #searchBtn svg { width: 17px; height: 17px; }
 }
@@ -390,6 +321,19 @@ html.dark .status #statusText { color: var(--muted); }
   background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--text);
 }
 .topbar .hdr-pill > .status { width: auto; padding: 0 10px; }
+/* 管理（歯車）と更新（↻）: 同じ大きさ・同じ線の太さのアイコンをそろえる
+   （歯車は文字の ⚙ だと iPhone で絵文字風の別デザインになるため、↻ と同じ線画のアイコンにする）。
+   更新は「12:07 更新」の表示そのものを押すと最新の予約を読み込む */
+.topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
+  border: 0; font-size: 12px; line-height: 1; white-space: nowrap;
+}
+.topbar .hdr-pill > .admin-link {
+  text-decoration: none;
+  position: relative; /* 管理者モードで、未対応の不具合報告があるときの件数の基準 */
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), box-shadow .18s, background-color .18s;
+}
+.topbar .hdr-pill > .status { cursor: pointer; }
 .hdr-pill svg { width: 18px; height: 18px; }
 .hdr-pill #searchBtn svg { width: 17px; height: 17px; }
 .hdr-pill .admin-link .badge { top: 1px; right: 1px; }
@@ -451,6 +395,13 @@ html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px 
 .topbar .notice .ic-info { margin-left: -2px; } /* 拡声器の絵は枠の内側に約 2px の余白があるので、その分だけ左へ寄せて線の端をそろえる */
 @media (max-width: 600px) {
   .topbar { --text-inset: 11px; }
+}
+/* 幅 380px 以下の小さなスマホでは、タブと選択欄の余白を詰めて「全設備」が切れないようにする
+   （上の .topbar 付きの指定より後ろに置いて上書きする） */
+@media (max-width: 380px) {
+  .topbar .seg .btn, .topbar .seg .btn:first-child, .topbar .seg .btn:last-child { padding: 0 6px; }
+  .topbar .selects select { padding: 0 20px 0 6px; background-position: right 6px center, 0 0; }
+  .topbar .date-step .btn.arrow { width: 40px; padding: 0 13px; } /* 矢印の絵の大きさは変えない */
 }
 /* 指でなぞって日付（月）を切り替えたとき（index/glass.js の swipeShift）: 日付欄の文字を一度ふくらませ、青く光らせる */
 .date-step .date-display.bump { animation: date-bump .45s cubic-bezier(.3, 1.5, .5, 1); }
