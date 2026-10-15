@@ -13,6 +13,8 @@ const state = {
   rooms: [],       // 編集中の部屋一覧
   closures: [],
   dirty: { rooms: false, settings: false },
+  roomsBase: '',   // 練習室の一覧を最後にサーバーから読んだときの内容（ほかの画面での変更に気づくため）
+  settingsBase: null, // 一般の欄を最後にサーバーの値で埋めたときの設定（画面で変えた項目を見分けるため）
 };
 
 // ---------------- 汎用 ----------------
@@ -25,10 +27,14 @@ function esc(s) {
 function toMin(t) { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; }
 function toHHMM(min) { return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`; }
 function hm(t) { return String(t).replace(/^0(\d)/, '$1'); }
+/** 日付（2026-10-15）の曜日の番号（0 が日曜） */
+function weekdayOf(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).getDay(); }
+/** 土日の色の class（平日は空） */
+function wdClass(w) { return w === 6 ? 'sat' : w === 0 ? 'sun' : ''; }
 function dateLabel(s) {
   const [y, m, d] = s.split('-').map(Number);
-  const w = new Date(y, m - 1, d).getDay();
-  return { text: `${y}/${m}/${d}(${WEEKDAY_NAMES[w]})`, cls: w === 6 ? 'sat' : w === 0 ? 'sun' : '' };
+  const w = weekdayOf(s);
+  return { text: `${y}/${m}/${d}(${WEEKDAY_NAMES[w]})`, cls: wdClass(w) };
 }
 let toastTimer;
 function toast(msg) {
@@ -42,6 +48,12 @@ function toast(msg) {
 async function api(fn, payload) {
   const res = await callApi(fn, Object.assign({ adminPassword: state.pw }, payload)); // web/api.js
   if (res && res.code === 'ADMIN_AUTH') { logout(res.message); throw new Error(res.message); }
+  return res;
+}
+/** 保存の直前に、サーバーの最新の設定・部屋・休館を読み直す（ほかのタブ・端末で変えた分を消さないため） */
+async function fetchLatest() {
+  const res = await api('adminGetData', {});
+  if (!res.ok) throw new Error(res.message);
   return res;
 }
 function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
