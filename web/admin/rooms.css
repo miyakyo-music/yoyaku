@@ -7,7 +7,6 @@
   grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.3fr) 132px minmax(0, 1fr) 64px;
 }
 .room { align-items: start; padding: 8px; }
-.room.new { border-color: #9cc0f5; }
 /* 左端の番号の列をつまむと、ドラッグで並べ替えられる（指でも操作できるよう、列全体をつかめる） */
 .room .no {
   color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 0;
@@ -18,7 +17,7 @@
 @media (hover: hover) {
   .room .no:hover { background: var(--bg); color: var(--text); }
 }
-.room.dragging { box-shadow: 0 8px 24px rgba(15, 23, 42, .18); border-color: var(--accent); position: relative; z-index: 2; }
+.room.dragging { box-shadow: 0 8px 24px rgba(15, 23, 42, .18); position: relative; z-index: 2; }
 .room.dragging .no { cursor: grabbing; background: var(--accent-weak, #e8f0ff); color: var(--accent); }
 body.sorting, body.sorting * { cursor: grabbing !important; }
 .room .ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 3px; }
@@ -52,7 +51,7 @@ body.sorting, body.sorting * { cursor: grabbing !important; }
 @media (max-width: 600px) {
   .rooms { gap: 6px; }
   .room { padding: 6px 8px; row-gap: 0; }
-  .room.open { row-gap: 8px; border-color: var(--accent); }
+  .room.open { row-gap: 8px; }
   .room:not(.open) > :not(.no):not(.room-sum) { display: none; }
   .room-sum {
     grid-area: sum; display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%;

@@ -27,7 +27,7 @@ html.dark {
   box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-shadow);
 }
 @media (hover: hover) {
-  .btn:where(:not(.primary, .danger)):hover, html.dark .btn:where(:not(.primary, .danger)):hover, html.dark dialog .btn:not(.primary):not(.danger):hover {
+  .btn:where(:not(.primary, .danger)):hover, html.dark dialog .btn:not(.primary):not(.danger):hover {
     background-color: var(--sf-glass); background-image: linear-gradient(var(--sf-hover), var(--sf-hover));
   }
 }

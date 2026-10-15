@@ -21,10 +21,11 @@ dialog {
 #bookDialog { width: min(520px, calc(100vw - 20px)); }
 dialog h2:focus { outline: none; }
 dialog:not([open]) { display: none; }
-dialog::backdrop { background: rgba(15, 23, 42, .45); }
+/* 小窓の幕は透明にする（後ろを暗くするのは画面の本体 .page。page.css の説明） */
+dialog::backdrop { background: transparent; }
 /* <dialog> 非対応ブラウザ（iOS 15.3以前など）向けの代替表示 */
 .dialog-fallback dialog[open] { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; z-index: 100; }
-.dialog-backdrop { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(15, 23, 42, .45); z-index: 99; }
+.dialog-backdrop { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 99; }
 .dialog-fallback.modal-open .dialog-backdrop { display: block; }
 dialog form, dialog .body {
   display: flex;
@@ -51,7 +52,6 @@ dialog h2 {
   min-width: 88px;
   height: 46px;
   font-size: 16px;
-  border-radius: 12px;
 }
 .actions .btn.primary, .actions .btn.danger {
   white-space: normal;
@@ -62,7 +62,7 @@ dialog h2 {
 .box { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
 .conflicts { margin: 0; padding: 8px 10px 8px 26px; font-size: 13px; max-height: 140px; overflow: auto; }
 .conflicts:empty { display: none; }
-dialog::backdrop, .dialog-backdrop { background: rgba(0, 0, 0, .22); }
+.dialog-backdrop { background: rgba(0, 0, 0, .22); }
 .box { border: 0; border-radius: 14px; background: rgba(118, 118, 128, .07); }
 .box .field input, .box .field select { background-color: rgba(255, 255, 255, .9); }
 .summary { border-radius: 14px; background: rgba(118, 118, 128, .08); }
@@ -97,11 +97,6 @@ body:not(.dialog-fallback) dialog[open] {
 @starting-style  {
   body:not(.dialog-fallback) dialog[open] { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.12); }
 }
-body:not(.dialog-fallback) dialog::backdrop { opacity: 0; transition: opacity .2s, display .2s allow-discrete, overlay .2s allow-discrete; }
-body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 1; transition-duration: .28s; }
-@starting-style  {
-  body:not(.dialog-fallback) dialog[open]::backdrop { opacity: 0; }
-}
 /* 端末で「視差効果を減らす」をオンにしている人には、動かさずに薄く出すだけにする */
 @media (prefers-reduced-motion: reduce) {
   body:not(.dialog-fallback) dialog, body:not(.dialog-fallback) dialog[open] { transform: none; }
@@ -118,7 +113,6 @@ body:not(.dialog-fallback) .dlg-main { flex: 0 1 auto; min-height: 0; overflow-x
 body:not(.dialog-fallback) dialog .actions { position: static; flex: none; margin: 0; padding: 12px 20px 18px; background: none; }
 /* 小窓の中のボタンは、小窓自体がすりガラスなので、さらにぼかさない（開く動きを軽くする） */
 dialog .btn { -webkit-backdrop-filter: none; backdrop-filter: none; }
-html.dark dialog { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6); }
 html.dark dialog, html.dark .refract dialog {
   color: var(--text);
   /* iOS の共有シートのような「すりガラス」。後ろの表がぼけて透ける */
@@ -128,12 +122,10 @@ html.dark dialog, html.dark .refract dialog {
   box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .16), 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .45);
 }
 html.dark .box .field input, html.dark .box .field select { background-color: rgba(118, 118, 128, .3); }
-html.dark dialog::backdrop, html.dark .dialog-backdrop { background: rgba(0, 0, 0, .12); }
+html.dark .dialog-backdrop { background: rgba(0, 0, 0, .12); }
 html.dark .actions { background: linear-gradient(180deg, rgba(40, 40, 44, 0), rgba(40, 40, 44, .55) 35%); }
 html.dark dialog .summary, html.dark dialog .box { background: rgba(255, 255, 255, .07); }
 html.dark dialog .field input, html.dark dialog .field select, html.dark dialog .field textarea,
-html.dark dialog .b-date .date-display, html.dark dialog .time select { background-color: rgba(255, 255, 255, .1); }
+html.dark dialog .b-date .date-display { background-color: rgba(255, 255, 255, .1); }
 html.dark dialog .time.has-wheel { background-color: rgba(255, 255, 255, .1); }
-html.dark dialog .btn:not(.primary):not(.danger), html.dark dialog .mylist button { background-color: rgba(255, 255, 255, .12); box-shadow: none; }
-/* 小窓の幕は透明にする（後ろを暗くするのは画面の本体 .page。page.css の説明）。ダークの幕の色より後ろに置く */
-html body:not(.dialog-fallback) dialog::backdrop { background: transparent; }
+html.dark dialog .mylist button { background-color: rgba(255, 255, 255, .12); box-shadow: none; }

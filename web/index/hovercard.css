@@ -29,7 +29,6 @@
 .hovercard .hc-dot.mine { background: var(--mine-border); }
 .hovercard .summary { border-radius: 12px; }
 .refract .hovercard { background: rgba(255, 255, 255, .5); }
-html.dark .hovercard { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .6); }
 html.dark .hovercard, html.dark .refract .hovercard {
   background: rgba(40, 40, 44, .55);
   -webkit-backdrop-filter: blur(24px) saturate(190%); backdrop-filter: blur(24px) saturate(190%);
