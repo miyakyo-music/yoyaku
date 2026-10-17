@@ -167,9 +167,16 @@ function renderTimeline() {
     html += `<p class="empty">${msg}</p>`;
   }
   html += footHtml('');
-  $('main').innerHTML = html;
-  $('main').classList.add('has-tl');
+  // 描き直しの前のスクロール位置を覚えておき、列の幅を合わせ終えてから戻す。
+  // 列の幅を測る間は表が一時的に細くなり、ブラウザがスクロール位置を左へ詰めてしまう
+  // （右の方を見ているときに更新ボタンを押すたび、表が右にずれていった）
+  const main = $('main');
+  const sl = main.scrollLeft, st = main.scrollTop;
+  main.innerHTML = html;
+  main.classList.add('has-tl');
   fitLabelColumn();
+  main.scrollLeft = sl;
+  main.scrollTop = st;
   renderDraft();
 }
 
