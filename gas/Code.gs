@@ -186,6 +186,8 @@ function json_(obj) {
 function getSchedule(p) {
   p = p || {};
   const ctx = context_(p);
+  const badAdmin = adminRejected_(p, ctx);
+  if (badAdmin) return badAdmin;
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
 
@@ -226,6 +228,8 @@ function getSchedule(p) {
 function getReservationsByIds(p) {
   p = p || {};
   const ctx = context_(p);
+  const badAdmin = adminRejected_(p, ctx);
+  if (badAdmin) return badAdmin;
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   const ids = new Set((Array.isArray(p.ids) ? p.ids : []).slice(0, 300).map(String));
@@ -863,7 +867,11 @@ function logMatcher_(p, names) {
   return e => {
     if (kind && logKind_(e) !== kind) return false;
     if (!words.length) return true;
-    const hay = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ').toLowerCase();
+    const raw = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ');
+    // 画面に出す形（10/13・2026/10/13・部屋名）でも探せるようにする（cache/store.js の logMatcher と同じ）
+    const shown = raw.replace(/\b(\d{4})-(\d\d)-(\d\d)\b/g, (m, y, mo, d) => y + '/' + mo + '/' + d + ' ' + Number(mo) + '/' + Number(d))
+      .replace(/room_\w+/g, id => names[id] || id);
+    const hay = (raw + ' ' + shown).toLowerCase();
     return words.every(w => hay.indexOf(w) >= 0);
   };
 }
@@ -893,6 +901,13 @@ function adminPasskeyTicket(p) {
   if (!key) return fail_('高速キャッシュの合言葉（CACHE_PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
   const exp = Math.floor(Date.now() / 1000) + 300;
   return { ok: true, ticket: 'pkt.' + exp + '.' + hmac_(key, 'pkt.' + exp) };
+}
+
+/** 読み込みで管理用パスワード（ログインの印）が送られたのに通らなかったら ADMIN_AUTH で断る
+ *  （黙って一般の見え方で返すと、管理画面の統計などから限定公開の部屋が知らせもなく抜け落ちるため） */
+function adminRejected_(p, ctx) {
+  if (!p.adminPassword || ctx.isAdmin) return null;
+  return fail_(verifyAdmin_(p.adminPassword) || '管理用パスワードが一致しません。', 'ADMIN_AUTH');
 }
 
 function requireAdmin_(p) {

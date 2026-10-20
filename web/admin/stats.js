@@ -48,13 +48,15 @@ async function loadStats() {
   // 読み込み済みなら、待たずに続きへ進むので「集計しています…」は画面に出ない
   msg.hidden = false; msg.className = 'msg'; msg.textContent = '集計しています…（今年度は少し時間がかかります）';
   $('statsBody').hidden = true;
-  if (!statsCache[period]) statsCache[period] = fetchReservations(range.from, range.to);
-  const req = statsCache[period];
+  // 覚えるのは期間の名前ではなく日付の範囲で（日付が変わると「今週」の中身も変わるため）。最長10分
+  const ck = `${range.from}|${range.to}`;
+  if (!statsCache[ck] || Date.now() - statsCache[ck].at > 10 * 60 * 1000) statsCache[ck] = { req: fetchReservations(range.from, range.to), at: Date.now() };
+  const req = statsCache[ck].req;
   let list;
   try {
     list = await req;
   } catch (e) {
-    if (statsCache[period] === req) delete statsCache[period]; // 次に押したときは読み直す
+    if (statsCache[ck] && statsCache[ck].req === req) delete statsCache[ck]; // 次に押したときは読み直す
     if (seq !== statsSeq) return;
     msg.className = 'msg error'; msg.textContent = errMessage(e);
     return;
@@ -65,7 +67,7 @@ async function loadStats() {
   $('statsBody').hidden = false;
 }
 
-function hoursText(min) { const h = Math.floor(min / 60), m = Math.round(min % 60); return (h ? `${h}時間` : '') + (m || !h ? `${m}分` : ''); }
+function hoursText(min) { min = Math.round(min); const h = Math.floor(min / 60), m = min % 60; return (h ? `${h}時間` : '') + (m || !h ? `${m}分` : ''); }
 
 function renderStats(range, list) {
   const s = state.data.settings;

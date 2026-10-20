@@ -152,6 +152,7 @@
   rec('viewBad', await c('getSchedule', { from: D, to: D, viewKey: 'x' }));
   r = rec('viewOk', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   out[out.length - 1][4] = r.settings && r.settings.viewPasswordRequired;
+  rec('schedBadAdmin', await c('getSchedule', { from: D, to: D, viewKey: 'view', adminPassword: 'wrong-pass' })); // 黙って一般の見え方で返さない
   // 管理者は閲覧パスワードを求められない（端末に残った古い値も数えない）
   r = rec('viewAdmin', await c('getSchedule', { from: D, to: D, adminPassword: A }));
   out[out.length - 1][4] = r.reservations && r.reservations.length;

@@ -9,7 +9,13 @@ async function api(fn, payload, opts) {
   // 管理者モードでは読み込みにも管理用パスワードを添える（限定公開の部屋も表示するため）
   const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation', 'adminSetNotice'];
   if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
-  const res = await callApi(fn, body, opts); // web/api.js
+  let res = await callApi(fn, body, opts); // web/api.js
+  // 読み込みで管理者モードの印が通らなかった（期限切れ・パスワード変更）: 管理者モードを終えて、一般の見え方で読み直す
+  if (res && res.code === 'ADMIN_AUTH' && body.adminPassword && (fn === 'getSchedule' || fn === 'getReservationsByIds')) {
+    exitAdminMode('管理者モードを終了しました（' + String(res.message || '管理用パスワードが変更された可能性があります').replace(/。$/, '') + '）。');
+    delete body.adminPassword;
+    res = await callApi(fn, body, opts);
+  }
   // 予約・変更・取消などの書き込みが通ったら、しばらくは高速キャッシュを使わずサーバーから読む
   if (res && res.ok && fn !== 'getSchedule' && fn !== 'getReservationsByIds') state.noCacheUntil = Date.now() + 2 * 60 * 1000;
   if (res && res.code === 'AUTH_REQUIRED') { forgetSnapshot(); showLogin(res.message); throw new AuthError(res.message); }

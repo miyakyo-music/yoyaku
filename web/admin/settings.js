@@ -46,6 +46,7 @@ $('saveSettingsBtn').addEventListener('click', async () => {
   if (toMin(mine.closeTime) <= toMin(mine.openTime)) { err.textContent = '利用終了時刻は利用開始時刻より後にしてください。'; return; }
   const btn = $('saveSettingsBtn');
   btn.disabled = true;
+  freezeWhileSaving($('settingsForm'), true);
   try {
     // 保存の直前に最新の設定を読み直し、この画面で変えた項目だけを重ねる
     // （開いたあとに予約表でお知らせを変えた、ほかの画面でパスワードを変えた、などを戻さないため）
@@ -67,6 +68,7 @@ $('saveSettingsBtn').addEventListener('click', async () => {
   } catch (ex) {
     err.textContent = errMessage(ex);
   } finally {
+    freezeWhileSaving($('settingsForm'), false);
     btn.disabled = false;
   }
 });

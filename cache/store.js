@@ -567,6 +567,11 @@
     if (key) this.kput('viewFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
     return fail(key ? '閲覧パスワードが違います。' : '閲覧パスワードを入力してください。', 'AUTH_REQUIRED');
   }
+  /** 読み込みで送られた管理用パスワードが通らなければ ADMIN_AUTH（gas/Code.gs の adminRejected_ と同じ） */
+  function adminRejected(p, ctx) {
+    if (!p.adminPassword || ctx.isAdmin) return null;
+    return fail(this.verifyAdmin(p.adminPassword) || '管理用パスワードが一致しません。', 'ADMIN_AUTH');
+  }
   function visibleIn(ctx) {
     const ids = new Set(ctx.rooms.map((r) => r.id));
     return (x) => !x.roomId || ids.has(x.roomId);
@@ -642,6 +647,8 @@
 
   function getSchedule(p) {
     const ctx = this.context(p);
+    const badAdmin = adminRejected.call(this, p, ctx);
+    if (badAdmin) return badAdmin;
     const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const from = normDate(p.from);
@@ -654,6 +661,8 @@
 
   function getReservationsByIds(p) {
     const ctx = this.context(p);
+    const badAdmin = adminRejected.call(this, p, ctx);
+    if (badAdmin) return badAdmin;
     const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const ids = Array.from(new Set((Array.isArray(p.ids) ? p.ids : []).slice(0, 300).map(String)));
@@ -1339,7 +1348,11 @@
     return (e) => {
       if (kind && logKind(e) !== kind) return false;
       if (!words.length) return true;
-      const hay = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ').toLowerCase();
+      const raw = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ');
+      // 画面に出す形（10/13・2026/10/13・部屋名）でも探せるようにする（gas/Code.gs の logMatcher_ と同じ）
+      const shown = raw.replace(/\b(\d{4})-(\d\d)-(\d\d)\b/g, (m, y, mo, d) => y + '/' + mo + '/' + d + ' ' + Number(mo) + '/' + Number(d))
+        .replace(/room_\w+/g, (id) => names[id] || id);
+      const hay = (raw + ' ' + shown).toLowerCase();
       return words.every((w) => hay.indexOf(w) >= 0);
     };
   }
