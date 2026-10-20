@@ -53,6 +53,7 @@ const SYSTEM = {
   MAX_RANGE_DAYS: 42,
   // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
+  MAX_ADMIN_FAILURES: 10, // 管理用パスワードを、この回数間違えると一定時間受け付けない（全体、またはログインしたことのある端末ごと）
   MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
   LOG_PAGE: 200, // 管理画面の変更履歴を一度に読む件数
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
@@ -185,6 +186,8 @@ function json_(obj) {
 function getSchedule(p) {
   p = p || {};
   const ctx = context_(p);
+  const badAdmin = adminRejected_(p, ctx);
+  if (badAdmin) return badAdmin;
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
 
@@ -211,8 +214,7 @@ function getSchedule(p) {
       closures: ctx.closures.filter(c => c.date >= from && c.date <= to && visible(c)),
       settings: publicSettings_(ctx.settings),
     };
-    const json = JSON.stringify(base);
-    if (json.length < 90000) cache.put(ckey, json, 60); // 1件に覚えられるのは 100KB まで
+    putCache_(cache, ckey, JSON.stringify(base), 60);
   }
   return Object.assign(base, { serverNow: nowStr_('yyyy-MM-dd HH:mm') },
     limitedInfo_(ctx), ctx.isAdmin ? { openBugs: openBugCount_(ctx.ss) } : {});
@@ -225,6 +227,8 @@ function getSchedule(p) {
 function getReservationsByIds(p) {
   p = p || {};
   const ctx = context_(p);
+  const badAdmin = adminRejected_(p, ctx);
+  if (badAdmin) return badAdmin;
   const denied = checkView_(ctx, p.viewKey);
   if (denied) return denied;
   const ids = new Set((Array.isArray(p.ids) ? p.ids : []).slice(0, 300).map(String));
@@ -410,8 +414,11 @@ function updateReservation(p) {
 
 /** まとめ予約のこの日以降の分を、同じ時間・予約者・備考にまとめて変更する（updateReservation から、ロックの中で呼ぶ） */
 function updateSeries_(ctx, rows, target, p, isAdmin) {
+  // 管理者でなければ、終わった分・見えない部屋（限定公開）の分・管理者のみの部屋の分は変えずに残す（取消と同じ。全体を止めない）
+  const visible = visibleIn_(ctx);
   const members = rows.filter(r => r.groupId === target.groupId && r.date >= target.date)
-    .filter(r => r.id === target.id || isAdmin || !isPast_(r.date, r.end));
+    .filter(r => r.id === target.id || isAdmin ||
+      (!isPast_(r.date, r.end) && visible(r) && roomOf_(ctx, r.roomId).restriction !== ROOM_RESTRICTIONS.ADMIN_ONLY));
   const updates = [];
   const problems = [];
   const now = nowStr_('yyyy-MM-dd HH:mm:ss');
@@ -706,16 +713,14 @@ function adminSaveRooms(p) {
     let n = 1;
     rooms.forEach(r => {
       if (r.id) return;
-      while (used.has('room_' + pad2_(n))) n++;
-      r.id = 'room_' + pad2_(n);
+      // pad2_ は3桁を切り詰める（100 → 00）ので使わない。切り詰めると番号が一巡して、空きを探し続けて止まらなくなる
+      while (used.has('room_' + String(n).padStart(2, '0'))) n++;
+      r.id = 'room_' + String(n).padStart(2, '0');
       used.add(r.id);
     });
 
-    const sheet = getSheet_(ss, SHEETS.rooms);
-    const last = sheet.getLastRow();
-    if (last >= 2) sheet.getRange(2, 1, last - 1, HEADERS.rooms.length).clearContent();
-    sheet.getRange(2, 1, rooms.length, HEADERS.rooms.length).setNumberFormat('@')
-      .setValues(rooms.map((r, i) => [String(i + 1), r.id, r.name, r.equipment, r.restriction, r.note, r.tags]));
+    replaceRows_(getSheet_(ss, SHEETS.rooms), HEADERS.rooms.length,
+      rooms.map((r, i) => [String(i + 1), r.id, r.name, r.equipment, r.restriction, r.note, r.tags]));
     SpreadsheetApp.flush();
     invalidateMaster_();
 
@@ -762,13 +767,7 @@ function adminSaveClosures(p) {
   closures.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
   return withLock_(() => {
-    const sheet = ensureSheet_(ss, SHEETS.closures, HEADERS.closures);
-    const last = sheet.getLastRow();
-    if (last >= 2) sheet.getRange(2, 1, last - 1, HEADERS.closures.length).clearContent();
-    if (closures.length) {
-      sheet.getRange(2, 1, closures.length, HEADERS.closures.length).setNumberFormat('@')
-        .setValues(closures.map(c => [c.date, c.roomId, c.start, c.end, c.reason]));
-    }
+    writeClosuresSheet_(ss, closures.map(c => [c.date, c.roomId, c.start, c.end, c.reason]));
     SpreadsheetApp.flush();
     invalidateMaster_();
     logAdmin_(ss, '休館・利用停止の変更', closures.length + '件');
@@ -868,7 +867,11 @@ function logMatcher_(p, names) {
   return e => {
     if (kind && logKind_(e) !== kind) return false;
     if (!words.length) return true;
-    const hay = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ').toLowerCase();
+    const raw = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ');
+    // 画面に出す形（10/13・2026/10/13・部屋名）でも探せるようにする（cache/store.js の logMatcher と同じ）
+    const shown = raw.replace(/\b(\d{4})-(\d\d)-(\d\d)\b/g, (m, y, mo, d) => y + '/' + mo + '/' + d + ' ' + Number(mo) + '/' + Number(d))
+      .replace(/room_\w+/g, id => names[id] || id);
+    const hay = (raw + ' ' + shown).toLowerCase();
     return words.every(w => hay.indexOf(w) >= 0);
   };
 }
@@ -898,6 +901,13 @@ function adminPasskeyTicket(p) {
   if (!key) return fail_('高速キャッシュの合言葉（CACHE_PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
   const exp = Math.floor(Date.now() / 1000) + 300;
   return { ok: true, ticket: 'pkt.' + exp + '.' + hmac_(key, 'pkt.' + exp) };
+}
+
+/** 読み込みで管理用パスワード（ログインの印）が送られたのに通らなかったら ADMIN_AUTH で断る
+ *  （黙って一般の見え方で返すと、管理画面の統計などから限定公開の部屋が知らせもなく抜け落ちるため） */
+function adminRejected_(p, ctx) {
+  if (!p.adminPassword || ctx.isAdmin) return null;
+  return fail_(verifyAdmin_(p.adminPassword) || '管理用パスワードが一致しません。', 'ADMIN_AUTH');
 }
 
 function requireAdmin_(p) {
@@ -1076,11 +1086,8 @@ function cacheRetry(e) {
   const ok = pushCache_();
   if (!fromTrigger) {
     let why = props.getProperty('CACHE_LAST_ERROR') || '';
-    if (!ok) { // 合言葉の手がかり（長さとハッシュの先頭8文字）。Cloudflare 側の URL を開くと出る tokenHint と比べる
-      const t = cacheProp_('CACHE_PUSH_TOKEN').trim();
-      const hex = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, t, Utilities.Charset.UTF_8)
-        .map(b => ('0' + ((b + 256) % 256).toString(16)).slice(-2)).join('');
-      why += '\nGAS の合言葉の手がかり: 長さ ' + t.length + '、' + hex.slice(0, 8);
+    if (!ok) { // 合言葉の手がかり（長さだけ）。Cloudflare 側の URL を開くと出る tokenHint と比べる
+      why += '\nGAS の合言葉の長さ: ' + cacheProp_('CACHE_PUSH_TOKEN').trim().length;
     }
     try {
       SpreadsheetApp.getUi().alert(ok ? '高速キャッシュに送りました。'
@@ -1184,6 +1191,11 @@ function mirrorPullLocked_(ss) {
     const after = Number(props.getProperty('MIRROR_SEQ') || 0);
     const res = cfCall_('get', '/mirror/changes?after=' + after);
     if (!res.ok) throw new Error(res.message || res.code);
+    if (res.reset) { // Cloudflare の正本が昔の時点に戻された（復元）。続きからは写せないので、丸ごと写し直す
+      console.warn('Cloudflare の変更の番号が戻っていたため、丸ごと写し直します（写した番号 ' + after + '、Cloudflare ' + res.seq + '）');
+      applied += mirrorFullOnly_(ss);
+      break;
+    }
     if (res.changes.length) {
       applyMirror_(ss, res.changes);
       SpreadsheetApp.flush();
@@ -1246,10 +1258,14 @@ function applyMirror_(ss, changes) {
 }
 
 /** シートの2行目から下を、rows で置き換える */
+/**
+ * 2行目からを rows で置き換える。先に書いてから、余った下の行だけを消す
+ * （先に全部消すと、書く途中で止まったときにシートが空になり、部屋なら全予約が見えなくなるため）
+ */
 function replaceRows_(sheet, width, rows) {
   const last = sheet.getLastRow();
-  if (last >= 2) sheet.getRange(2, 1, last - 1, width).clearContent();
   if (rows.length) sheet.getRange(2, 1, rows.length, width).setNumberFormat('@').setValues(rows);
+  if (last >= rows.length + 2) sheet.getRange(rows.length + 2, 1, last - rows.length - 1, width).clearContent();
 }
 function writeRoomsSheet_(ss, rows) {
   replaceRows_(ensureSheet_(ss, SHEETS.rooms, HEADERS.rooms), HEADERS.rooms.length, rows.map(r => r.map(v => String(v == null ? '' : v))));
@@ -1278,6 +1294,11 @@ function writeSettingsSheet_(ss, values) {
 function mirrorFull_(ss) {
   // 差分の写しが失敗し続けていても、写し直しと GAS への戻しはできるようにする（そのときはまだ写していないログをあきらめる）
   try { mirrorPullLocked_(ss); } catch (e) { console.error('先に差分を写せませんでした: ' + e); }
+  return mirrorFullOnly_(ss);
+}
+
+/** mirrorFull_ の中身（先に差分を写さない）。差分の番号が戻っていたときにも使う */
+function mirrorFullOnly_(ss) {
   const res = cfCall_('get', '/mirror/full');
   if (!res.ok) throw new Error(res.message || res.code);
   replaceRows_(ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations), HEADERS.reservations.length, res.reservations);
@@ -1575,8 +1596,7 @@ function master_(ss) {
   let m = hit ? JSON.parse(hit) : null;
   if (!m) {
     m = { settings: loadSettings_(ss), rooms: readRooms_(ss), closures: readClosures_(ss) };
-    const json = JSON.stringify(m);
-    if (json.length < 90000) cache.put(key, json, MASTER_TTL_SECONDS); // 1件に覚えられるのは 100KB まで
+    putCache_(cache, key, JSON.stringify(m), MASTER_TTL_SECONDS);
   }
   MEMO_.master = m;
   return m;
@@ -1597,18 +1617,17 @@ function onEdit() {
  * 止める時間が延び続けたり、正しいパスワードを覚えた端末から消されたりしないように）
  */
 function limitedAccess_(settings, p, isAdmin) {
+  // 管理者は確かめずに通す。管理者には「違う」と返らないので、端末に残った古いパスワードが自動更新のたびに送られ、
+  // 数えると全体の回数が増え続けて、ほかの利用者が止まってしまう
+  if (isAdmin) return { ok: true };
   const pw = settings.limitedPassword;
   const key = String(p.limitedKey || '');
   if (key) {
     const failures = Number(CacheService.getScriptCache().get('limitedFailures') || 0);
-    if (failures < SYSTEM.MAX_LIMITED_FAILURES) {
-      if (pw && key === pw) return { ok: true };
-      countFailure_('limitedFailures'); // 総当たり対策
-    } else if (!isAdmin) {
-      return { ok: false, locked: true };
-    }
+    if (failures >= SYSTEM.MAX_LIMITED_FAILURES) return { ok: false, locked: true };
+    if (pw && key === pw) return { ok: true };
+    countFailure_('limitedFailures'); // 総当たり対策
   }
-  if (isAdmin) return { ok: true };
   return key ? { ok: false, denied: true } : { ok: false };
 }
 
@@ -1626,10 +1645,11 @@ function limitedInfo_(ctx) {
   return {};
 }
 
-/** 閲覧パスワードを確かめる。誤入力が全体で続いたら一定時間断る（その間は合っていても通さず、回数も増やさない） */
+/** 閲覧パスワードを確かめる。誤入力が全体で続いたら一定時間断る（その間は合っていても通さず、回数も増やさない）。
+ *  管理者は確かめない（管理用パスワードで全部見られるので守りにならず、管理画面の履歴・統計が止まるだけ。端末に残った古い値も数えない） */
 function checkView_(ctx, viewKey) {
   const pw = ctx.settings.viewPassword;
-  if (!pw) return null;
+  if (!pw || ctx.isAdmin) return null;
   const key = String(viewKey || '');
   if (key && Number(CacheService.getScriptCache().get('viewFailures') || 0) >= SYSTEM.MAX_VIEW_FAILURES) {
     return fail_('閲覧パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。', 'AUTH_REQUIRED');
@@ -1671,6 +1691,7 @@ function verifyAdmin_(password) {
   return MEMO_.admin[k];
 }
 function verifyAdminOnce_(password) {
+  if (!password) return '管理用パスワードが一致しません。'; // 空欄は誤入力に数えない（Cloudflare と同じ。空の Enter の連打でロックさせないため）
   if (/^pk1\./.test(String(password || ''))) return verifyPasskeyToken_(String(password));
   const adminPassword = prop_('ADMIN_PASSWORD');
   if (!adminPassword) return '管理用パスワードが設定されていません。管理者に連絡してください。';
@@ -1679,7 +1700,7 @@ function verifyAdminOnce_(password) {
   const trusted = isTrustedDevice_(REQ_DEVICE_);
   const failKey = trusted ? 'adminfail_' + REQ_DEVICE_ : 'adminfail';
   const failures = Number(CacheService.getScriptCache().get(failKey) || 0);
-  if (failures >= SYSTEM.MAX_PIN_FAILURES * 2) {
+  if (failures >= SYSTEM.MAX_ADMIN_FAILURES) {
     return '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
   }
   if (String(password) !== adminPassword) {
@@ -1861,8 +1882,10 @@ function closureError_(ctx, r) {
 function findConflict_(rows, r, excludeId) {
   const s = toMin_(r.start);
   const e = toMin_(r.end);
+  // 時刻が読めない行（シートを手で書き換えて空・「9時」など）は、同じ部屋・同じ日の全時間帯と重なるとみなす（二重予約を通さない）
+  const broken = t => !/^\d{2}:\d{2}$/.test(t);
   return rows.find(x => x.id !== excludeId && x.date === r.date && x.roomId === r.roomId &&
-    toMin_(x.start) < e && s < toMin_(x.end)) || null;
+    (broken(x.start) || broken(x.end) || (toMin_(x.start) < e && s < toMin_(x.end)))) || null;
 }
 
 function describe_(r) {
@@ -2094,7 +2117,18 @@ function withLock_(fn, opts) {
   MEMO_.locked = true;
   try {
     // ロックを待っている間に、正本が Cloudflare に移されていたら書き込まない（移した後のシートに書いても正本に入らない）
-    result = cloudflarePrimaryNow_() ? moved_() : fn();
+    try {
+      result = cloudflarePrimaryNow_() ? moved_() : fn();
+    } catch (e) {
+      // 途中で止まっても、それまでの書き込みは確定させ、覚えていた予約表を使わないようにし、写しを送り直す印を立てる
+      // （書きかけのシートと、古い予約表・写しが食い違ったままにならないように）
+      try {
+        SpreadsheetApp.flush();
+        bumpScheduleVersion_();
+        if (push) PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', '1');
+      } catch (e2) { console.error(e2); }
+      throw e;
+    }
     // 書き込み（操作ログも含む）は、ロックを外す前に確定させる（次の人が古い内容を読んだり、同じ行に書いたりしないように）
     SpreadsheetApp.flush();
     if (result && result.ok && push) {
@@ -2179,6 +2213,18 @@ function toMin_(t) {
 
 function hm_(t) {
   return String(t).replace(/^0(\d)/, '$1');
+}
+
+/**
+ * CacheService に覚える。1件に覚えられるのは 100KB（バイト）まで。文字数で比べると、日本語が多いときに超えて
+ * put が例外になり、予約表の読み込みごと失敗するので、バイト数で比べ、それでも失敗したら覚えずに進む
+ */
+function putCache_(cache, key, json, seconds) {
+  try {
+    if (Utilities.newBlob(json).getBytes().length < 95000) cache.put(key, json, seconds);
+  } catch (e) {
+    console.warn('覚えられませんでした（' + key + '）: ' + e);
+  }
 }
 
 function pad2_(n) {

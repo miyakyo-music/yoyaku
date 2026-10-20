@@ -257,6 +257,9 @@ async function showHistory() {
     head.textContent = '';
     $('xResultBody').innerHTML = '';
     $('exportError').textContent = errMessage(e);
+    // 表が消えたので、選んでいた予約も外し、削除ボタンを押せなくする（見えない予約を消さないように）
+    shownList = [];
+    if (pickedIds) { pickedIds.clear(); lastPick = -1; $('xDelBtn').disabled = true; $('xDelBtn').innerHTML = '削除'; }
     return;
   }
   if (seq !== historySeq) return;

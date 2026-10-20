@@ -16,13 +16,18 @@ function closuresFor(date, roomId) {
 
 function render() {
   state.renderedAt = `${todayStr()} ${nowMin()}`; // 描いた日と時刻（分）。自動更新で中身が同じでも、分が変われば描き直すため
-  if (isOffline() && state.shownKey !== `${state.view}|${rangeKey(currentRange())}`) {
-    $('main').innerHTML = '<p class="empty">オフラインのため、この期間の予約を表示できません。</p>';
+  if ((isOffline() || state.loadFailed) && state.shownKey !== `${state.view}|${rangeKey(currentRange())}`) {
+    $('main').innerHTML = isOffline() ? '<p class="empty">オフラインのため、この期間の予約を表示できません。</p>' : '<p class="empty">この期間の予約を読み込めませんでした。</p>';
     liftFab();
     return;
   }
+  // 描き直すと選んでいた帯・行が作り直されてフォーカスが消えるので、同じものを選び直す（キーボードで使う人のため）
+  const a = document.activeElement;
+  const sel = a && $('main').contains(a) && (a.dataset.id ? `[data-id="${CSS.escape(a.dataset.id)}"]`
+    : a.dataset.date ? `[data-date="${a.dataset.date}"]` : a.dataset.room ? `[data-room="${CSS.escape(a.dataset.room)}"]` : '');
   if (state.view === 'month') renderMonth();
   else renderTimeline();
+  if (sel) { const b = $('main').querySelector(`${sel}[tabindex]`); if (b) b.focus({ preventScroll: true }); }
   liftFab();
   // 「‹」「›」で日付（月）を切り替えたときだけ、表を進む向きから軽くすべり込ませる
   if (state.slide) {

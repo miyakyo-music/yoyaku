@@ -57,7 +57,7 @@
       <form id="loginForm" novalidate>
         <h2>管理者ログイン</h2>
         <label class="field">管理用パスワード<input id="loginPw" type="password" autocomplete="current-password"></label>
-        <p class="msg error" id="loginError"></p>
+        <p class="msg error" role="alert" id="loginError"></p>
         <div class="login-btns">
           <button type="button" class="btn" id="pkLoginBtn" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M17 6l3 3M14 9l2 2"/></svg>パスキーでログイン</button>
           <button type="submit" class="btn primary" id="loginBtn">ログイン</button>
@@ -86,7 +86,7 @@
           <label class="field f-reason">理由<input id="cReason" maxlength="50" placeholder="例：ピアノ調律"></label>
           <button type="submit" class="btn primary f-submit" id="addClosureBtn">追加</button>
         </form>
-        <p class="msg error" id="closureError"></p>
+        <p class="msg error" role="alert" id="closureError"></p>
         <p class="msg warn" id="closureWarn"></p>
         <div style="display:flex;align-items:center;margin:18px 0 8px"><h3 style="margin:0">登録済み</h3><span class="spacer"></span><label class="check"><input type="checkbox" id="showPast">過去の分も表示</label></div>
         <div class="table-wrap">
@@ -111,10 +111,10 @@
             <div class="set-row"><span class="set-k">利用開始時刻</span><div class="time"><select id="sOpenH" class="in" aria-label="利用開始（時）"></select>:<select id="sOpenM" class="in" aria-label="利用開始（分）"></select></div></div>
             <div class="set-row"><span class="set-k">利用終了時刻</span><div class="time"><select id="sCloseH" class="in" aria-label="利用終了（時）"></select>:<select id="sCloseM" class="in" aria-label="利用終了（分）"></select></div></div>
             <label class="set-row"><span class="set-k">予約単位</span><span class="suffix"><select id="sUnit" class="in"></select>分</span></label>
-            <label class="set-row"><span class="set-k">1回の最大予約時間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDur" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span></label>
-            <label class="set-row"><span class="set-k">予約受付期間 <button type="button" class="info" aria-label="説明" data-tip="今日から何日先まで予約できるか。0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDays" type="number" min="0" max="730" inputmode="numeric">日先まで</span></label>
-            <label class="set-row"><span class="set-k">まとめて予約の最大件数 <button type="button" class="info" aria-label="説明" data-tip="くり返し予約・複数部屋の同時予約の合計（部屋数×日数）。">i</button></span><span class="suffix"><input id="sMaxBulk" type="number" min="1" max="300" inputmode="numeric">件</span></label>
-            <label class="set-row"><span class="set-k">まとめて予約は管理者のみ <button type="button" class="info" aria-label="説明" data-tip="まとめて予約＝くり返し予約・複数部屋の同時予約。オンにすると、管理用パスワードを知っている人だけが使えます。">i</button></span><input type="checkbox" id="sBulkAdmin" class="switch" role="switch"></label>
+            <label class="set-row" for="sMaxDur"><span class="set-k">1回の最大予約時間 <button type="button" class="info" aria-label="説明" data-tip="0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDur" aria-label="1回の最大予約時間（分）" type="number" min="0" max="1440" step="5" inputmode="numeric">分</span></label>
+            <label class="set-row" for="sMaxDays"><span class="set-k">予約受付期間 <button type="button" class="info" aria-label="説明" data-tip="今日から何日先まで予約できるか。0＝制限なし。管理者は制限を受けません。">i</button></span><span class="suffix"><input id="sMaxDays" aria-label="予約受付期間（日先まで）" type="number" min="0" max="730" inputmode="numeric">日先まで</span></label>
+            <label class="set-row" for="sMaxBulk"><span class="set-k">まとめて予約の最大件数 <button type="button" class="info" aria-label="説明" data-tip="くり返し予約・複数部屋の同時予約の合計（部屋数×日数）。">i</button></span><span class="suffix"><input id="sMaxBulk" aria-label="まとめて予約の最大件数（件）" type="number" min="1" max="300" inputmode="numeric">件</span></label>
+            <label class="set-row" for="sBulkAdmin"><span class="set-k">まとめて予約は管理者のみ <button type="button" class="info" aria-label="説明" data-tip="まとめて予約＝くり返し予約・複数部屋の同時予約。オンにすると、管理用パスワードを知っている人だけが使えます。">i</button></span><input type="checkbox" id="sBulkAdmin" aria-label="まとめて予約は管理者のみ" class="switch" role="switch"></label>
             <div class="set-row set-col"><span class="set-k">定休日</span><div class="weekdays pills" id="sWeekdays"></div></div>
           </div>
         </form>
@@ -123,7 +123,7 @@
           <span class="dirty" id="settingsDirty" hidden>未保存の変更があります</span>
           <button type="button" class="btn primary" id="saveSettingsBtn">保存</button>
         </div>
-        <p class="msg error" id="settingsError"></p>
+        <p class="msg error" role="alert" id="settingsError"></p>
         <p class="msg warn" id="settingsWarn"></p>
       </div>
 
@@ -134,7 +134,7 @@
           <div class="field full">入口の URL<div class="copy-row"><input id="limitedUrl" class="in" readonly aria-label="限定公開の部屋の入口の URL"><button type="button" class="btn small" id="copyLimitedUrl">コピー</button></div></div>
           <div class="full submit-row"><button type="submit" class="btn primary" id="limitedBtn">保存</button></div>
         </form>
-        <p class="msg error" id="limitedError"></p>
+        <p class="msg error" role="alert" id="limitedError"></p>
       </div>
 
       <div class="card" data-panel="setup" hidden>
@@ -144,14 +144,14 @@
             <div class="field full">予約表全体のパスワード<div class="pw-row"><input id="sViewPw" class="in" type="password" maxlength="50" autocomplete="new-password" placeholder="空欄なら誰でも閲覧・予約できます"><button type="button" class="btn small" data-reveal="sViewPw">表示</button></div></div>
             <div class="full submit-row"><button type="submit" class="btn primary" id="viewPwBtn">保存</button></div>
           </form>
-          <p class="msg error" id="viewPwError"></p>
+          <p class="msg error" role="alert" id="viewPwError"></p>
         </details>
       </div>
 
       <div class="card" data-panel="setup" id="pkCard" hidden>
         <h2>パスキー <button type="button" class="info" aria-label="説明" data-tip="管理用パスワードの代わりに、Face ID・Touch ID・端末のロック解除で管理画面に入れます。使う端末で「この端末を登録」を押してください（iCloud キーチェーンなどで同期される場合は、同じアカウントのほかの端末でも使えます）。指紋や顔の情報は端末から出ず、サーバーには合い鍵にならない公開鍵だけを置きます。管理者が替わったら、前の人のパスキーを削除してください。">i</button></h2>
         <ul class="pk-list" id="pkList"></ul>
-        <p class="msg error" id="pkError"></p>
+        <p class="msg error" role="alert" id="pkError"></p>
         <div class="submit-row"><button type="button" class="btn primary" id="pkAddBtn">この端末を登録</button></div>
       </div>
 
@@ -162,7 +162,7 @@
           <label class="field m-full">新しいパスワード（確認）<input id="pwNew2" type="password" autocomplete="new-password"></label>
           <div class="full submit-row"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
         </form>
-        <p class="msg error" id="pwError"></p>
+        <p class="msg error" role="alert" id="pwError"></p>
       </div>
 
       <!-- 練習室 -->
@@ -177,7 +177,7 @@
           <span class="dirty" id="roomsDirty" hidden>未保存の変更があります</span>
           <button type="button" class="btn primary" id="saveRoomsBtn">保存</button>
         </div>
-        <p class="msg error" id="roomsError"></p>
+        <p class="msg error" role="alert" id="roomsError"></p>
       </div>
 
       <!-- 不具合報告 -->
@@ -220,7 +220,7 @@
             </div>
           </div>
         </div>
-        <p class="msg error" id="exportError"></p>
+        <p class="msg error" role="alert" id="exportError"></p>
         <div id="xResult">
           <div class="table-wrap" id="xResultBody"></div>
         </div>
@@ -273,7 +273,7 @@
             <button type="button" data-kind="admin" aria-pressed="false">設定</button>
           </div>
         </div>
-        <p class="msg error" id="oplogError"></p>
+        <p class="msg error" role="alert" id="oplogError"></p>
         <div id="oplogList"></div>
         <button type="button" class="btn log-more" id="oplogMore" hidden>さらに読み込む</button>
       </div>
@@ -285,7 +285,7 @@
           <label class="check"><input type="checkbox" id="showDone">対応済みも表示</label>
           <button type="button" class="btn small" id="bugReload">再読み込み</button>
         </div>
-        <p class="msg error" id="bugsError"></p>
+        <p class="msg error" role="alert" id="bugsError"></p>
         <div class="bug-list" id="bugList"></div>
       </div>
     </section>

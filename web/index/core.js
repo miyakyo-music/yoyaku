@@ -59,6 +59,8 @@ const state = {
   hourBase: 0, hourMin: MIN_HOUR_W, hourW: 0,
   detail: null,
   skipConflicts: false,
+  loadFailed: false,    // いまの表示の期間を読み込めなかった（前の期間の表を出さないため）
+  bookSending: false,   // まとめて予約・まとめて変更を送っている間（送信ボタンを押せないままにする）
   adminPw: sessionGet(ADMIN_SESSION_KEY),
   cache: new Map(),     // 期間（"from|to"）→ { res, at }  取得済みの予約データ
   cacheGen: 0,          // キャッシュを破棄した回数（破棄前に始まった取得結果を保存しないため）
@@ -113,11 +115,16 @@ function load_(key, fallback) {
 function save_(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 保存できない環境では無視 */ }
 }
+/** 端末に覚えた前回の表を消す（管理者モード・限定公開で見た部屋や予約を、次に開いたときに出さないため） */
+function forgetSnapshot() {
+  try { localStorage.removeItem(LS.snapshot); } catch (e) { /* 保存できない環境では何もしない */ }
+}
 function sessionGet(key) { try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; } }
 function isAdminMode() { return !!state.adminPw; }
 function exitAdminMode(message) {
   state.adminPw = '';
   try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) { /* 無視 */ }
+  forgetSnapshot();
   $('adminMode').hidden = true;
   if (message) toast(message, 'error');
 }

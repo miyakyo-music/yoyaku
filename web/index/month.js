@@ -29,7 +29,8 @@ function renderMonth() {
     if (d === today) cls.push('today');
     if (d === state.date) cls.push('selected');
     if (closedLabel) cls.push('closed-day');
-    html += `<div class="${cls.join(' ')}" data-date="${d}" role="button" tabindex="0">` +
+    // 前後の月の日は、キーボードの移動先にしない（スマホでは見えない。月を移れば選べる）
+    html += `<div class="${cls.join(' ')}" data-date="${d}" role="button" tabindex="${d.slice(0, 7) !== month ? -1 : 0}">` +
       `<div class="d">${dayNum(d)}</div><ul>` +
       (closedLabel ? `<li class="closed">${esc(closedLabel)}</li>` : '');
     if (roomId) {

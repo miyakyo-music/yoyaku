@@ -104,6 +104,12 @@
   const series = [['s1', 'room_14', T, '10:00', '11:00'], ['s0', 'room_12', T, '07:00', '08:00'], ['s2', 'room_14', D7, '10:00', '11:00'],
     ['s3', 'room_15', D7, '10:00', '11:00'], ['s4', newRoom, D7, '10:00', '11:00']];
   series.forEach(([n, roomId, date, start, end]) => put({ id: 'res_dev_' + n, date, roomId, start, end, name: n, groupId: 'grp_dev_series' }));
+  // 時刻が読めない行（シートを手で書き換えた空欄など）は、同じ部屋・同じ日の全時間帯と重なるとみなす
+  put({ id: 'res_dev_broken', date: D7, roomId: 'room_03', start: '', end: '', name: '壊' });
+  rec('brokenTime', await c('createReservation', Object.assign({}, base, { date: D7, roomId: 'room_03', start: '18:00', end: '19:00' })));
+  // 「この日以降をまとめて変更」も、管理者以外は同じ分を変えずに残す（全体を失敗にしない）
+  r = rec('updateFollowing', await c('updateReservation', { id: 'res_dev_s1', scope: 'following', date: T, roomId: 'room_14', start: '10:00', end: '11:00', affiliation: '', name: '丙', memo: '' }));
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.id.replace('res_dev_', '') + x.name).sort().join(',');
   r = rec('cancelFollowing', await c('cancelReservation', { id: 'res_dev_s1', scope: 'following' }));
   out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.slice().sort().join(',');
   r = rec('cancelFollowingLeft', await c('getReservationsByIds', { adminPassword: A, ids: series.map((x) => 'res_dev_' + x[0]) }));
@@ -130,6 +136,13 @@
   out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedLocked || false];
   CacheService.getScriptCache().remove('limitedFailures');
   devCf.core.kdel('limitedFailures');
+  // 管理者の端末に残った古いパスワードは数えない（29回の誤入力のあとでも、正しいパスワードの人は止まらない）
+  for (let i = 0; i < 29; i++) await c('getSchedule', { from: D, to: D, limitedKey: 'old', adminPassword: A });
+  for (let i = 0; i < 29; i++) await c('getSchedule', { from: D, to: D, limitedKey: 'bad' + i });
+  r = rec('limitedAdminStale', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedLocked || false];
+  CacheService.getScriptCache().remove('limitedFailures');
+  devCf.core.kdel('limitedFailures');
   r = rec('limitedAfterLock', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
   out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false];
   // 閲覧パスワード
@@ -139,7 +152,14 @@
   rec('viewBad', await c('getSchedule', { from: D, to: D, viewKey: 'x' }));
   r = rec('viewOk', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   out[out.length - 1][4] = r.settings && r.settings.viewPasswordRequired;
-  for (let i = 0; i < 30; i++) await c('getSchedule', { from: D, to: D, viewKey: 'x' + i });
+  rec('schedBadAdmin', await c('getSchedule', { from: D, to: D, viewKey: 'view', adminPassword: 'wrong-pass' })); // 黙って一般の見え方で返さない
+  // 管理者は閲覧パスワードを求められない（端末に残った古い値も数えない）
+  r = rec('viewAdmin', await c('getSchedule', { from: D, to: D, adminPassword: A }));
+  out[out.length - 1][4] = r.reservations && r.reservations.length;
+  rec('viewAdminStale', await c('getSchedule', { from: D, to: D, adminPassword: A, viewKey: 'old' }), null);
+  for (let i = 0; i < 28; i++) await c('getSchedule', { from: D, to: D, viewKey: 'x' + i }); // viewBad と合わせて29回
+  rec('viewBeforeLock', await c('getSchedule', { from: D, to: D, viewKey: 'view' }), null); // 管理者の古い値を数えていれば、ここで止まる
+  await c('getSchedule', { from: D, to: D, viewKey: 'x28' }); // 30回目
   rec('viewLocked', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   rec('viewLockedEmpty', await c('getSchedule', { from: D, to: D }));
   CacheService.getScriptCache().remove('viewFailures');

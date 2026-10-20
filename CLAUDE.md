@@ -24,7 +24,7 @@
 
 ## 構成の要点
 
-- 予約表は `web/index.html` と部品ごとのファイル `web/index/*.css`・`web/index/*.js`、管理画面は `web/admin.html` と `web/admin/*.css`・`web/admin/*.js`、両方で使う CSS は `web/shared/*.css`（両画面で同じ色の名前と、完全に同じ指定だけ。各画面の CSS より先に読む）（外部ライブラリ・組み立ての手順なし。一覧は仕様書 1.1）。ダークモードの判定だけは、白く光らないよう HTML の `<head>` に残している。
+- 予約表は `web/index.html` と部品ごとのファイル `web/index/*.css`・`web/index/*.js`、管理画面は `web/admin.html` と `web/admin/*.css`・`web/admin/*.js`、両方で使う CSS は `web/shared/*.css`（両画面で同じ色の名前と、完全に同じ指定だけ。各画面の CSS より先に読む。`shared/button.css` だけは形を上書きするので各画面の CSS の後、`fallback.css` の前）（外部ライブラリ・組み立ての手順なし。一覧は仕様書 1.1）。ダークモードの判定だけは、白く光らないよう HTML の `<head>` に残している。
   - CSS は HTML の `<link>` の並び順に意味がある（あとが前を上書きする。`fallback.css` は最後）。1つの部品の見た目は、その部品のファイルにまとめる（ダークモードの色もファイルの終わりの方に）。
   - JS は1つの即時関数を分けたもので、一番外側の名前（`state`・`$` など）を全ファイルで共有する。新しいファイルは HTML の `<script>` の適切な位置（`boot.js` より前）に足し、読み込みの途中で、あとのファイルの名前を使わない。テスト環境では `gas/Code.gs`・`cache/store.js` も同じ場所に読み込まれるので、同じ名前（`const` など）を作らない。テスト環境で開いてコンソールに赤いエラーが出ないことを確かめる。
 - 見た目を変えずに整理するときは、作業前後で全要素の計算後のスタイルを比べて確かめる（`dev/fingerprint.js`、CSS だけなら `node dev/css-swap-headless.js` で `dev/css-swap.js` を画面なしの Chrome でまとめて流す。組み込みブラウザで待ちながら1つずつ流さない。手順は保守マニュアル 03 の 7章）。リファクタリング前の版はタグ `v0.5.4-beta-before-refactor`、部品ごとに分ける前の版はタグ `v0.6.1-beta-before-parts`。

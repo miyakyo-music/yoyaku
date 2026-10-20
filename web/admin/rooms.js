@@ -130,6 +130,8 @@ $('saveRoomsBtn').addEventListener('click', async () => {
   if (empty >= 0) { err.textContent = `${empty + 1}行目: 部屋名を入力してください。`; return; }
   const btn = $('saveRoomsBtn');
   btn.disabled = true;
+  const card = btn.closest('.card');
+  freezeWhileSaving(card, true);
   try {
     // 一覧は丸ごと置き換わるので、開いたあとにほかの画面で部屋が変わっていたら保存しない（足された部屋を黙って消さないため）
     const latest = (await fetchLatest()).rooms;
@@ -147,6 +149,7 @@ $('saveRoomsBtn').addEventListener('click', async () => {
   } catch (ex) {
     err.textContent = errMessage(ex);
   } finally {
+    freezeWhileSaving(card, false);
     btn.disabled = false;
   }
 });

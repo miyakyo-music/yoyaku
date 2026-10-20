@@ -56,6 +56,15 @@ async function fetchLatest() {
   if (!res.ok) throw new Error(res.message);
   return res;
 }
+/** 保存を待っている間、form などの中を触れなくする（見た目は変えない）。保存後の描き直しで、その間の入力が消えないように */
+let frozenFocus = null;
+function freezeWhileSaving(el, on) {
+  if (on) { frozenFocus = document.activeElement; el.inert = true; return; }
+  el.inert = false;
+  // inert にするとフォーカスが外れるので、保存ボタンなど元の場所に戻す
+  if (frozenFocus && el.contains(frozenFocus) && document.activeElement === document.body) frozenFocus.focus({ preventScroll: true });
+  frozenFocus = null;
+}
 function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
 
 function timeSelects(hSel, mSel, maxHour) {

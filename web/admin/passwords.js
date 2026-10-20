@@ -44,6 +44,8 @@ async function savePassword(key, inputId, btnId, errId, message) {
   err.textContent = '';
   const value = $(inputId).value;
   $(btnId).disabled = true;
+  const form = $(inputId).closest('form');
+  freezeWhileSaving(form, true);
   try {
     const latest = await fetchLatest();
     const settings = Object.assign({}, latest.settings, { [key]: value });
@@ -55,6 +57,7 @@ async function savePassword(key, inputId, btnId, errId, message) {
   } catch (ex) {
     err.textContent = errMessage(ex);
   } finally {
+    freezeWhileSaving(form, false);
     $(btnId).disabled = false;
   }
 }

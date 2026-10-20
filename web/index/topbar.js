@@ -6,7 +6,8 @@ $('prevBtn').addEventListener('click', () => shift(-1));
 $('nextBtn').addEventListener('click', () => shift(1));
 $('todayBtn').addEventListener('click', () => setDate(todayStr()));
 $('datePicker').addEventListener('change', (e) => setDate(e.target.value));
-$('refreshBtn').addEventListener('click', () => { invalidate(); load({ force: true }); });
+// オフラインの間は覚えている表を捨てない（捨てると、ほかの日へ移ったときに何も出せなくなる）
+$('refreshBtn').addEventListener('click', () => { if (!isOffline()) invalidate(); load({ force: true }); });
 $('fabBtn').addEventListener('click', () => $('newBtn').click());
 $('newBtn').addEventListener('click', () => {
   if (!state.settings) return;

@@ -29,6 +29,23 @@ for (const t of document.querySelectorAll('.tabs [data-tab]')) {
     if (t.dataset.tab === 'oplog') loadOplog(false);
   });
 }
+// キーボード: 選んでいるタブだけを Tab の移動先にし、左右の矢印・Home・End でタブを移る
+function syncTabStops() {
+  for (const x of document.querySelectorAll('.tabs [data-tab]')) x.tabIndex = x.getAttribute('aria-selected') === 'true' ? 0 : -1;
+}
+document.querySelector('.tabs').addEventListener('keydown', (e) => {
+  const list = [...document.querySelectorAll('.tabs [data-tab]')].filter((x) => !x.hidden);
+  const i = list.indexOf(document.activeElement);
+  if (i < 0) return;
+  const j = e.key === 'ArrowRight' ? (i + 1) % list.length : e.key === 'ArrowLeft' ? (i - 1 + list.length) % list.length
+    : e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : -1;
+  if (j < 0) return;
+  e.preventDefault();
+  list[j].click();
+  list[j].focus();
+});
+document.querySelector('.tabs').addEventListener('click', syncTabStops);
+syncTabStops();
 // タブの白いつまみを、選択中のタブの位置・幅に合わせる（最初に置くときだけは滑らせない）
 function placeTabThumb() {
   const tabs = document.querySelector('.tabs');

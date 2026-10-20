@@ -46,11 +46,17 @@
   // 切り替え（と戻し）は、スプレッドシートのメニューから行う（仕様書 4.6）
   const PRIMARY_KEY = 'prr.primary';
   const cfApiUrl = () => (window.CACHE_API_URL ? String(window.CACHE_API_URL).replace(/\/+$/, '') + '/api' : '');
+  // 開いている間はメモリの覚えを正とし、端末（localStorage）は次に開いたとき用の補助にする
+  // （端末に保存できない環境で、MOVED のあとも GAS へ送り続けて、書き込みが一切通らなくなっていたため）
+  let primaryMem = null; // null = まだ覚えていない（端末の覚えを見る） / true = Cloudflare / false = GAS
   function usesCloudflare() {
-    try { return !!cfApiUrl() && localStorage.getItem(PRIMARY_KEY) === 'cf'; } catch (e) { return false; }
+    if (!cfApiUrl()) return false;
+    if (primaryMem !== null) return primaryMem;
+    try { return localStorage.getItem(PRIMARY_KEY) === 'cf'; } catch (e) { return false; }
   }
   function setPrimary(cf) {
-    try { if (cf) localStorage.setItem(PRIMARY_KEY, 'cf'); else localStorage.removeItem(PRIMARY_KEY); } catch (e) { /* 覚えられない環境では、毎回 GAS から */ }
+    primaryMem = !!cf;
+    try { if (cf) localStorage.setItem(PRIMARY_KEY, 'cf'); else localStorage.removeItem(PRIMARY_KEY); } catch (e) { /* 覚えられない環境では、開いている間だけ覚える */ }
   }
 
   window.callApi = async function (action, params, opts) {

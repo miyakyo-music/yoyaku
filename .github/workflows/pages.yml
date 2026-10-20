@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false # 公開の途中で止めると、半端な状態が残ることがあるので、前の公開が終わるのを待つ
 
 jobs:
   deploy:

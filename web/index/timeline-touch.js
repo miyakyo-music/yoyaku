@@ -195,6 +195,8 @@ $('main').addEventListener('mousedown', (e) => {
 });
 document.addEventListener('mousemove', (e) => {
   if (!mouse) return;
+  // ウィンドウの外で離してから戻ってきた（mouseup が届いていない）: 取りやめる
+  if (!(e.buttons & 1)) { if (mouse.dragging) cancelDrag(); mouse = null; return; }
   if (!mouse.dragging && Math.abs(e.clientX - mouse.x) > 5) {
     mouse.dragging = !!beginDrag(mouse.track, mouse.x);
     if (!mouse.dragging) { mouse = null; return; }
@@ -208,6 +210,9 @@ document.addEventListener('mouseup', () => {
   if (m.dragging) finishDrag();
   else tapTrack(m.track, m.x);
 });
+// ウィンドウの外でボタンを離すと mouseup が届かず、端の自動スクロールが続くので、取りやめる
+window.addEventListener('blur', () => { if (mouse && mouse.dragging) cancelDrag(); mouse = null; });
+
 
 // タッチ: タップで予約画面、長押ししてからなぞると時間指定（通常のスワイプはスクロール）
 let touch = null;

@@ -23,9 +23,23 @@ function openNotice() {
 }
 function markNoticeOverflow() {
   const t = $('noticeText');
-  $('notice').classList.toggle('overflow', !isAdminMode() && t.scrollWidth > t.clientWidth);
+  const n = $('notice');
+  const overflow = !isAdminMode() && t.scrollWidth > t.clientWidth;
+  n.classList.toggle('overflow', overflow);
+  // 押して開けるとき（全文を見る・管理者の書き換え）だけ、キーボードで選べるボタンにする
+  if (overflow || isAdminMode()) {
+    n.setAttribute('role', 'button');
+    n.tabIndex = 0;
+    n.setAttribute('aria-haspopup', 'dialog');
+    n.setAttribute('aria-label', (isAdminMode() ? 'お知らせを書き換える: ' : 'お知らせの全文を見る: ') + t.textContent);
+  } else {
+    for (const a of ['role', 'tabindex', 'aria-haspopup', 'aria-label']) n.removeAttribute(a);
+  }
 }
 $('notice').addEventListener('click', openNotice);
+$('notice').addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && $('notice').getAttribute('role') === 'button') { e.preventDefault(); openNotice(); }
+});
 if (typeof ResizeObserver === 'function') new ResizeObserver(markNoticeOverflow).observe($('noticeText'));
 $('noticeLevel').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-level]');

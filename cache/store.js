@@ -25,6 +25,7 @@
     MAX_MEMO_LENGTH: 100,
     MAX_RANGE_DAYS: 42,
     MAX_PIN_FAILURES: 5,
+    MAX_ADMIN_FAILURES: 10,
     MAX_ADMIN_DELETE: 2000,
     LOG_PAGE: 200,
     MAX_LIMITED_FAILURES: 30,
@@ -75,6 +76,7 @@
       this.env = env || {};
       this.hooks = hooks || {};
       this.memo = {}; // 呼び出しごとの覚えは forCall で分ける（ここは、テスト環境などで直接呼んだとき用）
+      this.adminChecks = new Map(); // いま確かめている管理用パスワード（同じ値が同時に届いたら、1回の確認を分け合う）
       this.device = '';
       this.init();
     }
@@ -188,10 +190,23 @@
       // 誤入力の回数は全体で数える。管理画面にログインしたことのある端末は、その端末だけの回数で数える
       const trusted = this.isTrustedDevice(this.device);
       const failKey = trusted ? 'adminfail_' + this.device : 'adminfail';
+      // 同じ値が同時に届いたら（管理者モードの読み込みが重なったときなど）、先に始めた確認の結果を分け合い、1回だけ数える。
+      // 1件ずつ数えると、正しいパスワードでも同時に10件届いただけで、先に増やした分が上限に達して締め出されてしまう
+      const id = failKey + '\n' + stored + '\n' + k;
+      let check = this.adminChecks.get(id);
+      if (!check) {
+        check = this.checkAdminPassword(k, stored, failKey);
+        this.adminChecks.set(id, check);
+        check.finally(() => this.adminChecks.delete(id)).catch(() => {});
+      }
+      this.memo.admin[k] = await check;
+    }
+
+    /** 管理用パスワードを1回確かめる。一致すれば null、違えばメッセージ */
+    async checkAdminPassword(k, stored, failKey) {
       const failures = Number(this.kget(failKey) || 0);
-      if (failures >= SYSTEM.MAX_PIN_FAILURES * 2) {
-        this.memo.admin[k] = '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
-        return;
+      if (failures >= SYSTEM.MAX_ADMIN_FAILURES) {
+        return '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
       }
       // 誤入力の回数は、確かめる「前」に1つ増やしておく。確かめる計算は待ちが入るので、後で増やすと、
       // 同時に大量に送られたとき全部が同じ回数を読み、回数がほとんど増えずにいくらでも試せてしまう
@@ -202,14 +217,11 @@
       } else {
         ok = await checkPassword(k, stored);
       }
-      if (!ok) {
-        this.memo.admin[k] = '管理用パスワードが一致しません。';
-        return;
-      }
+      if (!ok) return '管理用パスワードが一致しません。';
       // 合っていたら、先に増やした1回を取り消す
       const now = Number(this.kget(failKey) || 0);
       if (now > 1) this.kput(failKey, now - 1, SYSTEM.FAILURE_LOCK_SECONDS); else this.kdel(failKey);
-      this.memo.admin[k] = null;
+      return null;
     }
 
     async verifyPasskeyToken(token) {
@@ -299,18 +311,15 @@
     }
     /** 限定公開の部屋を見られるか（gas/Code.gs の limitedAccess_ と同じ。誤入力が続いて止めている間は locked） */
     limitedAccess(settings, p, isAdmin) {
+      if (isAdmin) return { ok: true }; // 管理者は確かめずに通す（端末に残った古いパスワードを数えない）
       const pw = settings.limitedPassword;
       const key = String(p.limitedKey || '');
       if (key) {
         const failures = Number(this.kget('limitedFailures') || 0);
-        if (failures < SYSTEM.MAX_LIMITED_FAILURES) {
-          if (pw && safeEqual(key, pw)) return { ok: true };
-          this.kput('limitedFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
-        } else if (!isAdmin) {
-          return { ok: false, locked: true };
-        }
+        if (failures >= SYSTEM.MAX_LIMITED_FAILURES) return { ok: false, locked: true };
+        if (pw && safeEqual(key, pw)) return { ok: true };
+        this.kput('limitedFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
       }
-      if (isAdmin) return { ok: true };
       return key ? { ok: false, denied: true } : { ok: false };
     }
 
@@ -506,8 +515,16 @@
       };
     }
 
-    /** after より後の変更を返す（after までは GAS が写し終えたので消す） */
+    /**
+     * after より後の変更を返す（after までは GAS が写し終えたので消す）。
+     * GAS の after が、ここで知っている最後の番号より大きければ、正本を昔の時点に戻した（復元した）とみなし、
+     * 何も消さずに reset を返す（GAS は丸ごと写し直す）。そのまま続けると、戻ったあとの変更が after 以下の番号になり、
+     * 写す前に消えてしまうため
+     */
     mirrorChanges(after) {
+      const top = Math.max(Number((this.db.exec('SELECT MAX(seq) AS s FROM changes')[0] || {}).s) || 0, Number(this.kget('mirrorAck') || 0));
+      if (after > top) return { ok: true, reset: true, seq: top, more: false, changes: [] };
+      this.kput('mirrorAck', after);
       this.db.exec('DELETE FROM changes WHERE seq <= ?', after);
       const rows = this.db.exec('SELECT seq, kind, data FROM changes WHERE seq > ? ORDER BY seq LIMIT 500', after);
       const last = rows.length ? rows[rows.length - 1].seq : after;
@@ -537,10 +554,10 @@
   // 画面から呼べる処理（中身は gas/Code.gs の同じ名前の処理と同じ。this は StoreCore）
   // ---------------------------------------------------------------------------
 
-  /** 閲覧パスワードを確かめる（gas/Code.gs の checkView_ と同じ。誤入力が全体で続いたら一定時間断り、その間は回数を増やさない） */
+  /** 閲覧パスワードを確かめる（gas/Code.gs の checkView_ と同じ。誤入力が全体で続いたら一定時間断り、その間は回数を増やさない。管理者は確かめない） */
   function checkView(ctx, viewKey) {
     const pw = ctx.settings.viewPassword;
-    if (!pw) return null;
+    if (!pw || ctx.isAdmin) return null;
     const key = String(viewKey || '');
     const failures = Number(this.kget('viewFailures') || 0);
     if (key && failures >= SYSTEM.MAX_VIEW_FAILURES) {
@@ -549,6 +566,11 @@
     if (safeEqual(key, pw)) return null;
     if (key) this.kput('viewFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
     return fail(key ? '閲覧パスワードが違います。' : '閲覧パスワードを入力してください。', 'AUTH_REQUIRED');
+  }
+  /** 読み込みで送られた管理用パスワードが通らなければ ADMIN_AUTH（gas/Code.gs の adminRejected_ と同じ） */
+  function adminRejected(p, ctx) {
+    if (!p.adminPassword || ctx.isAdmin) return null;
+    return fail(this.verifyAdmin(p.adminPassword) || '管理用パスワードが一致しません。', 'ADMIN_AUTH');
   }
   function visibleIn(ctx) {
     const ids = new Set(ctx.rooms.map((r) => r.id));
@@ -625,6 +647,8 @@
 
   function getSchedule(p) {
     const ctx = this.context(p);
+    const badAdmin = adminRejected.call(this, p, ctx);
+    if (badAdmin) return badAdmin;
     const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const from = normDate(p.from);
@@ -637,6 +661,8 @@
 
   function getReservationsByIds(p) {
     const ctx = this.context(p);
+    const badAdmin = adminRejected.call(this, p, ctx);
+    if (badAdmin) return badAdmin;
     const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const ids = Array.from(new Set((Array.isArray(p.ids) ? p.ids : []).slice(0, 300).map(String)));
@@ -773,8 +799,11 @@
   }
 
   function updateSeries(ctx, target, p, isAdmin) {
+    // 管理者でなければ、終わった分・見えない部屋（限定公開）の分・管理者のみの部屋の分は変えずに残す（gas/Code.gs と同じ）
+    const visible = visibleIn(ctx);
     const members = this.resWhere('WHERE group_id = ? AND date >= ? ORDER BY date, st', target.groupId, target.date)
-      .filter((r) => r.id === target.id || isAdmin || !isPast(r.date, r.end));
+      .filter((r) => r.id === target.id || isAdmin ||
+        (!isPast(r.date, r.end) && visible(r) && roomOf(ctx, r.roomId).restriction !== ROOM_RESTRICTIONS.ADMIN_ONLY));
     const updates = [];
     const problems = [];
     const now = nowStr('yyyy-MM-dd HH:mm:ss');
@@ -960,8 +989,9 @@
     let n = 1;
     rooms.forEach((r) => {
       if (r.id) return;
-      while (used.has('room_' + pad2(n))) n++;
-      r.id = 'room_' + pad2(n);
+      // pad2 は3桁を切り詰める（100 → 00）ので使わない（gas/Code.gs と同じ）
+      while (used.has('room_' + String(n).padStart(2, '0'))) n++;
+      r.id = 'room_' + String(n).padStart(2, '0');
       used.add(r.id);
     });
     this.db.exec('DELETE FROM rooms');
@@ -1166,9 +1196,11 @@
   }
 
   function findConflict(r, excludeId) {
-    // 時刻は「09:05」のように2桁でそろえてあるので、文字の大小で前後を比べられる
-    return this.resWhere('WHERE date = ? AND room_id = ? AND id <> ? AND st < ? AND en > ? ORDER BY st LIMIT 1',
-      r.date, r.roomId, excludeId || '', r.end, r.start)[0] || null;
+    // 時刻は「09:05」のように2桁でそろえてあるので、文字の大小で前後を比べられる。
+    // 時刻が読めない行（移し替えたシートの空欄など）は、全時間帯と重なるとみなす（gas/Code.gs の findConflict_ と同じ）
+    const T = '[0-9][0-9]:[0-9][0-9]';
+    return this.resWhere('WHERE date = ? AND room_id = ? AND id <> ? AND ((st < ? AND en > ?) OR st NOT GLOB ? OR en NOT GLOB ?) ORDER BY st LIMIT 1',
+      r.date, r.roomId, excludeId || '', r.end, r.start, T, T)[0] || null;
   }
 
   function settingsWarnings(settings) {
@@ -1317,7 +1349,11 @@
     return (e) => {
       if (kind && logKind(e) !== kind) return false;
       if (!words.length) return true;
-      const hay = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ').toLowerCase();
+      const raw = [e.at, e.action, e.resId, e.date, e.roomId, names[e.roomId] || '', e.time, e.who, e.detail].join(' ');
+      // 画面に出す形（10/13・2026/10/13・部屋名）でも探せるようにする（gas/Code.gs の logMatcher_ と同じ）
+      const shown = raw.replace(/\b(\d{4})-(\d\d)-(\d\d)\b/g, (m, y, mo, d) => y + '/' + mo + '/' + d + ' ' + Number(mo) + '/' + Number(d))
+        .replace(/room_\w+/g, (id) => names[id] || id);
+      const hay = (raw + ' ' + shown).toLowerCase();
       return words.every((w) => hay.indexOf(w) >= 0);
     };
   }

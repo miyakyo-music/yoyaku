@@ -11,7 +11,8 @@ const CACHE = 'yoyaku-shell-v1';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    for (const key of await caches.keys()) if (key !== CACHE) await caches.delete(key);
+    // 消すのはこの予約表の古い保存だけ（同じサイトの別のアプリの保存は消さない）
+    for (const key of await caches.keys()) if (key.startsWith('yoyaku-') && key !== CACHE) await caches.delete(key);
     await self.clients.claim();
   })());
 });
@@ -27,7 +28,7 @@ self.addEventListener('fetch', (e) => {
     const cache = await caches.open(CACHE);
     try {
       const res = await fetch(req);
-      if (res.ok) cache.put(keyOf(url), res.clone());
+      if (res.ok) e.waitUntil(cache.put(keyOf(url), res.clone())); // 保存し終えるまで Service Worker を止めさせない
       return res;
     } catch (err) {
       const hit = await cache.match(keyOf(url));
