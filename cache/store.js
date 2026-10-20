@@ -989,8 +989,9 @@
     let n = 1;
     rooms.forEach((r) => {
       if (r.id) return;
-      while (used.has('room_' + pad2(n))) n++;
-      r.id = 'room_' + pad2(n);
+      // pad2 は3桁を切り詰める（100 → 00）ので使わない（gas/Code.gs と同じ）
+      while (used.has('room_' + String(n).padStart(2, '0'))) n++;
+      r.id = 'room_' + String(n).padStart(2, '0');
       used.add(r.id);
     });
     this.db.exec('DELETE FROM rooms');

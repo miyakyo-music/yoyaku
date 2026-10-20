@@ -130,6 +130,7 @@
     // GAS と同じく、-128〜127 の数の配列で返す
     computeHmacSha256Signature: (value, key) => [...hmacSha256(utf8(key), utf8(value))].map((b) => (b > 127 ? b - 256 : b)),
     base64EncodeWebSafe: (bytes) => btoa(String.fromCharCode(...bytes.map((b) => b & 255))).replace(/\+/g, '-').replace(/\//g, '_'),
+    newBlob: (s) => ({ getBytes: () => [...utf8(String(s))] }), // バイト数を数えるためだけ（putCache_）
     getUuid: () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()),
     formatDate(date, tz, pattern) {
       const parts = {};

@@ -214,8 +214,7 @@ function getSchedule(p) {
       closures: ctx.closures.filter(c => c.date >= from && c.date <= to && visible(c)),
       settings: publicSettings_(ctx.settings),
     };
-    const json = JSON.stringify(base);
-    if (json.length < 90000) cache.put(ckey, json, 60); // 1件に覚えられるのは 100KB まで
+    putCache_(cache, ckey, JSON.stringify(base), 60);
   }
   return Object.assign(base, { serverNow: nowStr_('yyyy-MM-dd HH:mm') },
     limitedInfo_(ctx), ctx.isAdmin ? { openBugs: openBugCount_(ctx.ss) } : {});
@@ -714,8 +713,9 @@ function adminSaveRooms(p) {
     let n = 1;
     rooms.forEach(r => {
       if (r.id) return;
-      while (used.has('room_' + pad2_(n))) n++;
-      r.id = 'room_' + pad2_(n);
+      // pad2_ は3桁を切り詰める（100 → 00）ので使わない。切り詰めると番号が一巡して、空きを探し続けて止まらなくなる
+      while (used.has('room_' + String(n).padStart(2, '0'))) n++;
+      r.id = 'room_' + String(n).padStart(2, '0');
       used.add(r.id);
     });
 
@@ -1596,8 +1596,7 @@ function master_(ss) {
   let m = hit ? JSON.parse(hit) : null;
   if (!m) {
     m = { settings: loadSettings_(ss), rooms: readRooms_(ss), closures: readClosures_(ss) };
-    const json = JSON.stringify(m);
-    if (json.length < 90000) cache.put(key, json, MASTER_TTL_SECONDS); // 1件に覚えられるのは 100KB まで
+    putCache_(cache, key, JSON.stringify(m), MASTER_TTL_SECONDS);
   }
   MEMO_.master = m;
   return m;
@@ -2214,6 +2213,18 @@ function toMin_(t) {
 
 function hm_(t) {
   return String(t).replace(/^0(\d)/, '$1');
+}
+
+/**
+ * CacheService に覚える。1件に覚えられるのは 100KB（バイト）まで。文字数で比べると、日本語が多いときに超えて
+ * put が例外になり、予約表の読み込みごと失敗するので、バイト数で比べ、それでも失敗したら覚えずに進む
+ */
+function putCache_(cache, key, json, seconds) {
+  try {
+    if (Utilities.newBlob(json).getBytes().length < 95000) cache.put(key, json, seconds);
+  } catch (e) {
+    console.warn('覚えられませんでした（' + key + '）: ' + e);
+  }
 }
 
 function pad2_(n) {
