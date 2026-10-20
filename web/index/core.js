@@ -59,6 +59,7 @@ const state = {
   hourBase: 0, hourMin: MIN_HOUR_W, hourW: 0,
   detail: null,
   skipConflicts: false,
+  bookSending: false,   // まとめて予約・まとめて変更を送っている間（送信ボタンを押せないままにする）
   adminPw: sessionGet(ADMIN_SESSION_KEY),
   cache: new Map(),     // 期間（"from|to"）→ { res, at }  取得済みの予約データ
   cacheGen: 0,          // キャッシュを破棄した回数（破棄前に始まった取得結果を保存しないため）

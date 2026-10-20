@@ -104,6 +104,9 @@
   const series = [['s1', 'room_14', T, '10:00', '11:00'], ['s0', 'room_12', T, '07:00', '08:00'], ['s2', 'room_14', D7, '10:00', '11:00'],
     ['s3', 'room_15', D7, '10:00', '11:00'], ['s4', newRoom, D7, '10:00', '11:00']];
   series.forEach(([n, roomId, date, start, end]) => put({ id: 'res_dev_' + n, date, roomId, start, end, name: n, groupId: 'grp_dev_series' }));
+  // 「この日以降をまとめて変更」も、管理者以外は同じ分を変えずに残す（全体を失敗にしない）
+  r = rec('updateFollowing', await c('updateReservation', { id: 'res_dev_s1', scope: 'following', date: T, roomId: 'room_14', start: '10:00', end: '11:00', affiliation: '', name: '丙', memo: '' }));
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.id.replace('res_dev_', '') + x.name).sort().join(',');
   r = rec('cancelFollowing', await c('cancelReservation', { id: 'res_dev_s1', scope: 'following' }));
   out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.slice().sort().join(',');
   r = rec('cancelFollowingLeft', await c('getReservationsByIds', { adminPassword: A, ids: series.map((x) => 'res_dev_' + x[0]) }));

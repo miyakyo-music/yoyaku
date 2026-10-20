@@ -411,8 +411,11 @@ function updateReservation(p) {
 
 /** まとめ予約のこの日以降の分を、同じ時間・予約者・備考にまとめて変更する（updateReservation から、ロックの中で呼ぶ） */
 function updateSeries_(ctx, rows, target, p, isAdmin) {
+  // 管理者でなければ、終わった分・見えない部屋（限定公開）の分・管理者のみの部屋の分は変えずに残す（取消と同じ。全体を止めない）
+  const visible = visibleIn_(ctx);
   const members = rows.filter(r => r.groupId === target.groupId && r.date >= target.date)
-    .filter(r => r.id === target.id || isAdmin || !isPast_(r.date, r.end));
+    .filter(r => r.id === target.id || isAdmin ||
+      (!isPast_(r.date, r.end) && visible(r) && roomOf_(ctx, r.roomId).restriction !== ROOM_RESTRICTIONS.ADMIN_ONLY));
   const updates = [];
   const problems = [];
   const now = nowStr_('yyyy-MM-dd HH:mm:ss');

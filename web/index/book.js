@@ -371,6 +371,7 @@ $('bCopyRooms').addEventListener('click', (e) => { if (state.booking && state.bo
 function resetConflicts() {
   state.skipConflicts = false;
   $('bConflicts').innerHTML = '';
+  if (state.bookSending) return; // 送っている間は「送信中…」のまま押せなくしておく（欄を触って二重に送らないように）
   if (state.booking) $('bSubmit').textContent = state.booking.mode === 'edit' ? '変更を保存' : '予約確定';
   $('bSubmit').disabled = false;
 }
@@ -440,6 +441,7 @@ function readBookingPayload() {
 
 async function submitBooking(e) {
   e.preventDefault();
+  if (state.bookSending) return;
   const b = readBookingPayload();
   if (!b) return;
   const { payload, edit, seriesEdit, bulk } = b;
@@ -477,6 +479,7 @@ async function sendBulkBooking({ payload, edit, seriesEdit, bulk, total, roomIds
   btn.disabled = true;
   btn.textContent = '送信中…';
   err.textContent = '';
+  state.bookSending = true;
   try {
     let res;
     if (edit) res = await api('updateReservation', Object.assign(payload, { id: state.booking.id }, seriesEdit ? { scope: 'following' } : {}));
@@ -511,6 +514,8 @@ async function sendBulkBooking({ payload, edit, seriesEdit, bulk, total, roomIds
   } catch (ex) {
     if (!(ex instanceof AuthError)) err.textContent = errMessage(ex);
     btn.textContent = label;
+  } finally {
+    state.bookSending = false;
   }
   btn.disabled = false;
 }

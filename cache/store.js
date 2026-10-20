@@ -790,8 +790,11 @@
   }
 
   function updateSeries(ctx, target, p, isAdmin) {
+    // 管理者でなければ、終わった分・見えない部屋（限定公開）の分・管理者のみの部屋の分は変えずに残す（gas/Code.gs と同じ）
+    const visible = visibleIn(ctx);
     const members = this.resWhere('WHERE group_id = ? AND date >= ? ORDER BY date, st', target.groupId, target.date)
-      .filter((r) => r.id === target.id || isAdmin || !isPast(r.date, r.end));
+      .filter((r) => r.id === target.id || isAdmin ||
+        (!isPast(r.date, r.end) && visible(r) && roomOf(ctx, r.roomId).restriction !== ROOM_RESTRICTIONS.ADMIN_ONLY));
     const updates = [];
     const problems = [];
     const now = nowStr('yyyy-MM-dd HH:mm:ss');
