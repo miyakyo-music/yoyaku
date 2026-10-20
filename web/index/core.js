@@ -59,6 +59,7 @@ const state = {
   hourBase: 0, hourMin: MIN_HOUR_W, hourW: 0,
   detail: null,
   skipConflicts: false,
+  loadFailed: false,    // いまの表示の期間を読み込めなかった（前の期間の表を出さないため）
   bookSending: false,   // まとめて予約・まとめて変更を送っている間（送信ボタンを押せないままにする）
   adminPw: sessionGet(ADMIN_SESSION_KEY),
   cache: new Map(),     // 期間（"from|to"）→ { res, at }  取得済みの予約データ

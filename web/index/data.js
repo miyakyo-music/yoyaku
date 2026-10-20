@@ -88,6 +88,7 @@ function invalidate(dates) {
 async function load(opts) {
   opts = opts || {};
   const seq = ++state.seq;
+  state.loadFailed = false;
   const range = currentRange();
   const key = rangeKey(range);
   const hit = state.cache.get(key);
@@ -146,6 +147,8 @@ async function load(opts) {
     if (seq === state.seq && !(e instanceof AuthError)) {
       toast(errMessage(e), 'error');
       if (!state.data) $('main').innerHTML = `<p class="empty">${esc(errMessage(e))}</p>`;
+      // 日付を移した直後に失敗したとき: 見出しは新しい日・中身は前の日、にならないよう、表を出さない（render が知らせを出す）
+      else if (state.shownKey !== `${state.view}|${key}`) { state.loadFailed = true; render(); }
     }
   } finally {
     if (seq === state.seq) document.body.classList.remove('loading');

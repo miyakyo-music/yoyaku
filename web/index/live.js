@@ -78,6 +78,8 @@ window.addEventListener('offline', () => { updateOffline(); if (state.data) rend
 window.addEventListener('online', () => {
   updateOffline();
   clearTimeout(liveTimer); liveRetry = 0; connectLive();
-  if (state.data) { invalidate(); load({ force: true, background: state.shownKey === `${state.view}|${rangeKey(currentRange())}` }); }
+  // 一度も表を読めていなくても読み直す（オフラインで開いたまま電波が戻ったとき）
+  invalidate();
+  load({ force: true, background: !!state.data && state.shownKey === `${state.view}|${rangeKey(currentRange())}` });
 });
 updateOffline();

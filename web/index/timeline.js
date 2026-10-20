@@ -16,8 +16,8 @@ function closuresFor(date, roomId) {
 
 function render() {
   state.renderedAt = `${todayStr()} ${nowMin()}`; // 描いた日と時刻（分）。自動更新で中身が同じでも、分が変われば描き直すため
-  if (isOffline() && state.shownKey !== `${state.view}|${rangeKey(currentRange())}`) {
-    $('main').innerHTML = '<p class="empty">オフラインのため、この期間の予約を表示できません。</p>';
+  if ((isOffline() || state.loadFailed) && state.shownKey !== `${state.view}|${rangeKey(currentRange())}`) {
+    $('main').innerHTML = isOffline() ? '<p class="empty">オフラインのため、この期間の予約を表示できません。</p>' : '<p class="empty">この期間の予約を読み込めませんでした。</p>';
     liftFab();
     return;
   }
