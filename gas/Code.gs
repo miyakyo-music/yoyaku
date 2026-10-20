@@ -1077,11 +1077,8 @@ function cacheRetry(e) {
   const ok = pushCache_();
   if (!fromTrigger) {
     let why = props.getProperty('CACHE_LAST_ERROR') || '';
-    if (!ok) { // 合言葉の手がかり（長さとハッシュの先頭8文字）。Cloudflare 側の URL を開くと出る tokenHint と比べる
-      const t = cacheProp_('CACHE_PUSH_TOKEN').trim();
-      const hex = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, t, Utilities.Charset.UTF_8)
-        .map(b => ('0' + ((b + 256) % 256).toString(16)).slice(-2)).join('');
-      why += '\nGAS の合言葉の手がかり: 長さ ' + t.length + '、' + hex.slice(0, 8);
+    if (!ok) { // 合言葉の手がかり（長さだけ）。Cloudflare 側の URL を開くと出る tokenHint と比べる
+      why += '\nGAS の合言葉の長さ: ' + cacheProp_('CACHE_PUSH_TOKEN').trim().length;
     }
     try {
       SpreadsheetApp.getUi().alert(ok ? '高速キャッシュに送りました。'
