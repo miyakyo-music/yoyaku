@@ -24,6 +24,27 @@ function showTip(b, x, y) {
 }
 function closeTip() { clearTimeout(tipTimer); if (tipFor) tipFor.setAttribute('aria-expanded', 'false'); tipFor = null; tipPop.hidden = true; }
 const canHover = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+// 読み上げの名前を「項目名の説明」にする（全部「説明」だと、どの項目の説明か分からない）
+function nameTip(b) {
+  if (b.dataset.named) return;
+  b.dataset.named = '1';
+  const item = (b.parentElement ? b.parentElement.textContent : '').replace(b.textContent, '').trim();
+  if (item) b.setAttribute('aria-label', item + 'の説明');
+}
+document.querySelectorAll('.info').forEach(nameTip);
+// キーボード（Tab）で選んだときも説明を出す。ほかへ移ると消える
+document.addEventListener('focusin', (e) => {
+  const b = e.target.closest && e.target.closest('.info');
+  if (!b) return;
+  nameTip(b);
+  if (!b.matches(':focus-visible') || tipFor === b) return;
+  closeTip();
+  const r = b.getBoundingClientRect();
+  showTip(b, r.left, r.bottom - 10);
+});
+document.addEventListener('focusout', (e) => {
+  if (tipFor && e.target === tipFor) closeTip();
+});
 if (canHover) {
   document.addEventListener('mouseover', (e) => {
     const b = e.target.closest && e.target.closest('.info');
