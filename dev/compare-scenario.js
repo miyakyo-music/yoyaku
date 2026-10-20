@@ -104,6 +104,9 @@
   const series = [['s1', 'room_14', T, '10:00', '11:00'], ['s0', 'room_12', T, '07:00', '08:00'], ['s2', 'room_14', D7, '10:00', '11:00'],
     ['s3', 'room_15', D7, '10:00', '11:00'], ['s4', newRoom, D7, '10:00', '11:00']];
   series.forEach(([n, roomId, date, start, end]) => put({ id: 'res_dev_' + n, date, roomId, start, end, name: n, groupId: 'grp_dev_series' }));
+  // 時刻が読めない行（シートを手で書き換えた空欄など）は、同じ部屋・同じ日の全時間帯と重なるとみなす
+  put({ id: 'res_dev_broken', date: D7, roomId: 'room_03', start: '', end: '', name: '壊' });
+  rec('brokenTime', await c('createReservation', Object.assign({}, base, { date: D7, roomId: 'room_03', start: '18:00', end: '19:00' })));
   // 「この日以降をまとめて変更」も、管理者以外は同じ分を変えずに残す（全体を失敗にしない）
   r = rec('updateFollowing', await c('updateReservation', { id: 'res_dev_s1', scope: 'following', date: T, roomId: 'room_14', start: '10:00', end: '11:00', affiliation: '', name: '丙', memo: '' }));
   out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.id.replace('res_dev_', '') + x.name).sort().join(',');

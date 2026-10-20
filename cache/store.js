@@ -1186,9 +1186,11 @@
   }
 
   function findConflict(r, excludeId) {
-    // 時刻は「09:05」のように2桁でそろえてあるので、文字の大小で前後を比べられる
-    return this.resWhere('WHERE date = ? AND room_id = ? AND id <> ? AND st < ? AND en > ? ORDER BY st LIMIT 1',
-      r.date, r.roomId, excludeId || '', r.end, r.start)[0] || null;
+    // 時刻は「09:05」のように2桁でそろえてあるので、文字の大小で前後を比べられる。
+    // 時刻が読めない行（移し替えたシートの空欄など）は、全時間帯と重なるとみなす（gas/Code.gs の findConflict_ と同じ）
+    const T = '[0-9][0-9]:[0-9][0-9]';
+    return this.resWhere('WHERE date = ? AND room_id = ? AND id <> ? AND ((st < ? AND en > ?) OR st NOT GLOB ? OR en NOT GLOB ?) ORDER BY st LIMIT 1',
+      r.date, r.roomId, excludeId || '', r.end, r.start, T, T)[0] || null;
   }
 
   function settingsWarnings(settings) {

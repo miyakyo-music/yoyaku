@@ -715,11 +715,8 @@ function adminSaveRooms(p) {
       used.add(r.id);
     });
 
-    const sheet = getSheet_(ss, SHEETS.rooms);
-    const last = sheet.getLastRow();
-    if (last >= 2) sheet.getRange(2, 1, last - 1, HEADERS.rooms.length).clearContent();
-    sheet.getRange(2, 1, rooms.length, HEADERS.rooms.length).setNumberFormat('@')
-      .setValues(rooms.map((r, i) => [String(i + 1), r.id, r.name, r.equipment, r.restriction, r.note, r.tags]));
+    replaceRows_(getSheet_(ss, SHEETS.rooms), HEADERS.rooms.length,
+      rooms.map((r, i) => [String(i + 1), r.id, r.name, r.equipment, r.restriction, r.note, r.tags]));
     SpreadsheetApp.flush();
     invalidateMaster_();
 
@@ -766,13 +763,7 @@ function adminSaveClosures(p) {
   closures.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
   return withLock_(() => {
-    const sheet = ensureSheet_(ss, SHEETS.closures, HEADERS.closures);
-    const last = sheet.getLastRow();
-    if (last >= 2) sheet.getRange(2, 1, last - 1, HEADERS.closures.length).clearContent();
-    if (closures.length) {
-      sheet.getRange(2, 1, closures.length, HEADERS.closures.length).setNumberFormat('@')
-        .setValues(closures.map(c => [c.date, c.roomId, c.start, c.end, c.reason]));
-    }
+    writeClosuresSheet_(ss, closures.map(c => [c.date, c.roomId, c.start, c.end, c.reason]));
     SpreadsheetApp.flush();
     invalidateMaster_();
     logAdmin_(ss, '休館・利用停止の変更', closures.length + '件');
@@ -1252,10 +1243,14 @@ function applyMirror_(ss, changes) {
 }
 
 /** シートの2行目から下を、rows で置き換える */
+/**
+ * 2行目からを rows で置き換える。先に書いてから、余った下の行だけを消す
+ * （先に全部消すと、書く途中で止まったときにシートが空になり、部屋なら全予約が見えなくなるため）
+ */
 function replaceRows_(sheet, width, rows) {
   const last = sheet.getLastRow();
-  if (last >= 2) sheet.getRange(2, 1, last - 1, width).clearContent();
   if (rows.length) sheet.getRange(2, 1, rows.length, width).setNumberFormat('@').setValues(rows);
+  if (last >= rows.length + 2) sheet.getRange(rows.length + 2, 1, last - rows.length - 1, width).clearContent();
 }
 function writeRoomsSheet_(ss, rows) {
   replaceRows_(ensureSheet_(ss, SHEETS.rooms, HEADERS.rooms), HEADERS.rooms.length, rows.map(r => r.map(v => String(v == null ? '' : v))));
@@ -1873,8 +1868,10 @@ function closureError_(ctx, r) {
 function findConflict_(rows, r, excludeId) {
   const s = toMin_(r.start);
   const e = toMin_(r.end);
+  // 時刻が読めない行（シートを手で書き換えて空・「9時」など）は、同じ部屋・同じ日の全時間帯と重なるとみなす（二重予約を通さない）
+  const broken = t => !/^\d{2}:\d{2}$/.test(t);
   return rows.find(x => x.id !== excludeId && x.date === r.date && x.roomId === r.roomId &&
-    toMin_(x.start) < e && s < toMin_(x.end)) || null;
+    (broken(x.start) || broken(x.end) || (toMin_(x.start) < e && s < toMin_(x.end)))) || null;
 }
 
 function describe_(r) {
@@ -2106,7 +2103,18 @@ function withLock_(fn, opts) {
   MEMO_.locked = true;
   try {
     // ロックを待っている間に、正本が Cloudflare に移されていたら書き込まない（移した後のシートに書いても正本に入らない）
-    result = cloudflarePrimaryNow_() ? moved_() : fn();
+    try {
+      result = cloudflarePrimaryNow_() ? moved_() : fn();
+    } catch (e) {
+      // 途中で止まっても、それまでの書き込みは確定させ、覚えていた予約表を使わないようにし、写しを送り直す印を立てる
+      // （書きかけのシートと、古い予約表・写しが食い違ったままにならないように）
+      try {
+        SpreadsheetApp.flush();
+        bumpScheduleVersion_();
+        if (push) PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', '1');
+      } catch (e2) { console.error(e2); }
+      throw e;
+    }
     // 書き込み（操作ログも含む）は、ロックを外す前に確定させる（次の人が古い内容を読んだり、同じ行に書いたりしないように）
     SpreadsheetApp.flush();
     if (result && result.ok && push) {
