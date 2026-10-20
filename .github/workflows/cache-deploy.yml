@@ -29,6 +29,13 @@ jobs:
       - name: 設定の確認
         if: env.HAS_TOKEN != 'true'
         run: echo "CLOUDFLARE_API_TOKEN が登録されていないので、公開しません（高速キャッシュを使っていない）。"
+      - name: 合言葉の確認
+        if: env.HAS_TOKEN == 'true'
+        env:
+          PUSH_TOKEN: ${{ secrets.CACHE_PUSH_TOKEN }}
+        run: |
+          # 合言葉が空のまま公開すると、GAS からの写しもパスキーのログインも通らなくなるので、公開しない
+          if [ -z "$PUSH_TOKEN" ]; then echo "CACHE_PUSH_TOKEN が登録されていないので、公開しません。"; exit 1; fi
       - uses: actions/checkout@v4
         if: env.HAS_TOKEN == 'true'
       - uses: cloudflare/wrangler-action@v3
