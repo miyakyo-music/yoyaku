@@ -28,11 +28,13 @@ function openBooking(o) {
   $('bSubmit').textContent = edit ? '変更を保存' : '予約確定';
 
   const roomSel = $('bRoom');
-  // 一覧で設備を絞り込んでいるときは、新規予約の部屋の選択肢も同じ設備に絞る（変更時は今の部屋を必ず含める）
+  // 一覧で設備を絞り込んでいるときは、新規予約の部屋の選択肢も同じ設備に絞る。
+  // 変更時は今の部屋を必ず含める（使用停止の部屋でも。外すと先頭の部屋が選ばれ、気づかずに予約が別の部屋へ移るため）
   const eqFilter = state.view === 'day' ? $('equipFilter').value : '';
-  roomSel.innerHTML = state.rooms.filter((x) => x.restriction !== STOPPED)
-    .filter((x) => roomInFilter(x, eqFilter) || (edit && x.id === r.roomId))
-    .map((x) => `<option value="${esc(x.id)}">${esc(roomText(x))}${x.restriction === ADMIN_ONLY ? '［管理者のみ］' : ''}</option>`).join('');
+  const isOwn = (x) => edit && x.id === r.roomId;
+  roomSel.innerHTML = state.rooms.filter((x) => x.restriction !== STOPPED || isOwn(x))
+    .filter((x) => roomInFilter(x, eqFilter) || isOwn(x))
+    .map((x) => `<option value="${esc(x.id)}">${esc(roomText(x))}${x.restriction === ADMIN_ONLY ? '［管理者のみ］' : x.restriction === STOPPED ? '［使用停止］' : ''}</option>`).join('');
   const firstRoom = roomSel.options[0] ? roomSel.options[0].value : '';
   // 部屋の初期値: 指定があればその部屋、部屋別・カレンダー表示中は選んでいる部屋、一覧からは先頭の部屋
   // at: 帯を動かしたときの行き先（部屋・日・開始・終了）。最初からこの値で開く（開いてから回し直すと、
