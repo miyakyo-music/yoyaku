@@ -1182,6 +1182,11 @@ function mirrorPullLocked_(ss) {
     const after = Number(props.getProperty('MIRROR_SEQ') || 0);
     const res = cfCall_('get', '/mirror/changes?after=' + after);
     if (!res.ok) throw new Error(res.message || res.code);
+    if (res.reset) { // Cloudflare の正本が昔の時点に戻された（復元）。続きからは写せないので、丸ごと写し直す
+      console.warn('Cloudflare の変更の番号が戻っていたため、丸ごと写し直します（写した番号 ' + after + '、Cloudflare ' + res.seq + '）');
+      applied += mirrorFullOnly_(ss);
+      break;
+    }
     if (res.changes.length) {
       applyMirror_(ss, res.changes);
       SpreadsheetApp.flush();
@@ -1276,6 +1281,11 @@ function writeSettingsSheet_(ss, values) {
 function mirrorFull_(ss) {
   // 差分の写しが失敗し続けていても、写し直しと GAS への戻しはできるようにする（そのときはまだ写していないログをあきらめる）
   try { mirrorPullLocked_(ss); } catch (e) { console.error('先に差分を写せませんでした: ' + e); }
+  return mirrorFullOnly_(ss);
+}
+
+/** mirrorFull_ の中身（先に差分を写さない）。差分の番号が戻っていたときにも使う */
+function mirrorFullOnly_(ss) {
   const res = cfCall_('get', '/mirror/full');
   if (!res.ok) throw new Error(res.message || res.code);
   replaceRows_(ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations), HEADERS.reservations.length, res.reservations);

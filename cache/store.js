@@ -515,8 +515,16 @@
       };
     }
 
-    /** after より後の変更を返す（after までは GAS が写し終えたので消す） */
+    /**
+     * after より後の変更を返す（after までは GAS が写し終えたので消す）。
+     * GAS の after が、ここで知っている最後の番号より大きければ、正本を昔の時点に戻した（復元した）とみなし、
+     * 何も消さずに reset を返す（GAS は丸ごと写し直す）。そのまま続けると、戻ったあとの変更が after 以下の番号になり、
+     * 写す前に消えてしまうため
+     */
     mirrorChanges(after) {
+      const top = Math.max(Number((this.db.exec('SELECT MAX(seq) AS s FROM changes')[0] || {}).s) || 0, Number(this.kget('mirrorAck') || 0));
+      if (after > top) return { ok: true, reset: true, seq: top, more: false, changes: [] };
+      this.kput('mirrorAck', after);
       this.db.exec('DELETE FROM changes WHERE seq <= ?', after);
       const rows = this.db.exec('SELECT seq, kind, data FROM changes WHERE seq > ? ORDER BY seq LIMIT 500', after);
       const last = rows.length ? rows[rows.length - 1].seq : after;
