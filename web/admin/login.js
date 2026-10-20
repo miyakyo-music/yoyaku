@@ -53,4 +53,9 @@ function showAdmin() {
   if (!state.dirty.rooms) setDirty('rooms', false);
   if (!state.dirty.settings) setDirty('settings', false);
 }
-$('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login($('loginPw').value); });
+$('loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const pw = $('loginPw').value;
+  if (!pw) { $('loginError').textContent = '管理用パスワードを入力してください。'; $('loginPw').focus(); return; }
+  login(pw);
+});

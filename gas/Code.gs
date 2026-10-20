@@ -53,6 +53,7 @@ const SYSTEM = {
   MAX_RANGE_DAYS: 42,
   // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
+  MAX_ADMIN_FAILURES: 10, // 管理用パスワードを、この回数間違えると一定時間受け付けない（全体、またはログインしたことのある端末ごと）
   MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
   LOG_PAGE: 200, // 管理画面の変更履歴を一度に読む件数
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
@@ -1671,6 +1672,7 @@ function verifyAdmin_(password) {
   return MEMO_.admin[k];
 }
 function verifyAdminOnce_(password) {
+  if (!password) return '管理用パスワードが一致しません。'; // 空欄は誤入力に数えない（Cloudflare と同じ。空の Enter の連打でロックさせないため）
   if (/^pk1\./.test(String(password || ''))) return verifyPasskeyToken_(String(password));
   const adminPassword = prop_('ADMIN_PASSWORD');
   if (!adminPassword) return '管理用パスワードが設定されていません。管理者に連絡してください。';
@@ -1679,7 +1681,7 @@ function verifyAdminOnce_(password) {
   const trusted = isTrustedDevice_(REQ_DEVICE_);
   const failKey = trusted ? 'adminfail_' + REQ_DEVICE_ : 'adminfail';
   const failures = Number(CacheService.getScriptCache().get(failKey) || 0);
-  if (failures >= SYSTEM.MAX_PIN_FAILURES * 2) {
+  if (failures >= SYSTEM.MAX_ADMIN_FAILURES) {
     return '管理用パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。';
   }
   if (String(password) !== adminPassword) {
