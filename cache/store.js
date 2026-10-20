@@ -537,10 +537,10 @@
   // 画面から呼べる処理（中身は gas/Code.gs の同じ名前の処理と同じ。this は StoreCore）
   // ---------------------------------------------------------------------------
 
-  /** 閲覧パスワードを確かめる（gas/Code.gs の checkView_ と同じ。誤入力が全体で続いたら一定時間断り、その間は回数を増やさない） */
+  /** 閲覧パスワードを確かめる（gas/Code.gs の checkView_ と同じ。誤入力が全体で続いたら一定時間断り、その間は回数を増やさない。管理者は確かめない） */
   function checkView(ctx, viewKey) {
     const pw = ctx.settings.viewPassword;
-    if (!pw) return null;
+    if (!pw || ctx.isAdmin) return null;
     const key = String(viewKey || '');
     const failures = Number(this.kget('viewFailures') || 0);
     if (key && failures >= SYSTEM.MAX_VIEW_FAILURES) {

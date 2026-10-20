@@ -1626,10 +1626,11 @@ function limitedInfo_(ctx) {
   return {};
 }
 
-/** 閲覧パスワードを確かめる。誤入力が全体で続いたら一定時間断る（その間は合っていても通さず、回数も増やさない） */
+/** 閲覧パスワードを確かめる。誤入力が全体で続いたら一定時間断る（その間は合っていても通さず、回数も増やさない）。
+ *  管理者は確かめない（管理用パスワードで全部見られるので守りにならず、管理画面の履歴・統計が止まるだけ。端末に残った古い値も数えない） */
 function checkView_(ctx, viewKey) {
   const pw = ctx.settings.viewPassword;
-  if (!pw) return null;
+  if (!pw || ctx.isAdmin) return null;
   const key = String(viewKey || '');
   if (key && Number(CacheService.getScriptCache().get('viewFailures') || 0) >= SYSTEM.MAX_VIEW_FAILURES) {
     return fail_('閲覧パスワードの誤入力が続いたため、一時的に利用できません。10分ほど待ってから再度お試しください。', 'AUTH_REQUIRED');

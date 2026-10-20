@@ -139,7 +139,13 @@
   rec('viewBad', await c('getSchedule', { from: D, to: D, viewKey: 'x' }));
   r = rec('viewOk', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   out[out.length - 1][4] = r.settings && r.settings.viewPasswordRequired;
-  for (let i = 0; i < 30; i++) await c('getSchedule', { from: D, to: D, viewKey: 'x' + i });
+  // 管理者は閲覧パスワードを求められない（端末に残った古い値も数えない）
+  r = rec('viewAdmin', await c('getSchedule', { from: D, to: D, adminPassword: A }));
+  out[out.length - 1][4] = r.reservations && r.reservations.length;
+  rec('viewAdminStale', await c('getSchedule', { from: D, to: D, adminPassword: A, viewKey: 'old' }), null);
+  for (let i = 0; i < 28; i++) await c('getSchedule', { from: D, to: D, viewKey: 'x' + i }); // viewBad と合わせて29回
+  rec('viewBeforeLock', await c('getSchedule', { from: D, to: D, viewKey: 'view' }), null); // 管理者の古い値を数えていれば、ここで止まる
+  await c('getSchedule', { from: D, to: D, viewKey: 'x28' }); // 30回目
   rec('viewLocked', await c('getSchedule', { from: D, to: D, viewKey: 'view' }));
   rec('viewLockedEmpty', await c('getSchedule', { from: D, to: D }));
   CacheService.getScriptCache().remove('viewFailures');
