@@ -23,6 +23,7 @@ $('loginDialog').addEventListener('cancel', (e) => e.preventDefault());
 function endLimited(message) {
   state.limitedKey = '';
   save_(LS.limitedKey, '');
+  forgetSnapshot();
   $('limitedMode').hidden = true;
   invalidate();
   if (message) toast(message, 'error');

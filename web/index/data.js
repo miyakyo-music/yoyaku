@@ -12,7 +12,7 @@ async function api(fn, payload, opts) {
   const res = await callApi(fn, body, opts); // web/api.js
   // 予約・変更・取消などの書き込みが通ったら、しばらくは高速キャッシュを使わずサーバーから読む
   if (res && res.ok && fn !== 'getSchedule' && fn !== 'getReservationsByIds') state.noCacheUntil = Date.now() + 2 * 60 * 1000;
-  if (res && res.code === 'AUTH_REQUIRED') { showLogin(res.message); throw new AuthError(res.message); }
+  if (res && res.code === 'AUTH_REQUIRED') { forgetSnapshot(); showLogin(res.message); throw new AuthError(res.message); }
   if (res && !res.ok && state.adminPw && /管理用パスワード/.test(res.message || '')) {
     exitAdminMode('管理者モードを終了しました（管理用パスワードが変更された可能性があります）。');
   }
@@ -197,8 +197,9 @@ function show(entry, key) {
   render();
   if (keyChanged) scrollToNow();
   stampStatus(entry.at);
-  // 次に開いたときにすぐ出せるよう、端末に覚えておく（閲覧パスワードが必要な予約表では覚えない）
-  if (!res.settings.viewPasswordRequired) save_(LS.snapshot, { key: shownKey, res, at: entry.at });
+  // 次に開いたときにすぐ出せるよう、端末に覚えておく。閲覧パスワードが必要な予約表と、管理者モード・限定公開で見た表は
+  // 覚えない（一般の人に見せない部屋や予約が、終了したあとや同じ端末の次の人に、開いた直後に一瞬出てしまうため）
+  if (!res.settings.viewPasswordRequired && !state.adminPw && !state.limitedKey) save_(LS.snapshot, { key: shownKey, res, at: entry.at });
 }
 
 /**
