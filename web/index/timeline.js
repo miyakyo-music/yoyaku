@@ -21,8 +21,13 @@ function render() {
     liftFab();
     return;
   }
+  // 描き直すと選んでいた帯・行が作り直されてフォーカスが消えるので、同じものを選び直す（キーボードで使う人のため）
+  const a = document.activeElement;
+  const sel = a && $('main').contains(a) && (a.dataset.id ? `[data-id="${CSS.escape(a.dataset.id)}"]`
+    : a.dataset.date ? `[data-date="${a.dataset.date}"]` : a.dataset.room ? `[data-room="${CSS.escape(a.dataset.room)}"]` : '');
   if (state.view === 'month') renderMonth();
   else renderTimeline();
+  if (sel) { const b = $('main').querySelector(`${sel}[tabindex]`); if (b) b.focus({ preventScroll: true }); }
   liftFab();
   // 「‹」「›」で日付（月）を切り替えたときだけ、表を進む向きから軽くすべり込ませる
   if (state.slide) {

@@ -83,7 +83,7 @@
       </div>
     </div>
     <div class="row">
-      <div class="seg tabs" role="tablist">
+      <div class="seg tabs" role="group" aria-label="表示の切り替え">
         <button type="button" class="btn" data-view="day" aria-pressed="true">一覧</button>
         <button type="button" class="btn" data-view="room" aria-pressed="false">部屋別</button>
         <button type="button" class="btn" data-view="month" aria-pressed="false">カレンダー</button>
@@ -120,7 +120,7 @@
   </div>
 
   <!-- 予約・変更ダイアログ -->
-  <dialog id="bookDialog">
+  <dialog id="bookDialog" aria-labelledby="bTitle">
     <form id="bookForm" novalidate>
       <h2 id="bTitle" tabindex="-1" autofocus>新規予約</h2>
       <div class="box" id="bSeriesBox" hidden>
@@ -189,7 +189,7 @@
         </div>
       </div>
       <p class="hint" id="bHint">入力内容はローカルに保存されます。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
-      <p class="error" id="bError"></p>
+      <p class="error" role="alert" id="bError"></p>
       <ul class="conflicts" id="bConflicts"></ul>
       <div class="actions">
         <button type="button" class="btn" data-close>戻る</button>
@@ -199,10 +199,10 @@
   </dialog>
 
   <!-- 予約詳細ダイアログ -->
-  <dialog id="detailDialog">
+  <dialog id="detailDialog" aria-labelledby="detailDialogTitle">
     <form id="detailForm" novalidate>
       <div class="dlg-title">
-        <h2 tabindex="-1" autofocus>予約の詳細</h2>
+        <h2 id="detailDialogTitle" tabindex="-1" autofocus>予約の詳細</h2>
         <span class="dlg-tools">
         <button type="button" class="btn small" id="dCopy" title="コピー" aria-label="コピー" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="lbl">コピー</span></button>
         <span class="cal-add" id="dCal" hidden><a class="btn small" id="dCalAdd">
@@ -223,7 +223,7 @@
       </div>
       <label class="check" id="dSeriesArea" hidden><input type="checkbox" id="dSeries">同じまとめ予約のうち、この日以降の分（全部屋）をまとめて取り消す</label>
       <p class="hint" id="dNote" hidden></p>
-      <p class="error" id="dError"></p>
+      <p class="error" role="alert" id="dError"></p>
       <div class="actions">
         <button type="button" class="btn" data-close>閉じる</button>
         <span class="spacer"></span>
@@ -234,10 +234,10 @@
   </dialog>
 
   <!-- この端末の予約一覧 -->
-  <dialog id="myDialog">
+  <dialog id="myDialog" aria-labelledby="myDialogTitle">
     <div class="body">
-      <h2 tabindex="-1" autofocus>この端末で作成した予約</h2>
-      <div class="pill-tabs" id="myTabs" role="tablist">
+      <h2 id="myDialogTitle" tabindex="-1" autofocus>この端末で作成した予約</h2>
+      <div class="pill-tabs" id="myTabs" role="group" aria-label="表示の切り替え">
         <button type="button" data-my="list" aria-pressed="true">予約</button>
         <button type="button" data-my="stats" aria-pressed="false">練習時間</button>
       </div>
@@ -257,9 +257,9 @@
   </dialog>
 
   <!-- 予約の検索（氏名・団体名・学籍番号・備考・部屋名。今日から予約を受け付けている先まで） -->
-  <dialog id="searchDialog">
+  <dialog id="searchDialog" aria-labelledby="searchDialogTitle">
     <div class="body">
-      <h2 tabindex="-1">予約を検索</h2>
+      <h2 id="searchDialogTitle" tabindex="-1">予約を検索</h2>
       <input id="searchInput" type="search" class="search-input" placeholder="氏名・団体名・授業名など" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="検索する言葉">
       <p class="hint" id="searchInfo"></p>
       <ul class="mylist search-list" id="searchList"></ul>
@@ -268,18 +268,18 @@
   </dialog>
 
   <!-- お知らせの全文（1行に収まらないお知らせを押したとき） -->
-  <dialog id="noticeDialog">
+  <dialog id="noticeDialog" aria-labelledby="noticeDialogTitle">
     <div class="body">
-      <h2 tabindex="-1">お知らせ</h2>
+      <h2 id="noticeDialogTitle" tabindex="-1">お知らせ</h2>
       <p class="notice-full" id="noticeFull"></p>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
     </div>
   </dialog>
 
   <!-- お知らせの変更（管理者モードでお知らせを押したとき） -->
-  <dialog id="noticeEditDialog">
+  <dialog id="noticeEditDialog" aria-labelledby="noticeEditDialogTitle">
     <form id="noticeEditor" novalidate>
-      <h2 tabindex="-1">お知らせを変更</h2>
+      <h2 id="noticeEditDialogTitle" tabindex="-1">お知らせを変更</h2>
       <label class="field"><span>内容</span><textarea id="noticeInput" rows="3" maxlength="200" autocomplete="off" placeholder="空欄にするとお知らせを出さない"></textarea></label>
       <div class="field">種類
         <div class="pill-tabs" id="noticeLevel" role="group" aria-label="お知らせの種類">
@@ -287,7 +287,7 @@
           <button type="button" data-level="重要" aria-pressed="false">重要（赤）</button>
         </div>
       </div>
-      <p class="error" id="noticeError"></p>
+      <p class="error" role="alert" id="noticeError"></p>
       <div class="actions">
         <button type="button" class="btn" data-close>やめる</button>
         <button type="submit" class="btn primary" id="noticeSave">保存</button>
@@ -296,32 +296,32 @@
   </dialog>
 
   <!-- お気に入りの練習室（端末に保存。一覧の絞り込みで「★ お気に入り」を選ぶと、ここで選んだ部屋だけになる） -->
-  <dialog id="favDialog">
+  <dialog id="favDialog" aria-labelledby="favDialogTitle">
     <div class="body">
-      <h2 tabindex="-1" autofocus>お気に入りの練習室</h2>
+      <h2 id="favDialogTitle" tabindex="-1" autofocus>お気に入りの練習室</h2>
       <div class="room-quick room-grid fav-grid" id="favRooms"></div>
       <div class="actions"><button type="button" class="btn primary" data-close>完了</button></div>
     </div>
   </dialog>
 
   <!-- 閲覧パスワード -->
-  <dialog id="loginDialog">
+  <dialog id="loginDialog" aria-labelledby="loginDialogTitle">
     <form id="loginForm" novalidate>
-      <h2>閲覧パスワード</h2>
+      <h2 id="loginDialogTitle">閲覧パスワード</h2>
       <p class="hint">この予約表を見るにはパスワードが必要です。一度入力すると、この端末では次回から入力不要です。</p>
       <label class="field">パスワード<input id="lPass" type="password" autocomplete="current-password"></label>
-      <p class="error" id="lError"></p>
+      <p class="error" role="alert" id="lError"></p>
       <div class="actions"><button type="submit" class="btn primary">表示する</button></div>
     </form>
   </dialog>
 
   <!-- 限定公開の部屋のパスワード（…/yoyaku/?limited で開いたときだけ出す） -->
-  <dialog id="limitedDialog">
+  <dialog id="limitedDialog" aria-labelledby="limitedDialogTitle">
     <form id="limitedForm" novalidate>
-      <h2 tabindex="-1" autofocus>パスワード</h2>
+      <h2 id="limitedDialogTitle" tabindex="-1" autofocus>パスワード</h2>
       <p class="hint">パスワードを入力してください。一度入力すると、この端末では次回から入力不要です。</p>
       <label class="field">パスワード<input id="limPass" type="password" autocomplete="off" enterkeyhint="done"></label>
-      <p class="error" id="limError"></p>
+      <p class="error" role="alert" id="limError"></p>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button><button type="submit" class="btn primary" id="limSubmit">表示する</button></div>
     </form>
   </dialog>
@@ -330,23 +330,23 @@
   <div class="hovercard" id="hoverCard" role="tooltip" hidden></div>
 
   <!-- 更新情報（フッタの版を押したとき。中身は index/releases.js） -->
-  <dialog id="releasesDialog">
+  <dialog id="releasesDialog" aria-labelledby="releasesDialogTitle">
     <div class="body">
-      <h2 tabindex="-1">更新情報</h2>
+      <h2 id="releasesDialogTitle" tabindex="-1">更新情報</h2>
       <div class="rel-list" id="releasesList"></div>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
     </div>
   </dialog>
 
   <!-- 不具合報告 -->
-  <dialog id="bugDialog">
+  <dialog id="bugDialog" aria-labelledby="bugDialogTitle">
     <form id="bugForm" novalidate>
-      <h2 tabindex="-1" autofocus>不具合を報告</h2>
+      <h2 id="bugDialogTitle" tabindex="-1" autofocus>不具合を報告</h2>
       <p class="hint">気づいた不具合や使いにくい点を管理者に送れます。画像は添付できません。どの画面で何をしたらどうなったかを書いてください。（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）</p>
       <label class="field"><span>内容<span class="req" aria-hidden="true">*</span></span><textarea id="bugMsg" aria-required="true" maxlength="2000" placeholder="例：予約確定を押しても画面が変わらない"></textarea></label>
       <label class="field">連絡先（返信が必要な場合）<input id="bugContact" maxlength="100" autocomplete="off" placeholder="例：メールアドレス"></label>
       <details class="env-info"><summary>一緒に送る端末・画面の情報</summary><pre id="bugEnv"></pre></details>
-      <p class="error" id="bugError"></p>
+      <p class="error" role="alert" id="bugError"></p>
       <div class="actions">
         <button type="button" class="btn" data-close>閉じる</button>
         <button type="submit" class="btn primary" id="bugSubmit">送信</button>
