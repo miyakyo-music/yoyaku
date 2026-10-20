@@ -81,6 +81,8 @@ $('main').addEventListener('mousedown', (e) => {
 });
 document.addEventListener('mousemove', (e) => {
   if (!moveMouse) return;
+  // ウィンドウの外で離してから戻ってきた（mouseup が届いていない）: 取りやめる
+  if (!(e.buttons & 1)) { moveMouse = null; if (move) { document.body.classList.remove('moving'); endMove(false); } return; }
   if (!move) {
     if (Math.hypot(e.clientX - moveMouse.x, e.clientY - moveMouse.y) < 5) return;
     if (!beginMove(moveMouse.blk, moveMouse.x)) { moveMouse = null; return; }
@@ -96,15 +98,19 @@ document.addEventListener('mouseup', () => {
   if (move) endMove(true);
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && move) { document.body.classList.remove('moving'); moveMouse = null; endMove(false); } });
+// ウィンドウの外でボタンを離すと mouseup が届かず、動かしている途中のまま端の自動スクロールが続くので、取りやめる
+window.addEventListener('blur', () => { if (moveMouse && move) { document.body.classList.remove('moving'); endMove(false); } moveMouse = null; });
 // スマホ: 帯を長押しすると持ち上がり、そのまま指を動かす（長押しの前に動かせば、今まで通りスクロール）
 let moveTouch = null;
 $('main').addEventListener('touchstart', (e) => {
+  // 前の長押しの待ちは必ず止める（2本目の指で null にしただけだと、そのあと別の帯に触れたとき、前の帯が持ち上がった）
+  if (moveTouch) clearTimeout(moveTouch.timer);
   const blk = e.target.closest('.blk.res');
   if (!blk || e.touches.length !== 1 || !blk.closest('.tl-track')) { moveTouch = null; return; }
   const t = e.touches[0];
-  moveTouch = { blk, x: t.clientX, y: t.clientY };
+  const mine = moveTouch = { blk, x: t.clientX, y: t.clientY };
   moveTouch.timer = setTimeout(() => {
-    if (!moveTouch || !beginMove(blk, moveTouch.x)) return;
+    if (moveTouch !== mine || !beginMove(blk, moveTouch.x)) return;
     if (navigator.vibrate) navigator.vibrate(15);
     updateMove(moveTouch.x, moveTouch.y);
   }, LONG_PRESS_MS);
