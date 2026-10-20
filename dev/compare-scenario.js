@@ -130,6 +130,13 @@
   out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedLocked || false];
   CacheService.getScriptCache().remove('limitedFailures');
   devCf.core.kdel('limitedFailures');
+  // 管理者の端末に残った古いパスワードは数えない（29回の誤入力のあとでも、正しいパスワードの人は止まらない）
+  for (let i = 0; i < 29; i++) await c('getSchedule', { from: D, to: D, limitedKey: 'old', adminPassword: A });
+  for (let i = 0; i < 29; i++) await c('getSchedule', { from: D, to: D, limitedKey: 'bad' + i });
+  r = rec('limitedAdminStale', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
+  out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false, r.limitedLocked || false];
+  CacheService.getScriptCache().remove('limitedFailures');
+  devCf.core.kdel('limitedFailures');
   r = rec('limitedAfterLock', await c('getSchedule', { from: D, to: D, limitedKey: 'secret1' }));
   out[out.length - 1][4] = [r.rooms.some((x) => x.id === newRoom), r.limitedAccess || false];
   // 閲覧パスワード

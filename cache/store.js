@@ -299,18 +299,15 @@
     }
     /** 限定公開の部屋を見られるか（gas/Code.gs の limitedAccess_ と同じ。誤入力が続いて止めている間は locked） */
     limitedAccess(settings, p, isAdmin) {
+      if (isAdmin) return { ok: true }; // 管理者は確かめずに通す（端末に残った古いパスワードを数えない）
       const pw = settings.limitedPassword;
       const key = String(p.limitedKey || '');
       if (key) {
         const failures = Number(this.kget('limitedFailures') || 0);
-        if (failures < SYSTEM.MAX_LIMITED_FAILURES) {
-          if (pw && safeEqual(key, pw)) return { ok: true };
-          this.kput('limitedFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
-        } else if (!isAdmin) {
-          return { ok: false, locked: true };
-        }
+        if (failures >= SYSTEM.MAX_LIMITED_FAILURES) return { ok: false, locked: true };
+        if (pw && safeEqual(key, pw)) return { ok: true };
+        this.kput('limitedFailures', failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
       }
-      if (isAdmin) return { ok: true };
       return key ? { ok: false, denied: true } : { ok: false };
     }
 

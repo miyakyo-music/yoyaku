@@ -1597,18 +1597,17 @@ function onEdit() {
  * 止める時間が延び続けたり、正しいパスワードを覚えた端末から消されたりしないように）
  */
 function limitedAccess_(settings, p, isAdmin) {
+  // 管理者は確かめずに通す。管理者には「違う」と返らないので、端末に残った古いパスワードが自動更新のたびに送られ、
+  // 数えると全体の回数が増え続けて、ほかの利用者が止まってしまう
+  if (isAdmin) return { ok: true };
   const pw = settings.limitedPassword;
   const key = String(p.limitedKey || '');
   if (key) {
     const failures = Number(CacheService.getScriptCache().get('limitedFailures') || 0);
-    if (failures < SYSTEM.MAX_LIMITED_FAILURES) {
-      if (pw && key === pw) return { ok: true };
-      countFailure_('limitedFailures'); // 総当たり対策
-    } else if (!isAdmin) {
-      return { ok: false, locked: true };
-    }
+    if (failures >= SYSTEM.MAX_LIMITED_FAILURES) return { ok: false, locked: true };
+    if (pw && key === pw) return { ok: true };
+    countFailure_('limitedFailures'); // 総当たり対策
   }
-  if (isAdmin) return { ok: true };
   return key ? { ok: false, denied: true } : { ok: false };
 }
 
