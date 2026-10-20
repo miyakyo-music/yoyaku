@@ -354,12 +354,16 @@ async function status(env) {
   };
 }
 
+const MAX_RANGE_DAYS = 42; // gas/Code.gs・cache/store.js の SYSTEM.MAX_RANGE_DAYS と同じ
+
 /** 予約表の読み込み（GAS の getSchedule と同じ形で返す） */
 async function schedule(url, env) {
   const from = url.searchParams.get('from') || '';
   const to = url.searchParams.get('to') || from;
   const DATE = /^\d{4}-\d{2}-\d{2}$/;
   if (!DATE.test(from) || !DATE.test(to) || from > to) return json({ ok: false, code: 'BAD_REQUEST' }, 400);
+  // 一度に返すのは42日分まで（GAS の getSchedule と同じ上限。広い範囲は MISS にして、GAS が上限の知らせを返す）
+  if ((Date.parse(to) - Date.parse(from)) / 86400000 >= MAX_RANGE_DAYS) return json({ ok: false, code: 'MISS' });
 
   const meta = await readMeta(env);
   if (!meta || meta.disabled || from < meta.windowFrom || to > meta.windowTo) return json({ ok: false, code: 'MISS' });
