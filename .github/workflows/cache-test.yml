@@ -1,0 +1,25 @@
+# cache/store.js（Cloudflare の正本）を変えたら、手元でできる試験を流す。秘密の値も外部のサービスも使わない。
+# 公開（cache-deploy.yml）とは別に動き、公開を止めはしない。失敗したら Actions の画面とメールで知らせが来る。
+name: 正本の試験
+
+on:
+  push:
+    branches: [main]
+    paths: ['cache/store.js', 'dev/mirror-reset-test.js', '.github/workflows/cache-test.yml']
+  pull_request:
+    paths: ['cache/store.js', 'dev/mirror-reset-test.js', '.github/workflows/cache-test.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 復元のあとの写し直しの試験
+        run: node dev/mirror-reset-test.js
