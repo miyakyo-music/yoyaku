@@ -435,77 +435,6 @@
       });
     }
 
-    /**
-     * 【一時的・りざぶ郎から切り替わったら消す（仕様書 4.7）】りざぶ郎の CSV の行（worker.js の rizaburoSync が取ってくる）を予約として入れる。
-     * 本番にすでにある予約は飛ばし、本番の予約と重なるものは入れない。終わった予約もそのまま入れる（記録として）。
-     * 結果は kv の rizaburoLast に残し、GET /rizaburo/last で誰でも見られる（件数だけで、名前は入れない）
-     */
-    importRizaburo(body) {
-      body = body || {};
-      const head = { at: nowStr('yyyy-MM-dd HH:mm:ss'), from: String(body.from || ''), to: String(body.to || ''), fetchMs: Number(body.fetchMs) || 0 };
-      if (body.error) { this.kput('rizaburoLast', JSON.stringify(Object.assign(head, { ok: false, error: String(body.error) }))); return { ok: false }; }
-      if (!this.isPrimary()) return fail('Cloudflare が正本になっていません。', 'NOT_PRIMARY');
-      const lines = (Array.isArray(body.lines) ? body.lines : []).slice(0, 3000);
-      const call = this.forCall();
-      let res;
-      try {
-        res = this.db.txn(() => {
-          call.memo.wrote = false;
-          const m = call.master();
-          const ctx = { settings: m.settings, rooms: m.rooms, closures: m.closures, limited: { ok: true }, isAdmin: true };
-          const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, fixed: 0, same: 0, overlap: 0, problems: [] });
-          lines.forEach((line) => {
-            const x = rizaburoRow(m.rooms, String(line));
-            if (x.error) { out.problems.push(x.error); return; }
-            const where = x.value.date + ' ' + x.times[0].start + ' ' + x.value.roomId + ' ';
-            // 前に入れた同じ予約（同じ部屋・氏名で、時刻の差が5分未満。前は学籍番号だけの人も学籍番号/所属に入れていた）
-            const prev = call.resWhere('WHERE date = ? AND room_id = ? AND st < ? AND en > ?', x.value.date, x.value.roomId, hhmm(x.raw.e0 + 5), hhmm(x.raw.s0 - 5))
-              .find((r) => r.name === x.value.name && (r.affiliation === x.value.affiliation || (!x.value.affiliation && r.affiliation === r.name)) &&
-                Math.abs(toMin(r.start) - x.raw.s0) < 5 && Math.abs(toMin(r.end) - x.raw.e0) < 5);
-            // 5分刻みの時刻のうち、ほかの予約に重ならない、元の時刻にいちばん近いもの
-            let r = null;
-            let problem = '';
-            for (const t of x.times) {
-              const v = validateBooking(ctx, Object.assign({}, x.value, t), true);
-              if (v.error) { problem = problem || v.error; continue; }
-              const closed = closureError(ctx, v.value);
-              if (closed) { problem = problem || closed; continue; }
-              if (findConflict.call(call, v.value, prev ? prev.id : null)) continue;
-              r = v.value;
-              break;
-            }
-            if (!r) {
-              if (prev) out.same++; // 前に入れたものをそのまま残す
-              else if (problem) out.problems.push(where + problem);
-              else out.overlap++;
-              return;
-            }
-            if (prev) {
-              if (prev.start === r.start && prev.end === r.end && prev.affiliation === r.affiliation) { out.same++; return; }
-              const fixed = Object.assign({}, prev, { start: r.start, end: r.end, affiliation: r.affiliation, updatedAt: head.at });
-              call.insertRes(fixed);
-              call.log('取り込み（りざぶ郎）の直し', fixed, (prev.affiliation !== r.affiliation ? '学籍番号/所属を空に' : '') +
-                (prev.start !== r.start || prev.end !== r.end ? (prev.affiliation !== r.affiliation ? '・' : '') + '時刻 ' + prev.start + '〜' + prev.end + ' から' : ''));
-              out.fixed++;
-              return;
-            }
-            const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: head.at, updatedAt: '', color: '' });
-            call.insertRes(created);
-            call.log('取り込み（りざぶ郎）', created, '');
-            out.added++;
-          });
-          out.problems = out.problems.slice(0, 20);
-          this.kput('rizaburoLast', JSON.stringify(out));
-          return out;
-        });
-      } catch (e) {
-        console.error(e);
-        return fail('サーバーでエラーが発生しました。', 'SERVER_ERROR');
-      }
-      if (call.memo.wrote && this.hooks.changed) { try { this.hooks.changed(); } catch (e) { /* 無視 */ } }
-      return res;
-    }
-
     status() {
       const count = (t) => Number((this.db.exec(`SELECT COUNT(*) AS n FROM ${t}`)[0] || {}).n || 0);
       return {
@@ -582,56 +511,6 @@
     if (ctx.limited.denied) return { limitedDenied: true };
     return {};
   }
-  /**
-   * 【一時的】りざぶ郎の CSV の1行（部屋,テキスト,開始,終了,予約者,…）を予約の入力に直す。
-   * 部屋は名前の番号と「P.n」（電子ピアノの番号）で当てる。予約者は先頭の英数字を学籍番号/所属、残りを氏名にする
-   * （英数字だけなら、それを氏名にして学籍番号/所属は空に。英数字がなければ全体を氏名に）。
-   * 時刻が5分刻みでないときは、5分刻みの時刻の組み合わせ（times）を、元の時刻に近い順に返す（どれを使うかは importRizaburo が決める）
-   */
-  function rizaburoRow(rooms, line) {
-    const f = csvFields(line);
-    const s = String(f[2] || '');
-    const e = String(f[3] || '');
-    if (!/^\d{12}$/.test(s) || !/^\d{12}$/.test(e)) return { error: '日時が読めない行' };
-    if (s.slice(0, 8) !== e.slice(0, 8)) return { error: '日をまたぐ予約' };
-    const roomName = String(f[0] || '').normalize('NFKC');
-    const num = (roomName.match(/練習室(\d+)/) || [])[1];
-    const p = (roomName.match(/P\.(\d+)/) || [])[1];
-    const hit = num ? rooms.filter((r) => r.name === '練習室' + Number(num) && (!p || r.tags === '電子P.' + p)) : [];
-    if (hit.length !== 1) return { error: '部屋が決まらない: ' + roomName };
-    const s0 = Number(s.slice(8, 10)) * 60 + Number(s.slice(10, 12));
-    const e0 = Number(e.slice(8, 10)) * 60 + Number(e.slice(10, 12));
-    const near = (m) => Array.from(new Set([Math.round(m / 5) * 5, Math.floor(m / 5) * 5, Math.ceil(m / 5) * 5]));
-    const times = [];
-    near(s0).forEach((st) => near(e0).forEach((en) => { if (st < en) times.push({ st, en, gap: Math.abs(st - s0) + Math.abs(en - e0) }); }));
-    times.sort((x, y) => x.gap - y.gap);
-    if (!times.length) return { error: '時刻が読めない行' };
-    const who = String(f[4] || '').normalize('NFKC').trim();
-    const w = who.match(/^([A-Za-z0-9]*\d[A-Za-z0-9]*)\s*・?\s*(.*)$/);
-    const affiliation = w && w[2].trim() ? w[1].toUpperCase() : '';
-    const name = w ? (w[2].trim() || w[1].toUpperCase()) : who;
-    return {
-      value: { date: s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8), roomId: hit[0].id, affiliation, name, memo: '', pin: '' },
-      raw: { s0, e0 }, times: times.map((t) => ({ start: hhmm(t.st), end: hhmm(t.en) })),
-    };
-  }
-  function hhmm(m) { return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
-  function csvFields(line) {
-    const out = [];
-    let cur = '';
-    let quoted = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (quoted) {
-        if (ch !== '"') cur += ch;
-        else if (line[i + 1] === '"') { cur += '"'; i++; } else quoted = false;
-      } else if (ch === '"') quoted = true;
-      else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
-    }
-    out.push(cur);
-    return out;
-  }
-
   function roomOf(ctx, roomId) { return ctx.rooms.find((r) => r.id === roomId) || {}; }
 
   function scheduleOf(ctx, from, to) {
@@ -1478,8 +1357,6 @@
       // 正本のときに返せない（閲覧パスワード・範囲が広すぎる）なら primary を付ける。worker.js は D1 の古い写しを返さず、画面は正本の /api へ行く
       return { status: 200, body: res || (core.isPrimary() ? { ok: false, code: 'MISS', primary: true } : { ok: false, code: 'MISS' }) };
     }
-    // 【一時的】りざぶ郎からの移行の、最後の結果（件数だけ）
-    if (req.path === '/rizaburo/last' && req.method === 'GET') return { status: 200, body: JSON.parse(core.kget('rizaburoLast') || '{"ok":null}') };
     // ここから下は GAS 専用（合言葉が要る）
     const token = String(core.env.PUSH_TOKEN || '').trim();
     if (!token || !safeEqual(req.auth || '', 'Bearer ' + token)) return { status: 401, body: { ok: false, code: 'UNAUTHORIZED' } };
@@ -1488,7 +1365,6 @@
     if (req.path === '/mirror/full' && req.method === 'GET') return { status: 200, body: core.sync('full') };
     if (req.path === '/store/status' && req.method === 'GET') return { status: 200, body: core.sync('status') };
     if (req.path === '/passkey/revoked' && req.method === 'POST') return { status: 200, body: core.sync('revoke') };
-    if (req.path === '/rizaburo' && req.method === 'POST') return { status: 200, body: core.importRizaburo(req.body) }; // 【一時的】りざぶ郎からの移行用
     return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
   }
 

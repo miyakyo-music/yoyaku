@@ -38,7 +38,6 @@ new_sqlite_classes = ["Hub"]
 tag = "v2"
 new_sqlite_classes = ["Store"]
 
-# 【一時的】りざぶ郎から予約を移す（worker.js の scheduled。5分ごとに今日の分、15分ごとに再来週の日曜まで）。
-# りざぶ郎から切り替わったら消す（仕様書 4.7）。りざぶ郎の予約表の g= のあとは秘密の値 R326_GROUP（cache-deploy.yml が入れる）
+# 定期実行はしない（りざぶ郎からの取り込みの名残。空にしておくと、Cloudflare に残った5分ごとの設定も消える）
 [triggers]
-crons = ["*/5 * * * *"]
+crons = []
