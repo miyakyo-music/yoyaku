@@ -18,6 +18,7 @@
 
 ## 確認のしかた
 
+- 試験: `node --test 'dev/test/*.test.js'`（Node 22 以上、数秒。ブラウザなしで本物の `Code.gs` と `cache/store.js` を動かす）。`web/`・`gas/`・`cache/`・`dev/` を変えたら push の前に流す。GitHub Actions「試験」でも流れる。動きを意図して変えて期待値と違ったら、違いを確かめてから `UPDATE=1` を付けて流し、`dev/test/scenario.expected.json` を書き直して同じコミットに入れる（保守マニュアル 03 の 7章）。
 - テスト環境: `python3 dev/serve.py` → http://127.0.0.1:8765/ （管理用パスワード `admin123`、`?reset=1` で模擬データを初期化）。本物の `Code.gs` がブラウザ内で動く。
 - スマホ幅（375px）と PC 幅の両方で、ライトとダーク（URL に `?light` / `?dark`）の両方を見る。幅の境目は 600px / 1199px / 380px（仕様書 2.10）。
 - iPhone の Safari 固有の動き（キーボード、下のバー、select の表示）はテスト環境では再現できない。実機での確認を利用者に頼む。
@@ -31,6 +32,6 @@
 - 画面と GAS の約束の版 `API_VERSION` は `web/api.js` と `gas/Code.gs` の両方で同じにする。
 - スプレッドシートの列の順番は変えない（列の位置で読み書きしている）。
 - 予約表の読み込みは、高速キャッシュ（Cloudflare Workers ＋ D1、`cache/`）が使えればそこから、だめなら GAS から（仕様書 4.5）。`web/config.js` の `CACHE_API_URL` を空にすれば GAS だけに戻る。`cache/` を変えて `main` に push すると GitHub Actions が Cloudflare に公開する。GAS が写しに入れる項目を増やすときは、予約表で誰でも見られる内容だけにする。
-- 予約の正本は、GAS（スプレッドシート）か Cloudflare（`cache/store.js`。Durable Object の SQLite）のどちらか。スプレッドシートのメニューで切り替える（仕様書 4.6）。**`gas/Code.gs` の予約・管理の処理を変えたら、`cache/store.js` の同じ処理も同じように変える。** 両方で同じ結果になるかは、テスト環境で `dev/compare-scenario.js` を流して比べる（保守マニュアル 03 の 8章）。
+- 予約の正本は、GAS（スプレッドシート）か Cloudflare（`cache/store.js`。Durable Object の SQLite）のどちらか。スプレッドシートのメニューで切り替える（仕様書 4.6）。**`gas/Code.gs` の予約・管理の処理を変えたら、`cache/store.js` の同じ処理も同じように変える。** 両方で同じ結果になるかは、`node --test 'dev/test/*.test.js'` で確かめる（台本 `dev/compare-scenario.js` を両方に流して比べ、期待値とも比べる。保守マニュアル 03 の 8章）。
 - 管理画面のパスキーログインは、高速キャッシュの Worker が署名を確かめ、GAS と共有する合言葉（`CACHE_PUSH_TOKEN`）で署名した「ログインの印」を返す。GAS はそれを管理用パスワードの代わりに受け付ける（仕様書 3.3、教員向けの説明は docs/パスキーの説明.md）。
 - 元のデザイン（デザイン統一の前）はタグ `v0.3.3-beta`。
