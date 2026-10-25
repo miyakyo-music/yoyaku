@@ -1,0 +1,26 @@
+# 画面・GAS・Cloudflare のどれかを変えたら、dev/test/ の試験をまとめて流す。秘密の値も外部のサービスも使わない。
+# 公開（pages.yml・cache-deploy.yml）とは別に動き、公開を止めはしない。失敗したら Actions の画面とメールで知らせが来る。
+# 手元では、このリポジトリの一番上で node --test 'dev/test/*.test.js'（Node 22 以上）。
+name: 試験
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'gas/**', 'cache/**', 'dev/**', '.github/workflows/test.yml']
+  pull_request:
+    paths: ['web/**', 'gas/**', 'cache/**', 'dev/**', '.github/workflows/test.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 試験をまとめて流す
+        run: node --test 'dev/test/*.test.js'
