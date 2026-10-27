@@ -63,6 +63,11 @@
   out[out.length - 1][4] = r.deletedIds && r.deletedIds.length;
   CacheService.getScriptCache().remove('writes_' + Math.floor(Date.now() / 60000)); // 削除の分で、書き込みの上限に当たらないよう数え直す
   devCf.core.kdel('writes_' + Math.floor(Date.now() / 60000));
+  // まとめて作った予約は同じパスワード。間違いは予約を替えてもまとめて数え、5回で全部が止まる
+  r = await c('createBulkReservations', Object.assign({}, base, { adminPassword: A, dates: [D, D7], roomIds: ['room_14'], start: '11:00', end: '12:00' }));
+  const grp = (r.reservations || []).map((x) => x.id);
+  for (let i = 0; i < 6; i++) rec('grpPinBad' + i, await c('cancelReservation', { id: grp[i % 2], pin: '9999' }));
+  rec('grpPinLocked', await c('cancelReservation', { id: grp[1], pin: '1111' }));
   // 終了した予約の取消（管理者だけができる）
   put({ id: 'res_dev_past', date: T, roomId: 'room_13', start: '07:00', end: '08:00', name: '過去' });
   rec('cancelPast', await c('cancelReservation', { id: 'res_dev_past' }));
