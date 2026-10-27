@@ -82,7 +82,6 @@ async function submitCancel(e) {
   const pin = $('dPin').value.trim();
   const err = $('dError');
   if (isOffline()) { err.textContent = OFFLINE_MSG; return; }
-  if (state.readOnly) { probeReadOnly(); err.textContent = READONLY_MSG; return; }
   if (!$('dOps').hidden && !pin) { err.textContent = '編集用パスワードを入力してください。'; $('dPin').focus(); return; }
   const series = !$('dSeriesArea').hidden && $('dSeries').checked;
 

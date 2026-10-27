@@ -9,9 +9,6 @@ async function api(fn, payload, opts) {
   // 管理者モードでは読み込みにも管理用パスワードを添える（限定公開の部屋も表示するため）
   const adminOps = ['getSchedule', 'getReservationsByIds', 'createReservation', 'createBulkReservations', 'updateReservation', 'cancelReservation', 'adminSetNotice'];
   if (state.adminPw && adminOps.includes(fn) && !body.adminPassword) body.adminPassword = state.adminPw;
-  // 予約表の読み取りは、Cloudflare に届かなければ GAS の写しから読む（見るだけになる。2.7.6）
-  const read = fn === 'getSchedule' || fn === 'getReservationsByIds';
-  if (read) opts = Object.assign({ readFallback: true }, opts);
   let res = await callApi(fn, body, opts); // web/api.js
   // 読み込みで管理者モードの印が通らなかった（期限切れ・パスワード変更）: 管理者モードを終えて、一般の見え方で読み直す
   if (res && res.code === 'ADMIN_AUTH' && body.adminPassword && (fn === 'getSchedule' || fn === 'getReservationsByIds')) {
@@ -21,7 +18,6 @@ async function api(fn, payload, opts) {
   }
   // 予約・変更・取消などの書き込みが通ったら、しばらくは高速キャッシュを使わずサーバーから読む
   if (res && res.ok && fn !== 'getSchedule' && fn !== 'getReservationsByIds') state.noCacheUntil = Date.now() + 2 * 60 * 1000;
-  if (read && res && res.ok) setReadOnly(res);
   if (res && res.code === 'AUTH_REQUIRED') { forgetSnapshot(); showLogin(res.message); throw new AuthError(res.message); }
   if (res && !res.ok && state.adminPw && /管理用パスワード/.test(res.message || '')) {
     exitAdminMode('管理者モードを終了しました（管理用パスワードが変更された可能性があります）。');
@@ -29,23 +25,6 @@ async function api(fn, payload, opts) {
   return res;
 }
 function errMessage(e) { return (e && e.message) || String(e) || '通信に失敗しました。'; }
-
-// ---------------- 見るだけ（Cloudflare に届かない間。2.7.6） ----------------
-// 予約の正本の Cloudflare に届かず、GAS が持つスプレッドシートの写しから読んだ（res.readOnly）間は、
-// 予約・変更・取消を送らない（book.js・detail.js が READONLY_MSG を出して止める）。Cloudflare から読めたら戻る
-const READONLY_MSG = '予約サーバーにつながらないため、いまは送信できません。少し待ってから、もう一度押してください。';
-function setReadOnly(res) {
-  const on = !!(res && res.readOnly);
-  if (on === state.readOnly) return;
-  state.readOnly = on;
-  if (on) { toast('予約サーバーにつながらないため、見るだけにしています。', 'error'); return; }
-  // 戻った: 写しから読んで覚えていた表は捨てる（次に開いたとき、Cloudflare から読み直す）
-  for (const [key, hit] of [...state.cache]) if (hit.res && hit.res.readOnly) state.cache.delete(key);
-}
-/** 見るだけの間に送ろうとしたとき: 裏で Cloudflare に届くか確かめる（届けば、もう一度押すと送れる） */
-function probeReadOnly() {
-  if (state.readOnly && !isOffline()) getScheduleFast(currentRange()).catch(() => {});
-}
 
 // ---------------- 表示範囲 ----------------
 function currentRange() { return rangeFor(state.view, state.date); }
@@ -73,15 +52,15 @@ async function getScheduleFast(range) {
   const usable = window.CACHE_API_URL && !state.adminPw && !state.limitedKey && Date.now() > state.noCacheUntil;
   if (usable) {
     const res = await fetchCacheSchedule(range); // web/api.js
-    if (res) { setDataSource('cache'); setReadOnly(res); return res; }
+    if (res) { setDataSource('cache'); return res; }
   }
   const res = await api('getSchedule', range);
-  if (res && res.ok) setDataSource(res.readOnly ? 'mirror' : 'gas');
+  if (res && res.ok) setDataSource('gas');
   return res;
 }
 /** どちらから読んだかを、更新ボタンの説明（マウスを乗せると出る文字）に書いておく（不具合の切り分け用） */
 function setDataSource(src) {
-  $('refreshBtn').title = '押すと最新の予約に更新します（読み込み元: ' + ({ cache: '高速キャッシュ', mirror: 'スプレッドシートの写し' }[src] || 'サーバー') + '）';
+  $('refreshBtn').title = '押すと最新の予約に更新します（読み込み元: ' + (src === 'cache' ? '高速キャッシュ' : 'サーバー') + '）';
 }
 
 /** GAS から期間の予約データを取得してキャッシュに入れる（同じ期間を取得中なら、その結果を共用する） */
@@ -182,21 +161,12 @@ async function load(opts) {
   }
 }
 
-/** 更新ボタンの文字（いつの表か）。オフラインの間は「オフライン（17:40 時点）」、写しを見ている間は「見るだけ（写しの時刻 時点）」 */
+/** 更新ボタンの文字（いつの表か）。オフラインの間は「オフライン（17:40 時点）」 */
 function stampStatus(at) {
   if (at) state.shownAt = at;
   const t = new Date(state.shownAt || Date.now());
   const hm_ = `${t.getHours()}:${pad(t.getMinutes())}`;
-  const mirror = state.data && state.data.readOnly ? state.data.mirrorAt : null;
-  $('statusText').textContent = isOffline() ? (state.shownAt ? `オフライン（${hm_} 時点）` : 'オフライン')
-    : mirror !== null ? (mirror ? `見るだけ（${mirrorTime(mirror)} 時点）` : '見るだけ') : `${hm_} 更新`;
-}
-/** 写しの時刻（yyyy-MM-dd HH:mm）を短く。今日なら「9:05」、ほかの日なら「10/26 9:05」 */
-function mirrorTime(s) {
-  const m = /^(\d{4}-(\d{2})-(\d{2})) (\d{2}):(\d{2})/.exec(s);
-  if (!m) return s;
-  const t = `${Number(m[4])}:${m[5]}`;
-  return m[1] === todayStr() ? t : `${Number(m[2])}/${Number(m[3])} ${t}`;
+  $('statusText').textContent = isOffline() ? (state.shownAt ? `オフライン（${hm_} 時点）` : 'オフライン') : `${hm_} 更新`;
 }
 
 function show(entry, key) {
@@ -238,8 +208,7 @@ function show(entry, key) {
   stampStatus(entry.at);
   // 次に開いたときにすぐ出せるよう、端末に覚えておく。閲覧パスワードが必要な予約表と、管理者モード・限定公開で見た表は
   // 覚えない（一般の人に見せない部屋や予約が、終了したあとや同じ端末の次の人に、開いた直後に一瞬出てしまうため）
-  // 見るだけ（写しから読んだ表。2.7.6）も覚えない（次に開いたとき、古い写しを出さないように）
-  if (!res.settings.viewPasswordRequired && !state.adminPw && !state.limitedKey && !res.readOnly) save_(LS.snapshot, { key: shownKey, res, at: entry.at });
+  if (!res.settings.viewPasswordRequired && !state.adminPw && !state.limitedKey) save_(LS.snapshot, { key: shownKey, res, at: entry.at });
 }
 
 /**
@@ -273,7 +242,7 @@ function afterShow(opts) {
 /** 「‹」「›」で次に開きそうな前後の期間を裏で取得しておき、押したときにすぐ表示できるようにする
  * （一覧は前日・翌日、部屋別・カレンダーは前月・翌月）。翌日（翌月）を先に取る */
 function prefetchNext() {
-  if (isOffline() || state.readOnly) return; // 見るだけの間は、写しを読む GAS に負担をかけない
+  if (isOffline()) return;
   const step = state.view === 'day' ? (d, n) => addDays(d, n) : (d, n) => addMonths(d, n);
   for (const dir of [1, -1]) {
     const range = rangeFor(state.view, step(state.date, dir));

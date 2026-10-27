@@ -4,7 +4,7 @@ name: GitHub Pages に公開
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'dev/bundle.js', '.github/workflows/pages.yml']
+    paths: ['web/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -25,16 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      # 起動を速くするため、予約表と管理画面が読む CSS・JS を、それぞれ1つのファイル（bundle/）にまとめる
-      # （この作業コピーの web/ だけを書き換える。やり方は dev/bundle.js の先頭）
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: CSS・JS をまとめる
-        run: node dev/bundle.js web
       # ブラウザのキャッシュに古い CSS・JS やアイコンが残らないよう、公開のたびに読み込み先を変える
-      # （まとめたファイル bundle/ と、privacy.html の api.js など、HTML が読む .js・.css すべて）
-      # sw.js は、この ?v= の付いたものを、端末に保存したものから出す（仕様書 2.10.5）
+      # （config.js・api.js と、部品のフォルダ index/・admin/・shared/ の中の .js・.css すべて）
       - name: スクリプト・アイコンの URL に版を付ける
         run: |
           sed -i -E "s#(src|href)=\"(([a-z0-9-]+/)?[a-z0-9-]+\.(js|css))\"#\1=\"\2?v=${GITHUB_SHA::8}\"#g" web/*.html

@@ -35,8 +35,7 @@
   /**
    * @param {string} action Code.gs の関数名（API に登録されたもの）
    * @param {object} params
-   * @param {{keepalive?:boolean, readFallback?:boolean}} [opts] keepalive: 画面を閉じても送り切る。
-   *   readFallback: Cloudflare に届かなければ GAS の写しから読む（予約表の読み取りだけ）
+   * @param {{keepalive?:boolean}} [opts] keepalive: 画面を閉じても送り切る
    * @returns {Promise<object>} サーバーの応答（{ok, ...}）。通信できなかったときは reject
    */
   // 管理画面にログインしたことのある端末の印（管理用パスワードを送るときだけ添える。
@@ -66,47 +65,20 @@
       try { const d = localStorage.getItem(DEVICE_KEY); if (d) params.adminDevice = d; } catch (e) { /* 保存できない環境では付けない */ }
     }
     if (!window.GAS_API_URL) throw new Error('接続先が設定されていません（web/config.js の GAS_API_URL）。');
-    const fallback = !!(opts && opts.readFallback) && READ_ACTIONS.includes(action);
-    let data = await send(action, params, opts, fallback);
+    let data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params, opts);
     if (data && data.code === 'MOVED' && cfApiUrl()) {
       // 正本の場所が変わっていた: 覚え直して、もう一方へ送り直す（1回だけ）
       setPrimary(data.primary === 'cloudflare');
-      data = await send(action, params, opts, fallback);
+      data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params, opts);
     }
     if (data && data.apiVersion !== API_VERSION) warnVersion();
     if (data && data.adminDevice) { try { localStorage.setItem(DEVICE_KEY, data.adminDevice); } catch (e) { /* 無視 */ } }
     return data;
   };
 
-  // Cloudflare が正本なのに届かない（通信の失敗・5xx・時間切れ・壊れた返事）とき、予約表の読み取りだけは
-  // GAS が持つスプレッドシートの写しから読む（見るだけ。返事に readOnly: true が付く。仕様書 2.7.6）。
-  // 呼び出し側が opts.readFallback を付けたときだけ（予約表だけ。管理画面は今まで通り）
-  const READ_ACTIONS = ['getSchedule', 'getReservationsByIds'];
-  const READ_TIMEOUT_MS = 8000; // 写しに回る読み取りは、60秒も待たせない
-  /** 相手に届かなかった（通信の失敗・5xx・時間切れ・壊れた返事）ことを表す誤り */
-  const down = (message) => Object.assign(new Error(message), { down: true });
-  async function send(action, params, opts, fallback) {
-    if (!usesCloudflare()) return post(window.GAS_API_URL, action, params, opts);
-    try {
-      return await post(cfApiUrl(), action, params, fallback ? Object.assign({}, opts, { timeout: READ_TIMEOUT_MS }) : opts);
-    } catch (e) {
-      // 電波がない（オフライン 2.7.5）ときと、届いたうえで断られた（4xx）ときは、写しに回らない
-      if (!fallback || !e.down || (typeof navigator !== 'undefined' && navigator.onLine === false)) throw e;
-      let data;
-      try {
-        data = await post(window.GAS_API_URL, action, Object.assign({}, params, { readOnly: true }), opts);
-      } catch (e2) {
-        throw e; // GAS にも届かなければ、Cloudflare に届かなかったことを知らせる
-      }
-      if (data && data.code === 'MOVED') throw e; // GAS が写しから返さない（まだ貼り直していない）
-      if (data && data.ok && !data.readOnly) setPrimary(false); // GAS が正本に戻っていた
-      return data;
-    }
-  }
-
   async function post(url, action, params, opts) {
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = ctrl && setTimeout(() => ctrl.abort(), (opts && opts.timeout) || TIMEOUT_MS);
+    const timer = ctrl && setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     let res;
     try {
       res = await fetch(url, {
@@ -120,20 +92,17 @@
         signal: ctrl ? ctrl.signal : undefined,
       });
     } catch (e) {
-      throw down(e && e.name === 'AbortError'
+      throw new Error(e && e.name === 'AbortError'
         ? 'サーバーの応答がありません。時間をおいて再度お試しください。'
         : '通信に失敗しました。インターネット接続を確認してください。');
     } finally {
       if (timer) clearTimeout(timer);
     }
-    if (!res.ok) {
-      const err = new Error(`サーバーに接続できませんでした（${res.status}）。時間をおいて再度お試しください。`);
-      throw res.status >= 500 ? Object.assign(err, { down: true }) : err;
-    }
+    if (!res.ok) throw new Error(`サーバーに接続できませんでした（${res.status}）。時間をおいて再度お試しください。`);
     try {
       return await res.json();
     } catch (e) {
-      throw down('サーバーの応答を読み取れませんでした。時間をおいて再度お試しください。');
+      throw new Error('サーバーの応答を読み取れませんでした。時間をおいて再度お試しください。');
     }
   }
 

@@ -21,8 +21,6 @@
  *   PRIMARY         … 'cloudflare' のとき、予約の正本は Cloudflare（cache/store.js）。このスクリプトは画面からの呼び出しに
  *                     「MOVED（Cloudflare を使って）」と返し、Cloudflare の変更をスプレッドシートへ写す係だけをする。
  *                     メニュー「Cloudflare に移す」「GAS に戻す」で切り替える（仕様書 4.6）
- *                     画面が Cloudflare に届かないときに頼む予約表の読み取りだけは、写しのシートから返す（見るだけ。仕様書 2.7.6）
- *   MIRROR_AT       … Cloudflare の変更を最後に写し終えた時刻（yyyy-MM-dd HH:mm）。写しから返す予約表に添える
  */
 
 const SHEETS = {
@@ -158,10 +156,7 @@ function doPost(e) {
     REQ_DEVICE_ = String((req.params && req.params.adminDevice) || '').slice(0, 64);
     const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
     if (fn && req.action !== 'mirrorNow' && req.action !== 'passkeyRevoked' && isCloudflarePrimary_()) {
-      // 正本は Cloudflare に移っている。画面はこれを受けて Cloudflare へ送り直す（web/api.js）。
-      // ただし、画面が Cloudflare に届かないときに頼む予約表の読み取り（readOnly 付き）だけは、写しのシートから返す
-      result = MIRROR_READ_ACTIONS.indexOf(req.action) >= 0 && req.params && req.params.readOnly === true
-        ? mirrorRead_(fn, req.params) : moved_();
+      result = moved_(); // 正本は Cloudflare に移っている。画面はこれを受けて Cloudflare へ送り直す（web/api.js）
     } else {
       result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
     }
@@ -177,24 +172,6 @@ function doPost(e) {
 /** 動作確認用（ブラウザで URL を開くと、API が動いているかがわかる） */
 function doGet() {
   return json_({ ok: true, service: '練習室予約API', apiVersion: API_VERSION, serverNow: nowStr_('yyyy-MM-dd HH:mm') });
-}
-
-/**
- * 正本が Cloudflare のときでも、写しのシートから返してよい読み取り（予約表と「この端末の予約」）。
- * 画面が Cloudflare に届かない間だけ使い、画面は見るだけになる（仕様書 2.7.6）。書き込み・管理の処理は MOVED のまま
- */
-const MIRROR_READ_ACTIONS = ['getSchedule', 'getReservationsByIds'];
-function mirrorRead_(fn, p) {
-  p = Object.assign({}, p);
-  // 管理用パスワードは Cloudflare で変えられていることがあり、ここでは確かめられないので使わない（誤入力にも数えない）。
-  // パスキーでのログインの印（pk1.…）は、Cloudflare と同じ合言葉で確かめられるので、そのまま使う
-  if (!/^pk1\./.test(String(p.adminPassword || ''))) delete p.adminPassword;
-  const result = fn(p);
-  if (result && result.ok) {
-    result.readOnly = true;
-    result.mirrorAt = PropertiesService.getScriptProperties().getProperty('MIRROR_AT') || '';
-  }
-  return result;
 }
 
 /** 正本が Cloudflare に移っているときの応答 */
@@ -1236,17 +1213,7 @@ function mirrorPullLocked_(ss) {
     props.setProperty('MIRROR_SEQ', String(res.seq));
     if (!res.more) break;
   }
-  mirrorDone_(applied > 0);
   return applied;
-}
-
-/**
- * 写し終えたとき: いつの時点の写しかを残す（MIRROR_AT。Cloudflare に届かない間に予約表を写しから返すとき、画面に出す）。
- * 写しが変わったら、覚えていた予約表・設定を捨てる（写しから返すときに古いものを出さないように）
- */
-function mirrorDone_(changed) {
-  PropertiesService.getScriptProperties().setProperty('MIRROR_AT', nowStr_('yyyy-MM-dd HH:mm'));
-  if (changed) { invalidateMaster_(); bumpScheduleVersion_(); }
 }
 
 /** 変更の一覧を写す。予約は ID ごとに最後の状態だけを反映する（書き換え → 消す → 足す の順） */
@@ -1350,7 +1317,6 @@ function mirrorFullOnly_(ss) {
   replaceRows_(ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs), HEADERS.bugs.length, res.bugs);
   SpreadsheetApp.flush();
   PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', String(res.seq));
-  mirrorDone_(true);
   revokePasskeyTokens_(Number(res.pkNotBefore) || 0); // Cloudflare で使えなくしたパスキーでのログインの印は、GAS でも使わない
   return res.reservations.length;
 }
@@ -1421,7 +1387,6 @@ function migrateToCloudflare() {
       const done = cfCall_('post', '/migrate', { op: 'finish' }); // ここから Cloudflare で受付を始める
       if (!done.ok) throw new Error(done.message || done.code);
       PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', '0');
-      mirrorDone_(true); // 移した時点では、シートと Cloudflare の中身は同じ
       logAdmin_(ss, '正本を Cloudflare に移動', '予約 ' + ids.size + ' 件');
       alert_('予約の正本を Cloudflare に移しました（予約 ' + ids.size + ' 件・部屋 ' + done.rooms + ' 室・休館 ' + done.closures + ' 件・不具合報告 ' + done.bugs + ' 件）。\n' +
         '開いている予約表は、次の操作のときに自動で Cloudflare に切り替わります。');
