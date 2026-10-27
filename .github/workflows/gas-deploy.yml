@@ -1,0 +1,80 @@
+# main に push して gas/ の中身が変わったとき、試験が通ってから gas/Code.gs を Apps Script に反映する（使うかは任意）。
+# 中身は手元と同じ dev/gas-deploy.sh（--ci で、何も尋ねずに動かす）。今のデプロイを新しいバージョンにするので URL は変わらない。
+# 使う秘密の値（GitHub のリポジトリの Settings > Secrets and variables > Actions に登録）:
+#   CLASPRC_JSON  … clasp login で作られる ~/.clasprc.json の中身をそのまま
+#                   （その Google アカウントの Apps Script をすべて書き換えられる鍵。保守マニュアル 03 の 2章）
+#   GAS_SCRIPT_ID … Apps Script のスクリプト ID（gas/.clasp-script-id をリポジトリに置いたなら要らない）
+# CLASPRC_JSON を登録しなければ何もしない（今まで通り手元から反映する）。
+name: GAS に反映
+
+on:
+  push:
+    branches: [main]
+    paths: ['gas/**', '.github/workflows/gas-deploy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gas-deploy
+  cancel-in-progress: false   # 反映の途中で止めない
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLASPRC_JSON != '' }}
+    steps:
+      - name: 設定の確認
+        if: env.HAS_TOKEN != 'true'
+        run: echo "CLASPRC_JSON が登録されていないので、反映しません（手元の ./dev/gas-deploy.sh で反映する）。"
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          node-version: '22'
+      - name: 試験をまとめて流す
+        if: env.HAS_TOKEN == 'true'
+        run: node --test 'dev/test/*.test.js'
+
+  deploy:
+    needs: test   # 試験が通らなければ反映しない
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLASPRC_JSON != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - name: スクリプト ID の確認
+        if: env.HAS_TOKEN == 'true'
+        id: sid
+        env:
+          GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+        run: |
+          # Secret もファイルもなければ、何もしない
+          if [ -n "$GAS_SCRIPT_ID" ] || [ -s gas/.clasp-script-id ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "GAS_SCRIPT_ID も gas/.clasp-script-id もないので、反映しません。"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.sid.outputs.ok == 'true'
+        with:
+          node-version: '22'
+      - name: clasp の鍵を置く
+        if: steps.sid.outputs.ok == 'true'
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+      - name: GAS に反映する
+        if: steps.sid.outputs.ok == 'true'
+        env:
+          GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+        run: ./dev/gas-deploy.sh --ci
+      - name: 鍵を消す
+        if: always() && steps.sid.outputs.ok == 'true'
+        run: rm -f "$HOME/.clasprc.json"
