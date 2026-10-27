@@ -36,6 +36,8 @@ function connectLive() {
     liveInfo.state = '接続中'; liveInfo.openedAt = hhmmss();
     clearInterval(livePing);
     livePing = setInterval(() => { try { ws.send('ping'); } catch (e) { /* 切れていれば onclose でつなぎ直す */ } }, 45 * 1000);
+    // 見るだけ（Cloudflare に届かなかった）の間につなぎ直せた: Cloudflare が戻ったかもしれないので、すぐ読み直す
+    if (state.readOnly && state.data) load({ force: true, background: true });
   };
   ws.onmessage = (e) => {
     let m = null;

@@ -391,6 +391,7 @@ function readBookingPayload() {
   const edit = state.booking.mode === 'edit';
   const fail = (msg, focusId) => { bookingFail(msg, focusId); return null; };
   if (isOffline()) return fail(OFFLINE_MSG);
+  if (state.readOnly) { probeReadOnly(); return fail(READONLY_MSG); }
   if (!$('bRoomQuickField').hidden) return fail('部屋を選んでください。');
   const payload = {
     roomId: $('bRoom').value,
