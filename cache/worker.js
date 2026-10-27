@@ -127,7 +127,9 @@ async function passkey(op, request, env, ctx) {
   }
   if (op === 'delete') {
     await env.DB.prepare('DELETE FROM passkeys WHERE id = ?').bind(String(body.id || '')).run();
-    await revokePasskeyTokens(env, ctx, key);
+    try { await revokePasskeyTokens(env, ctx, key); } catch (e) {
+      return ng('パスキーは削除しましたが、ログインの印を使えなくする知らせが届きませんでした。もう一度「削除」を押すか、管理用パスワードを変えてください。', 502);
+    }
     return json({ ok: true });
   }
   if (op !== 'register' && op !== 'login') return json({ ok: false, code: 'NOT_FOUND' }, 404);
@@ -195,11 +197,13 @@ async function revokePasskeyTokens(env, ctx, key) {
   const gas = String(env.GAS_URL || '').trim();
   if (!gas) return;
   const at = Math.floor(Date.now() / 1000);
-  const sent = fetch(gas, {
+  // 返事を待って確かめる。届かなかったら削除の画面にエラーを返し、もう一度消すか管理用パスワードを変えてもらう
+  const res = await fetch(gas, {
     method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
     body: JSON.stringify({ action: 'passkeyRevoked', params: { at, sig: await hmac(key, 'pkr.' + at) } }),
-  }).catch(() => {}); // 届かなくても、正本を切り替えるときに Store の時刻が GAS へ渡る
-  if (ctx && ctx.waitUntil) ctx.waitUntil(sent);
+  }).catch(() => null);
+  const data = res ? await res.json().catch(() => null) : null;
+  if (!data || data.ok !== true) throw new Error('GAS revoke failed');
 }
 
 function importKey(spki, alg) {

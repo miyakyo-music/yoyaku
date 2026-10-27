@@ -117,7 +117,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-10-27.1';
+const GAS_BUILD = '2026-10-27.2';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -1618,6 +1618,8 @@ function invalidateMaster_() {
 /** スプレッドシートを手で書き換えたとき（単純トリガー）。覚えている設定・部屋・休館と予約表を捨て、すぐ反映されるようにする */
 function onEdit() {
   try { invalidateMaster_(); bumpScheduleVersion_(); } catch (e) { /* 単純トリガーで使えない環境では、最長2分で反映 */ }
+  // 高速キャッシュの写しも5分以内に作り直す（シートで閲覧パスワードや限定公開を付けたとき、写しが公開のまま残らないように）
+  try { PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', '1'); } catch (e) { /* 何もしない */ }
 }
 
 /**
@@ -1806,7 +1808,8 @@ function checkPin_(target, pin, adminPassword) {
   if (!code) return { error: 'この予約には編集用パスワードが設定されています。編集用パスワードを入力してください。' };
 
   const cache = CacheService.getScriptCache();
-  const failKey = 'pinfail_' + target.id;
+  // まとめて作った予約は同じパスワードなので、間違いもまとめて数える（1件ずつ替えて当て続けられないように）
+  const failKey = 'pinfail_' + (target.groupId || target.id);
   const failures = Number(cache.get(failKey) || 0);
   if (failures >= SYSTEM.MAX_PIN_FAILURES) {
     return { error: '編集用パスワードの誤入力が続いたため、この予約は一時的に操作できません。10分ほど待ってから再度お試しください。' };

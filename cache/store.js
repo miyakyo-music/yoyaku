@@ -1038,7 +1038,8 @@
     }
     if (!target.pin) return { admin: false };
     if (!code) return { error: 'この予約には編集用パスワードが設定されています。編集用パスワードを入力してください。' };
-    const failKey = 'pinfail_' + target.id;
+    // まとめて作った予約は同じパスワードなので、間違いもまとめて数える（1件ずつ替えて当て続けられないように）
+    const failKey = 'pinfail_' + (target.groupId || target.id);
     const failures = Number(this.kget(failKey) || 0);
     if (failures >= SYSTEM.MAX_PIN_FAILURES) {
       return { error: '編集用パスワードの誤入力が続いたため、この予約は一時的に操作できません。10分ほど待ってから再度お試しください。' };
