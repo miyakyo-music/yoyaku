@@ -111,6 +111,14 @@ const WEEKDAYS = '日月火水木金土';
 /** 画面とAPIの版。呼び出し方や応答の形を変えたら、web/api.js の API_VERSION と一緒に上げる */
 const API_VERSION = 1;
 
+/**
+ * このファイルの版（貼り忘れを見つけるための印）。このファイルを変えたら、その日の日付と、同じ日の何回目かに書き換える
+ * （例: '2026-10-27.1'）。Cloudflare への写しの通信（/mirror/changes・/push）に付けて送り、Worker の GET / に出る。
+ * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
+ * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
+ */
+const GAS_BUILD = '2026-10-27.1';
+
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
   getSchedule: getSchedule,
@@ -1030,7 +1038,7 @@ function pushCache_() {
     const ctx = context_({}); // 管理者でも限定公開でもない、一般の人の見え方
     const windowFrom = addMonths_(today, -1); // 先月の1日から
     const windowTo = addDays_(addMonths_(today, SYSTEM.CACHE_MONTHS_AHEAD + 1), -1); // 4か月先の月末まで
-    const body = { version: version, apiVersion: API_VERSION, windowFrom: windowFrom, windowTo: windowTo };
+    const body = { version: version, apiVersion: API_VERSION, gasBuild: GAS_BUILD, windowFrom: windowFrom, windowTo: windowTo };
     if (ctx.settings.viewPassword) {
       body.disabled = true; // 閲覧パスワードを使っている間は写しを置かない（予約表は GAS から読む）
     } else {
@@ -1189,7 +1197,8 @@ function mirrorPullLocked_(ss) {
   let applied = 0;
   for (let round = 0; round < 10; round++) {
     const after = Number(props.getProperty('MIRROR_SEQ') || 0);
-    const res = cfCall_('get', '/mirror/changes?after=' + after);
+    // build は見張り用（いま動いている Code.gs の版。Worker の GET / に出る）
+    const res = cfCall_('get', '/mirror/changes?after=' + after + '&build=' + encodeURIComponent(GAS_BUILD));
     if (!res.ok) throw new Error(res.message || res.code);
     if (res.reset) { // Cloudflare の正本が昔の時点に戻された（復元）。続きからは写せないので、丸ごと写し直す
       console.warn('Cloudflare の変更の番号が戻っていたため、丸ごと写し直します（写した番号 ' + after + '、Cloudflare ' + res.seq + '）');

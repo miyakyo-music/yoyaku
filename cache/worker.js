@@ -252,15 +252,45 @@ async function disableCopy(env) {
   }
 }
 
-/** 動作確認用（ブラウザで開くと、写しの版と送られた時刻がわかる） */
+/**
+ * 動作確認用（ブラウザで開くと、いまの様子がわかる）。見張り（.github/workflows/monitor.yml → dev/monitor.js）もこれを読む。
+ * 誰でも見られるので、予約者の名前などの中身は出さない（件数・時刻・版だけ）。
+ *   primary    … 予約の正本。'cloudflare'（Store）か 'gas'（スプレッドシート）
+ *   gas        … GAS が最後に来たとき。build は GAS が名乗った版（gas/Code.gs の GAS_BUILD）、at はその時刻、
+ *                via は来た道（正本が Cloudflare なら 'mirror' ＝ /mirror/changes を読みに来た、GAS なら 'push' ＝ /push で写しを送ってきた）
+ *   mirror     … 正本が Cloudflare のときの、スプレッドシートへの写し。unmirrored はまだ写し終えていない変更の件数、
+ *                oldestUnmirroredAt はそのうち一番古いものの時刻（正本が GAS のときは null）
+ *   version・pushedAt・disabled・windowFrom・windowTo … D1 の写し（GAS が /push で送ってきたもの）。
+ *                正本が Cloudflare の間は GAS が送らないので、pushedAt は移した時点のまま古く、disabled は true になる（それで正しい）
+ */
 async function status(env) {
   const meta = await readMeta(env);
-  return {
-    ok: true, service: '練習室予約キャッシュ',
-    tokenHint: await tokenHint(String(env.PUSH_TOKEN || '').trim()),
+  const token = String(env.PUSH_TOKEN || '').trim();
+  const out = {
+    ok: true, service: '練習室予約キャッシュ', serverNow: isoJst(Date.now()),
+    tokenHint: await tokenHint(token),
+    primary: 'gas', gas: null, mirror: null,
     version: meta ? meta.version : null, pushedAt: meta ? meta.pushedAt : null,
     disabled: meta ? !!meta.disabled : null, windowFrom: meta ? meta.windowFrom : null, windowTo: meta ? meta.windowTo : null,
   };
+  if (env.STORE) {
+    // Store の様子は合言葉つきで読む（Worker の中からだけ。外からの /store/status も合言葉が要る）
+    let st = null;
+    try {
+      const res = await store(env).fetch('https://store/store/status', { headers: { Authorization: 'Bearer ' + token } });
+      st = res.ok ? await res.json() : null;
+    } catch (e) { st = null; }
+    if (!st || !st.ok) return Object.assign(out, { ok: false, primary: null, message: '正本（Store）の様子を読めません。' });
+    if (st.primary) {
+      out.primary = 'cloudflare';
+      out.gas = { build: st.gasBuild || null, at: st.mirrorAt ? isoJst(st.mirrorAt) : null, via: 'mirror' };
+      out.mirror = { unmirrored: st.unmirrored, oldestUnmirroredAt: st.oldestUnmirroredAt ? isoJst(st.oldestUnmirroredAt) : null };
+      return out;
+    }
+  }
+  // 正本が GAS のとき: GAS は予約が変わるたびと、毎日1回（日付が変わった最初の見回り）/push を送ってくる
+  if (meta) out.gas = { build: meta.gasBuild || null, at: meta.pushedAt ? meta.pushedAt.replace(' ', 'T') + ':00+09:00' : null, via: 'push' };
+  return out;
 }
 
 const MAX_RANGE_DAYS = 42; // gas/Code.gs・cache/store.js の SYSTEM.MAX_RANGE_DAYS と同じ
@@ -311,6 +341,7 @@ async function push(request, env, ctx) {
 
   const meta = {
     version, pushedAt: nowJst(), apiVersion: body.apiVersion,
+    gasBuild: String(body.gasBuild || '').replace(/[^\w.\-+:]/g, '').slice(0, 40), // GAS の版（見張り用。GET / に出す）
     disabled: !!body.disabled,
     windowFrom: body.windowFrom || '', windowTo: body.windowTo || '',
     rooms: body.rooms || [], settings: body.settings || {}, closures: body.closures || [],
@@ -509,6 +540,11 @@ function monthsBetween(from, to) {
 function nowJst() {
   const d = new Date(Date.now() + 9 * 3600 * 1000);
   return d.toISOString().slice(0, 16).replace('T', ' ');
+}
+
+/** 日本時間の「YYYY-MM-DDTHH:mm:ss+09:00」（ミリ秒から。人が読めて、そのまま時刻としても読み込める形） */
+function isoJst(ms) {
+  return new Date(Number(ms) + 9 * 3600 * 1000).toISOString().slice(0, 19) + '+09:00';
 }
 
 function json(obj, status = 200, headers = {}) {

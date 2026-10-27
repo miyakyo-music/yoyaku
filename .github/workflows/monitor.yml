@@ -1,0 +1,41 @@
+# 見張り: 予約システムが止まっていないかを、1日に数回確かめる（dev/monitor.js）。
+# 高速キャッシュの Worker（web/config.js の CACHE_API_URL）の GET / を読み、次のどれかなら失敗する。
+#   - 返事がない・ok でない・予約の正本がどちらか分からない
+#   - スプレッドシートに写されていない変更が30分以上残っている（正本が Cloudflare のとき）
+#   - GAS が最後に写しに来たのが1時間以上前（正本が Cloudflare のとき。GAS の cacheRetry は5分ごとに来る）
+#   - GAS が最後に写しを送ってきたのが26時間以上前（正本が GAS のとき。毎日1回は送る）
+#   - GAS で動いている版（GAS_BUILD）が、リポジトリの gas/Code.gs と違う（貼り直し忘れ）
+# 秘密の値は使わない（誰でも見られる GET / だけを読む）。
+#
+# 気をつけること（保守マニュアル 05・06）:
+#   - 失敗の知らせのメールは、最後にこのファイルの「schedule（定期実行）」を変えた人に届く。
+#     担当が替わったら、後任が下の cron の「分」（今は 17）を別の数に変えて、自分のアカウントで main に入れる
+#     （コメントだけの変更では宛先が変わらないことがある）。GitHub の Settings > Notifications の Actions の知らせも入れておく。
+#   - GitHub は、リポジトリに60日間動き（push など）がないと、定期実行を自動で止める。
+#     止まったら、GitHub の Actions の画面で「見張り」を選び「Enable workflow」で有効にし直す。
+name: 見張り
+
+on:
+  schedule:
+    # 日本時間の 8時・11時・14時・17時・21時の17分（GitHub の時刻は UTC。混む「ちょうど」の時刻は避ける）
+    - cron: '17 23,2,5,8,12 * * *' # 失敗のメールは、最後にこの行の時刻を変えた人に届く
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 予約システムの様子を確かめる
+        run: node dev/monitor.js

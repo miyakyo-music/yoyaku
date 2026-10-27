@@ -97,8 +97,10 @@
         contact TEXT NOT NULL, user_agent TEXT NOT NULL, screen TEXT NOT NULL, page TEXT NOT NULL, env TEXT NOT NULL)`);
       x(`CREATE TABLE IF NOT EXISTS oplog (n INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, action TEXT NOT NULL, res_id TEXT, date TEXT,
         room_id TEXT, time TEXT, who TEXT, detail TEXT)`);
-      // 写し待ちの変更（GAS が読んだら消す）
-      x('CREATE TABLE IF NOT EXISTS changes (seq INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, data TEXT NOT NULL)');
+      // 写し待ちの変更（GAS が読んだら消す）。at は積んだ時刻（ミリ秒。見張りが「写されずに残っている時間」を見る）
+      x('CREATE TABLE IF NOT EXISTS changes (seq INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, data TEXT NOT NULL, at INTEGER NOT NULL DEFAULT 0)');
+      // 時刻の列がなかったころの表には足す（もうあれば失敗するので、何もしない。前からあった行の時刻は 0 ＝ わからない）
+      try { x('ALTER TABLE changes ADD COLUMN at INTEGER NOT NULL DEFAULT 0'); } catch (e) { /* もうある */ }
       // 小さな値（正本かどうか・管理用パスワード・誤入力の回数など）。exp は期限（ミリ秒。0 は無期限）
       x('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL, exp INTEGER NOT NULL DEFAULT 0)');
     }
@@ -338,7 +340,7 @@
       this.change('resdel', ids);
     }
     change(kind, data) {
-      this.db.exec('INSERT INTO changes (kind, data) VALUES (?, ?)', kind, JSON.stringify(data));
+      this.db.exec('INSERT INTO changes (kind, data, at) VALUES (?, ?, ?)', kind, JSON.stringify(data), Date.now());
       this.memo.wrote = true;
     }
     log(action, r, detail) {
@@ -381,7 +383,7 @@
     syncTxn(op, body) {
       return this.db.txn(() => {
         if (op === 'status') return this.status();
-        if (op === 'changes') return this.mirrorChanges(Number(body.after) || 0);
+        if (op === 'changes') return this.mirrorChanges(Number(body.after) || 0, body.build);
         if (op === 'full') return this.mirrorFull();
         if (op === 'disable') { this.kput('primary', '0'); return { ok: true }; }
         if (op === 'finish') { this.kput('primary', '1'); return this.status(); }
@@ -441,6 +443,24 @@
         ok: true, primary: this.isPrimary(),
         reservations: count('reservations'), rooms: count('rooms'), closures: count('closures'), bugs: count('bugs'),
         pendingChanges: count('changes'),
+        ...this.mirrorHealth(),
+      };
+    }
+
+    /**
+     * 見張り用（worker.js の GET / に出す）。中身（名前など）は含めない。
+     * - mirrorAt … GAS が最後に /mirror/changes を読みに来た時刻（ミリ秒）。gasBuild … そのとき GAS が名乗った版（GAS_BUILD）
+     * - unmirrored … まだ写し終えたと言われていない変更の件数（GAS が次の呼び出しの after で「ここまで写した」と知らせるまで残る）
+     * - oldestUnmirroredAt … そのうち一番古いものを積んだ時刻（時刻の列ができる前の行しかなければ null）
+     */
+    mirrorHealth() {
+      const ack = Number(this.kget('mirrorAck') || 0);
+      const row = this.db.exec('SELECT COUNT(*) AS n, MIN(CASE WHEN at > 0 THEN at END) AS oldest FROM changes WHERE seq > ?', ack)[0] || {};
+      return {
+        mirrorAt: Number(this.kget('mirrorAt') || 0) || null,
+        gasBuild: this.kget('gasBuild') || null,
+        unmirrored: Number(row.n || 0),
+        oldestUnmirroredAt: Number(row.oldest || 0) || null,
       };
     }
 
@@ -450,7 +470,11 @@
      * 何も消さずに reset を返す（GAS は丸ごと写し直す）。そのまま続けると、戻ったあとの変更が after 以下の番号になり、
      * 写す前に消えてしまうため
      */
-    mirrorChanges(after) {
+    mirrorChanges(after, build) {
+      // 見張り用に、来た時刻と GAS の版を覚える（版は GAS が手で書く短い文字。長すぎるもの・変な文字は切る）
+      this.kput('mirrorAt', Date.now());
+      const b = String(build == null ? '' : build).replace(/[^\w.\-+:]/g, '').slice(0, 40);
+      if (b) this.kput('gasBuild', b); else this.kdel('gasBuild');
       const top = Math.max(Number((this.db.exec('SELECT MAX(seq) AS s FROM changes')[0] || {}).s) || 0, Number(this.kget('mirrorAck') || 0));
       if (after > top) return { ok: true, reset: true, seq: top, more: false, changes: [] };
       this.kput('mirrorAck', after);
@@ -1361,7 +1385,7 @@
     const token = String(core.env.PUSH_TOKEN || '').trim();
     if (!token || !safeEqual(req.auth || '', 'Bearer ' + token)) return { status: 401, body: { ok: false, code: 'UNAUTHORIZED' } };
     if (req.path === '/migrate' && req.method === 'POST') return { status: 200, body: core.sync(String(req.body.op || ''), req.body) };
-    if (req.path === '/mirror/changes' && req.method === 'GET') return { status: 200, body: core.sync('changes', { after: req.query.get('after') }) };
+    if (req.path === '/mirror/changes' && req.method === 'GET') return { status: 200, body: core.sync('changes', { after: req.query.get('after'), build: req.query.get('build') }) };
     if (req.path === '/mirror/full' && req.method === 'GET') return { status: 200, body: core.sync('full') };
     if (req.path === '/store/status' && req.method === 'GET') return { status: 200, body: core.sync('status') };
     if (req.path === '/passkey/revoked' && req.method === 'POST') return { status: 200, body: core.sync('revoke') };
