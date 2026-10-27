@@ -25,7 +25,7 @@
     MAX_MEMO_LENGTH: 100,
     MAX_RANGE_DAYS: 42,
     MAX_PIN_FAILURES: 5,
-    MAX_MINE: 1000, // 「氏名で探す」で返す予約の上限
+    MAX_MINE: 1000, // 「名前で探す」で返す予約の上限
     MAX_ADMIN_FAILURES: 10,
     MAX_ADMIN_DELETE: 2000,
     LOG_PAGE: 200,
@@ -582,7 +582,7 @@
     };
   }
 
-  /** 氏名・団体名か学籍番号/所属が一致する予約（gas/Code.gs の findMyReservations と同じ） */
+  /** 名前・団体名か学籍番号/所属が一致する予約（gas/Code.gs の findMyReservations と同じ） */
   function findMyReservations(p) {
     const ctx = this.context(p);
     const badAdmin = adminRejected.call(this, p, ctx);
@@ -590,7 +590,7 @@
     const denied = checkView.call(this, ctx, p.viewKey);
     if (denied) return denied;
     const key = normName(p.name);
-    if (!key) return fail('氏名・団体名か学籍番号を入力してください。');
+    if (!key) return fail('名前・団体名か学籍番号を入力してください。');
     const visible = visibleIn(ctx);
     const list = this.resWhere('ORDER BY date, st').filter((r) => (normName(r.name) === key || normName(r.affiliation) === key) && visible(r));
     return { ok: true, reservations: list.slice(-SYSTEM.MAX_MINE).map(toPublic), rooms: ctx.rooms, serverNow: nowStr('yyyy-MM-dd HH:mm') };

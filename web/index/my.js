@@ -1,4 +1,4 @@
-// 予約表: 自分の予約（この端末で作った予約、または氏名・学籍番号で探した予約の一覧と練習時間）
+// 予約表: 自分の予約（この端末で作った予約、または名前・学籍番号で探した予約の一覧と練習時間）
 'use strict';
 
 // ---------------- この端末の予約一覧 ----------------
@@ -15,8 +15,8 @@ function setMyTab(tab) {
 const myTab = () => ($('myTabs').querySelector('[aria-pressed="true"]') || {}).dataset.my || 'list';
 const byName = () => state.mySrc === 'name';
 
-// ---------------- 探し方（この端末 / 氏名で探す） ----------------
-// 「氏名で探す」は、氏名・団体名か学籍番号/所属が一致する予約を、過去の分も含めてサーバーから読む（findMyReservations）。
+// ---------------- 探し方（この端末 / 名前で探す） ----------------
+// 「名前で探す」は、名前・団体名か学籍番号/所属が一致する予約を、過去の分も含めてサーバーから読む（findMyReservations）。
 // 予約表で誰でも見られる内容なので本人確認はしない。読んだ結果は小窓を開いている間だけ覚える（state.myFound）
 function setMySrc(src) {
   state.mySrc = src;
@@ -35,7 +35,7 @@ $('myNameForm').addEventListener('submit', (e) => {
   state.myStats = null;
   setMyTab(myTab());
 });
-/** 氏名で探した予約（同じ言葉なら読み直さない）。言葉が空なら null */
+/** 名前で探した予約（同じ言葉なら読み直さない）。言葉が空なら null */
 async function findByName() {
   const q = $('myNameInput').value.trim();
   if (!q) return null;

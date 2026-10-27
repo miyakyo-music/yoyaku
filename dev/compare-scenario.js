@@ -47,7 +47,7 @@
   out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.start + x.name).join(',');
   r = rec('byIds', await c('getReservationsByIds', { ids: [ids.a, ids.g1, 'nope'] }));
   out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.start + x.name + x.hasPin).join(',');
-  // 氏名で探す（氏名・団体名か学籍番号/所属の全体の一致。空白・全角半角の違いは区別しない）
+  // 名前で探す（名前・団体名か学籍番号/所属の全体の一致。空白・全角半角の違いは区別しない）
   r = rec('mine', await c('findMyReservations', { name: ' 甲 ' }));
   out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.date + x.start + x.name).join(',');
   r = rec('mineAff', await c('findMyReservations', { name: 'ｇ１' }));

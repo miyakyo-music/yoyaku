@@ -12,8 +12,8 @@ const LS = {
   viewKey: 'prr.viewKey',
   limitedKey: 'prr.limitedKey',  // 限定公開の部屋（演習室など）のパスワード
   history: 'prr.myHistory',      // { [reservationId]: 'YYYY-MM-DD' } この端末で予約した記録（練習時間の集計用。約13か月残す）
-  mySrc: 'prr.mySrc',            // 「自分の予約」の探し方（'device' この端末 / 'name' 氏名で探す）
-  myName: 'prr.myName',          // 「氏名で探す」で最後に探した言葉
+  mySrc: 'prr.mySrc',            // 「自分の予約」の探し方（'device' この端末 / 'name' 名前で探す）
+  myName: 'prr.myName',          // 「名前で探す」で最後に探した言葉
   fav: 'prr.favRooms',           // [roomId] お気に入りの練習室
   closeTime: 'prr.closeTime',    // 利用終了時刻（開いた直後、設定を読む前に「翌日を出すか」を決めるため）
 };
