@@ -47,6 +47,12 @@
   out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.start + x.name).join(',');
   r = rec('byIds', await c('getReservationsByIds', { ids: [ids.a, ids.g1, 'nope'] }));
   out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.start + x.name + x.hasPin).join(',');
+  // 氏名で探す（氏名・団体名か学籍番号/所属の全体の一致。空白・全角半角の違いは区別しない）
+  r = rec('mine', await c('findMyReservations', { name: ' 甲 ' }));
+  out[out.length - 1][4] = r.reservations && r.reservations.map((x) => x.date + x.start + x.name).join(',');
+  r = rec('mineAff', await c('findMyReservations', { name: 'ｇ１' }));
+  out[out.length - 1][4] = r.reservations && r.reservations.length;
+  rec('mineEmpty', await c('findMyReservations', { name: '  ' }));
   for (let i = 0; i < 6; i++) rec('cancelBad' + i, await c('cancelReservation', { id: ids.a, pin: '9999' }));
   r = rec('cancelSeries', await c('cancelReservation', { id: ids.g1, adminPassword: A, scope: 'following' }));
   out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.length;

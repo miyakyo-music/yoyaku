@@ -20,6 +20,12 @@
 .ms-week .sat { color: var(--sat); }
 .ms-empty { padding: 16px 0; text-align: center; color: var(--muted); font-size: 13px; }
 .mylist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* 氏名で探す: 入力欄と「探す」を1行に */
+dialog form.my-name { flex-direction: row; align-items: center; gap: 8px; padding: 0; } /* 小窓の form の縦並び・余白を打ち消す */
+dialog form.my-name[hidden] { display: none; }
+.my-name .search-input { flex: 1; min-width: 0; }
+.my-name .btn { flex: none; height: 42px; padding: 0 18px; }
+.mylist .my-sep { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
 #myListPane, #myStatsPane { margin-top: 4px; } /* タブと中身の間をあける */
 .mylist button {
   width: 100%;

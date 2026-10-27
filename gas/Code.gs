@@ -53,6 +53,7 @@ const SYSTEM = {
   MAX_RANGE_DAYS: 42,
   // 編集用パスワード・パスワードの総当たり対策
   MAX_PIN_FAILURES: 5,
+  MAX_MINE: 1000, // 「氏名で探す」で返す予約の上限
   MAX_ADMIN_FAILURES: 10, // 管理用パスワードを、この回数間違えると一定時間受け付けない（全体、またはログインしたことのある端末ごと）
   MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
   LOG_PAGE: 200, // 管理画面の変更履歴を一度に読む件数
@@ -117,12 +118,13 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-10-27.2';
+const GAS_BUILD = '2026-10-27.3';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
   getSchedule: getSchedule,
   getReservationsByIds: getReservationsByIds,
+  findMyReservations: findMyReservations,
   createReservation: createReservation,
   createBulkReservations: createBulkReservations,
   updateReservation: updateReservation,
@@ -246,6 +248,35 @@ function getReservationsByIds(p) {
     .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))
     .map(toPublic_);
   return { ok: true, reservations: list, rooms: ctx.rooms, serverNow: nowStr_('yyyy-MM-dd HH:mm') };
+}
+
+/**
+ * 氏名・団体名か学籍番号/所属が一致する予約を返す（「自分の予約」の「氏名で探す」。過去の分も含む）。
+ * 予約表で誰でも見られる内容なので、本人確認はしない（プライバシーポリシー 3章）。部分一致ではなく全体の一致で、
+ * 全角・半角、大文字・小文字、ひらがな・カタカナ、空白の違いは区別しない。
+ * 前年度より前にアーカイブした予約は含まない。多いときは新しい方から MAX_MINE 件まで
+ * @param {{name:string, viewKey?:string}} p
+ */
+function findMyReservations(p) {
+  p = p || {};
+  const ctx = context_(p);
+  const badAdmin = adminRejected_(p, ctx);
+  if (badAdmin) return badAdmin;
+  const denied = checkView_(ctx, p.viewKey);
+  if (denied) return denied;
+  const key = normName_(p.name);
+  if (!key) return fail_('氏名・団体名か学籍番号を入力してください。');
+  const visible = visibleIn_(ctx);
+  const list = readReservations_(ctx.resSheet)
+    .filter(r => (normName_(r.name) === key || normName_(r.affiliation) === key) && visible(r))
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  return { ok: true, reservations: list.slice(-SYSTEM.MAX_MINE).map(toPublic_), rooms: ctx.rooms, serverNow: nowStr_('yyyy-MM-dd HH:mm') };
+}
+
+/** 氏名を比べるための形（全角・半角、大文字・小文字、ひらがな・カタカナ、空白をそろえる。web/index/search.js の normText と同じ） */
+function normName_(t) {
+  return String(t || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '')
+    .replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 }
 
 /**

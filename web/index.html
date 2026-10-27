@@ -233,10 +233,18 @@
     </form>
   </dialog>
 
-  <!-- この端末の予約一覧 -->
+  <!-- 自分の予約（この端末で作った予約、または氏名・学籍番号で探した予約） -->
   <dialog id="myDialog" aria-labelledby="myDialogTitle">
     <div class="body">
-      <h2 id="myDialogTitle" tabindex="-1" autofocus>この端末で作成した予約</h2>
+      <h2 id="myDialogTitle" tabindex="-1" autofocus>自分の予約</h2>
+      <div class="pill-tabs my-src" id="mySrc" role="group" aria-label="探し方">
+        <button type="button" data-src="device" aria-pressed="true">この端末</button>
+        <button type="button" data-src="name" aria-pressed="false">氏名で探す</button>
+      </div>
+      <form id="myNameForm" class="my-name" hidden>
+        <input id="myNameInput" type="search" class="search-input" placeholder="氏名・団体名か学籍番号" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="氏名・団体名か学籍番号">
+        <button type="submit" class="btn primary">探す</button>
+      </form>
       <div class="pill-tabs" id="myTabs" role="group" aria-label="表示の切り替え">
         <button type="button" data-my="list" aria-pressed="true">予約</button>
         <button type="button" data-my="stats" aria-pressed="false">練習時間</button>
@@ -249,6 +257,7 @@
           <button type="button" data-p="week" aria-pressed="false">今週</button>
           <button type="button" data-p="month" aria-pressed="true">今月</button>
           <button type="button" data-p="fy" aria-pressed="false">今年度</button>
+          <button type="button" data-p="all" aria-pressed="false">すべて</button>
         </div>
         <div id="myStatsBody"></div>
       </div>
