@@ -1,5 +1,5 @@
 # 画面・GAS・Cloudflare のどれかを変えたら、dev/test/ の試験をまとめて流す。秘密の値も外部のサービスも使わない。
-# 公開（pages.yml・cache-deploy.yml）とは別に動き、公開を止めはしない。失敗したら Actions の画面とメールで知らせが来る。
+# 失敗したら Actions の画面とメールで知らせが来る。公開（pages.yml・cache-deploy.yml・gas-deploy.yml）は、それぞれの中で同じ試験を流し、通ったときだけ公開する。
 # 手元では、このリポジトリの一番上で node --test 'dev/test/*.test.js'（Node 22 以上）。
 name: 試験
 
