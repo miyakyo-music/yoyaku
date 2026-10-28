@@ -1,8 +1,15 @@
 /* 予約表: 上部（試験運用中の帯・タイトル・管理と更新・お知らせ・表示の切り替え・日付の移動・設備の絞り込み・凡例） */
+/* 上部はガラスの帯。予約表がこの下を通り抜ける。ぼかしは端で弱まり、上端では後ろの文字がそのまま透けてチラつくので、
+   上の方（試験運用中の帯との境目）は透かさない */
 .topbar {
   flex: none;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   display: flex; flex-direction: column; gap: 8px;
+  position: relative; z-index: 20; margin-bottom: calc(-1 * var(--hdr-h));
+  background: linear-gradient(180deg, #fff 0, #fff 40%, rgba(255, 255, 255, .86) 70%, rgba(255, 255, 255, .66));
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
+  --text-inset: 15px;
 }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -38,7 +45,7 @@ body.offline .status .ic-offline { display: block; }
 .notice.important .ic-alert { display: inline; }
 /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
 /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
-.notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
+.notice-row { order: 1; display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
 .notice-row .notice { flex: 1; min-width: 0; }
 /* 幅 999px 以下では、タイトルとボタンの間に押し込むと縦に潰れるので、お知らせを次の行に回す
    （iPad 12.9 インチ縦の 1024px はタイトルの段に入る） */
@@ -125,7 +132,7 @@ body.offline .status .ic-offline { display: block; }
   .topbar .row { display: contents; }
   /* 1段目（タイトル・ボタン・お知らせ）は表の列とは切り離し、ボタンの幅を確保してタイトル側を縮める */
   .topbar .row:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; grid-area: head; min-width: 0; }
-  .brand { flex: 1 1 0; min-width: 0; overflow: hidden; overflow: clip; overflow-y: visible; } /* 上下は切らない（「管理」の件数バッジを出すため） */
+  .brand { flex: 1 1 0; min-width: 0; overflow: hidden; overflow: clip; overflow-y: visible; gap: 6px; } /* 上下は切らない（「管理」の件数バッジを出すため） */
   .brand h1 { min-width: 0; flex: 0 1 auto; }
   .admin-mode .lg { display: none; }
   .brand .admin-mode { font-size: 10px; padding: 1px 4px; }
@@ -142,7 +149,7 @@ body.offline .status .ic-offline { display: block; }
   .notice-row { flex: 1 0 100%; }
   .beta-label .wide-text { display: none; }
   .beta-label .narrow-text { display: inline; }
-  .selects { display: flex; }
+  .selects { display: flex; grid-area: select; min-width: 0; }
   .selects select {
     flex: 1;
     width: 100%;
@@ -169,20 +176,11 @@ body.offline .status .ic-offline { display: block; }
   .free-btn, #todayBtn { width: 54px; flex: none; padding: 0; }
   .tabs .btn { padding: 0 9px; }
   .notice { padding: 6px 9px; font-size: 13px; }
-  .selects { grid-area: select; min-width: 0; }
 }
 /* 幅 380px 以下の小さなスマホでは、日付欄の余白を詰める（タブ・選択欄・矢印はファイルの終わりの方） */
 @media (max-width: 380px) {
   .datenav .date-display { padding: 0 26px; }
   .datenav .date-display svg { right: 8px; }
-}
-/* ---------- 上部: ガラスの帯。予約表がこの下を通り抜ける ---------- */
-.topbar {
-  position: relative; z-index: 20; margin-bottom: calc(-1 * var(--hdr-h));
-  /* ぼかしは端で弱まり、上端では後ろの文字がそのまま透けてチラつくので、上の方（試験運用中の帯との境目）は透かさない */
-  background: linear-gradient(180deg, #fff 0, #fff 40%, rgba(255, 255, 255, .86) 70%, rgba(255, 255, 255, .66));
-  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
 }
 .beta-band { position: relative; z-index: 21; }
 .selects select {
@@ -232,9 +230,6 @@ body.offline .status .ic-offline { display: block; }
 /* 管理（歯車）と更新（↻）の中のアイコンと文字（ボタンの形は下の「1つのカプセルに」） */
 .admin-link svg, .status svg { flex: none; }
 .status #statusText { color: var(--muted); }
-@media (max-width: 600px) {
-  .brand { gap: 6px; }
-}
 /* お知らせ: 管理者モードでは押すと変更の小窓を出す（index/notice.js） */
 .notice.editable { cursor: pointer; }
 @media (hover: hover) {
@@ -270,7 +265,6 @@ html.dark .limited-mode { background: rgba(191, 90, 242, .22); color: #dcaef7; }
    幅によってボタンの場所が変わると、両方を使う人が探してしまうため */
 .topbar .row:first-child .brand, .topbar .row:first-child .tools { display: contents; }
 .brand h1, .brand .admin-mode { order: 0; }
-.notice-row { order: 1; }
 #refreshBtn { order: 2; margin-left: auto; }
 #searchBtn { order: 3; }
 #myBtn { order: 4; }
@@ -379,8 +373,7 @@ html.dark .topbar .seg { box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-sha
 html:not(.dark) .topbar .seg { background-color: rgba(118, 118, 128, .12); box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06); }
 html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .12); }
 /* タイトルとお知らせの文字の左端を、表示の切り替えの「一覧」の文字の左端にそろえる
-   （溝の余白 3px ＋ ボタンの内側の余白） */
-.topbar { --text-inset: 15px; }
+   （溝の余白 3px ＋ ボタンの内側の余白。--text-inset は .topbar の先頭で決める） */
 .brand h1 { padding-left: var(--text-inset); }
 .topbar .notice { padding-left: var(--text-inset); }
 .topbar .notice .ic-info { margin-left: -2px; } /* 拡声器の絵は枠の内側に約 2px の余白があるので、その分だけ左へ寄せて線の端をそろえる */
