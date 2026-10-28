@@ -3,11 +3,11 @@
  *
  * 2026-10-28 から 2026-11-04 00:00 までの一時的な運用。予約表の更新が少ない夜間は回数を落とす。
  * - 今日: 日中は10分ごと、夜間（23時〜6時）は1時間ごと
- * - 明日〜7日後: 日中は1時間ごと、夜間は3時間ごと
- * - 8〜14日後: 3時間ごと（夜間は4時台の1回）
- * - 15日後〜2026-11-30: 毎日4時20分に1回
+ * - 明日〜7日後: 日中は1時間ごと（0分に1〜3日後、30分に4〜7日後）。夜間は取らない
+ * - 8〜14日後: 日中は6時間ごと（前半・後半を交互に）。夜間は取らない
+ * - 15日後〜2026-11-30: 4日に1回、5日ずつ（4時20分）
  *
- * 1回に取るのは最大23日（1日あたり通信2回なので46回）。Cloudflare の無料枠の「1回の実行で50回まで」に収める。
+ * 1回に取るのは最大5日（1日あたり通信2回なので10回）。Cloudflare の無料枠の「1回の実行で50回まで」に収める。
  * 取り込みをやめたあとも、このファイルは 2026-11-04 に消す（仕様書 4.8）。
  */
 (function (g) {
@@ -36,18 +36,26 @@
     const p = jst(ms);
     if (p.date > END) return [];
     const night = p.hour >= 23 || p.hour < 6;
+    const day = !night;
     const out = new Set();
     const add = (from, to) => {
       for (let d = from; d <= to && d <= END; d = addDays(d, 1)) if (d >= p.date) out.add(d);
     };
     // 今日
-    if (!night || p.minute === 0) out.add(p.date);
-    // 明日〜7日後
-    if (p.minute === 0 && (!night || p.hour % 3 === 0)) add(addDays(p.date, 1), addDays(p.date, 7));
-    // 8〜14日後
-    if (p.minute === 10 && ((!night && p.hour % 3 === 0) || (night && p.hour === 4))) add(addDays(p.date, 8), addDays(p.date, 14));
-    // 15日後〜末日
-    if (p.minute === 20 && p.hour === 4) add(addDays(p.date, 15), END);
+    if (day || p.minute === 0) out.add(p.date);
+    // 明日〜7日後: 日中、0分に1〜3日後、30分に4〜7日後（どの日も1時間ごと）
+    if (day && p.minute === 0) add(addDays(p.date, 1), addDays(p.date, 3));
+    if (day && p.minute === 30) add(addDays(p.date, 4), addDays(p.date, 7));
+    // 8〜14日後: 日中の3時間ごと。前半・後半を交互にして、どの日も6時間ごと
+    if (day && p.minute === 10 && p.hour % 3 === 0) {
+      const later = Math.floor(p.hour / 3) % 2 === 1;
+      add(addDays(p.date, later ? 12 : 8), addDays(p.date, later ? 14 : 11));
+    }
+    // 15日後〜末日: 4日に1回、5日ずつ（4時20分）
+    if (p.minute === 20 && p.hour === 4) {
+      const slot = Math.floor(Date.parse(p.date + 'T00:00:00Z') / DAY) % 4;
+      add(addDays(p.date, 15 + slot * 5), addDays(p.date, 19 + slot * 5));
+    }
     return [...out].sort();
   }
 
