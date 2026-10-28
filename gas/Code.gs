@@ -119,7 +119,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-10-28.2';
+const GAS_BUILD = '2026-10-28.3';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -618,7 +618,7 @@ function adminImportReservations(p) {
       appendRows_(ctx.resSheet, created.map(toRow_));
       MEMO_.resAfter = rows.concat(created);
       try {
-        appendLog_(ctx.ss, created.map(r => [now, '取り込み（りざぶ郎）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
+        appendLog_(ctx.ss, created.map(r => [now, '取り込み（CSV）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
           (r.affiliation ? r.affiliation + ' ' : '') + r.name, '']));
       } catch (e) {
         console.error(e); // ログの失敗で取り込み自体は失敗させない

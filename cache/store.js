@@ -898,7 +898,7 @@
         if (reason || conflict) { problem = problem || reason || '既存の予約と重複（' + describe(conflict) + '）'; continue; }
         const r = Object.assign({}, v.value, { id: newId('res'), groupId: '', createdAt: now, updatedAt: '', color: '' });
         this.insertRes(r);
-        this.addLog([now, '取り込み（りざぶ郎）', r.id, r.date, r.roomId, r.start + '〜' + r.end, (r.affiliation ? r.affiliation + ' ' : '') + r.name, '']);
+        this.addLog([now, '取り込み（CSV）', r.id, r.date, r.roomId, r.start + '〜' + r.end, (r.affiliation ? r.affiliation + ' ' : '') + r.name, '']);
         out.added++;
         return;
       }
