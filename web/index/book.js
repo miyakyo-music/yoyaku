@@ -383,6 +383,19 @@ function bookingFail(msg, focusId) {
 }
 
 /**
+ * 氏名の欄に、りざぶ郎のように学籍番号と氏名を続けて書いたもの（g6508本田理空・Ｇ6508 本田理空 など）を分ける。
+ * 先頭が英字1〜3文字＋数字3桁以上で、その後ろに氏名があるときだけ分ける（英字は大文字に）。
+ * 学籍番号の欄に別のものが入っているときは分けない（同じ学籍番号なら氏名から外す）。分けないときは null
+ */
+function splitIdFromName(name, affiliation) {
+  const m = name.normalize('NFKC').match(/^([A-Za-z]{1,3}\d{3,})[\s・、,_-]*([^\s\d・、,_-].*)$/);
+  if (!m) return null;
+  const id = m[1].toUpperCase();
+  if (affiliation && affiliation.normalize('NFKC').toUpperCase() !== id) return null;
+  return { affiliation: id, name: m[2].trim() };
+}
+
+/**
  * 予約画面の入力を読み取って確かめる。だめなら知らせを出して null を返す。
  * 通れば、送る中身（payload）と、どの送り方か（変更か・まとめて変更か・まとめて予約か）を返す
  */
@@ -402,6 +415,13 @@ function readBookingPayload() {
     memo: $('bMemo').value.trim(),
     pin: $('bPin').value.trim(),
   };
+  // 氏名の欄の先頭の学籍番号は、学籍番号の欄へ移す（欄にも書き戻し、この端末に覚える値も分けた形にする）
+  const split = splitIdFromName(payload.name, payload.affiliation);
+  if (split) {
+    Object.assign(payload, split);
+    $('bAff').value = split.affiliation;
+    $('bPerson').value = split.name;
+  }
   // 帯を動かして開いた変更画面で、時刻の欄に触れていなければ、利用時間は必ず元の長さにする（念のため）
   const keep = state.booking.keepLen;
   if (keep && !state.booking.timeTouched && toMin(payload.end) - toMin(payload.start) !== keep) {
