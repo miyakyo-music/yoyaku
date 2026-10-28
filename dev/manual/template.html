@@ -46,14 +46,16 @@
   .card { border-radius: 18px; padding: 28px; background: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .05); }
   header.doc { text-align: center; margin-bottom: 24px; }
   header.doc .sub { margin: 0; font-size: 16px; }
-  header.doc h1 { margin: 2px 0 4px; font-size: 26px; }
+  header.doc h1 { margin: 2px 0 4px; font-size: 26px; font-weight: 600; }
   header.doc .meta { margin: 0; color: var(--muted); font-size: 13px; }
   .key { background: var(--key-bg); border: 2px solid var(--key-line); border-radius: 14px; padding: 18px 22px; }
-  .key .key-title { margin: 0 0 10px; font-weight: 700; font-size: 18px; line-height: 1.6; color: var(--key-title); }
+  .key .key-title { margin: 0 0 10px; font-weight: 600; font-size: 18px; line-height: 1.6; color: var(--key-title); }
   .key p:last-child { margin-bottom: 0; font-size: 14px; }
+  .key .key-sub { margin: 18px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); font-weight: 600; font-size: 16px; color: var(--key-title); }
   .toc { margin: 22px 0 8px; padding: 14px 20px; border-radius: 14px; background: var(--th-bg); }
-  .toc-title { margin: 0 0 4px; font-weight: 700; }
+  .toc-title { margin: 0 0 4px; font-weight: 600; }
   .toc ol { margin: 0; padding-left: 1.6em; columns: 2; column-gap: 32px; }
+  b, strong, h2, h3, th { font-weight: 600; } /* 700 だと Mac のヒラギノ角ゴで太すぎて文字が潰れる */
   h2 { font-size: 20px; color: var(--key-title); margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1.5px solid var(--key-line); scroll-margin-top: 64px; }
   h3 { font-size: 16.5px; margin: 26px 0 8px; }
   p { margin: 0 0 12px; }

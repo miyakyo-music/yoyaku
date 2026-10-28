@@ -46,14 +46,16 @@
   .card { border-radius: 18px; padding: 28px; background: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .05); }
   header.doc { text-align: center; margin-bottom: 24px; }
   header.doc .sub { margin: 0; font-size: 16px; }
-  header.doc h1 { margin: 2px 0 4px; font-size: 26px; }
+  header.doc h1 { margin: 2px 0 4px; font-size: 26px; font-weight: 600; }
   header.doc .meta { margin: 0; color: var(--muted); font-size: 13px; }
   .key { background: var(--key-bg); border: 2px solid var(--key-line); border-radius: 14px; padding: 18px 22px; }
-  .key .key-title { margin: 0 0 10px; font-weight: 700; font-size: 18px; line-height: 1.6; color: var(--key-title); }
+  .key .key-title { margin: 0 0 10px; font-weight: 600; font-size: 18px; line-height: 1.6; color: var(--key-title); }
   .key p:last-child { margin-bottom: 0; font-size: 14px; }
+  .key .key-sub { margin: 18px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); font-weight: 600; font-size: 16px; color: var(--key-title); }
   .toc { margin: 22px 0 8px; padding: 14px 20px; border-radius: 14px; background: var(--th-bg); }
-  .toc-title { margin: 0 0 4px; font-weight: 700; }
+  .toc-title { margin: 0 0 4px; font-weight: 600; }
   .toc ol { margin: 0; padding-left: 1.6em; columns: 2; column-gap: 32px; }
+  b, strong, h2, h3, th { font-weight: 600; } /* 700 だと Mac のヒラギノ角ゴで太すぎて文字が潰れる */
   h2 { font-size: 20px; color: var(--key-title); margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1.5px solid var(--key-line); scroll-margin-top: 64px; }
   h3 { font-size: 16.5px; margin: 26px 0 8px; }
   p { margin: 0 0 12px; }
@@ -106,7 +108,7 @@
       <h1><b>管理者画面の使い方</b></h1>
       <p class="meta">教員向け　2026年10月　v1.0.0</p>
     </header>
-<section class="key"><p class="key-title"><b>演習室の予約と一括予約は、管理者ログインをすると使えるようになります</b></p><p>一般の利用者の画面には、演習室などの限定公開の部屋や、くり返し予約・複数部屋の同時予約が出てきません。次の手順で管理者モードに入ると、いつもの予約表から予約できます。</p><ol><li>予約表の右上の歯車のボタンを押し、管理画面を開きます。PC では歯車の横に「管理」と出ています。</li><li>「管理者ログイン」で管理用パスワードを入れ、<b>ログイン</b>を押します。パスキーを登録した端末なら、青い「パスキーでログイン」でも入れます。</li><li>左上の<b>‹ 予約表に戻る</b>を押します。タイトルの横に赤い<b>管理者モード</b>の札が出ていれば準備は終わりです。</li><li>あとは空いている所を押すか「＋ 新規予約」から予約します。演習室も部屋の一覧に並び、予約画面には「くり返し予約する」「他の部屋も同時に予約する」が出ます。</li></ol><p>管理者モードは、管理画面にログインした同じタブの中だけで続きます。別のタブで予約表を開き直すと一般の画面に戻るので、そのときはもう一度ログインしてください。</p></section>
+<section class="key"><p class="key-title"><b>演習室の予約と一括予約は、管理者ログインをすると使えるようになります</b></p><p>一般の利用者の画面には、演習室などの限定公開の部屋や、くり返し予約・複数部屋の同時予約が出てきません。次の手順で管理者モードに入ると、いつもの予約表から予約できます。</p><ol><li>予約表の右上の歯車のボタンを押し、管理画面を開きます。PC では歯車の横に「管理」と出ています。</li><li>「管理者ログイン」で管理用パスワードを入れ、<b>ログイン</b>を押します。パスキーを登録した端末なら、青い「パスキーでログイン」でも入れます。</li><li>左上の<b>‹ 予約表に戻る</b>を押します。タイトルの横に赤い<b>管理者モード</b>の札が出ていれば準備は終わりです。</li><li>あとは空いている所を押すか「＋ 新規予約」から予約します。演習室も部屋の一覧に並び、予約画面には「くり返し予約する」「他の部屋も同時に予約する」が出ます。</li></ol><p class="key-sub"><b>演習室を学生などに使わせるときは、専用の入口の URL を配ります</b></p><p>管理画面の「設定」タブの「限定公開の部屋」で、演習室などのパスワード（6文字以上）を決めて「保存」を押します。その下の「入口の URL」の「コピー」を押すと、専用の URL が写せます。この URL とパスワードを、使う人にだけ個別に伝えてください。掲示や全体への連絡には載せません。受け取った人が URL を開いてパスワードを入れると、その端末では演習室が表示され、予約できるようになります。一度入れた端末では、次からは入力しなくても使えます。パスワードを変えると、それまで使えていた端末でも演習室が表示されなくなるので、使う人に新しいパスワードを伝え直します。この URL とパスワードでは、管理者モードの操作はできません。</p><p>管理者モードは、管理画面にログインした同じタブの中だけで続きます。別のタブで予約表を開き直すと一般の画面に戻るので、そのときはもう一度ログインしてください。</p></section>
 <nav class="toc" aria-label="目次"><p class="toc-title">目次</p><ol><li><a href="#s1">管理者モードでできること</a></li><li><a href="#s2">ログインとログアウト</a></li><li><a href="#s3">演習室を予約する</a></li><li><a href="#s4">一括予約（まとめて予約）</a></li><li><a href="#s5">予約の変更と取消</a></li><li><a href="#s6">管理画面のタブ</a></li><li><a href="#s7">よくある問い合わせ</a></li></ol></nav>
 
 <p>管理用パスワードは、この文書には書いていません。責任者の教員またはシステム担当者から受け取ってください。文書中の画面の写真は本番の画面で、予約した人の名前と学籍番号はぼかしています。</p>
