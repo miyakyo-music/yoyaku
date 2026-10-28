@@ -415,6 +415,12 @@ function readBookingPayload() {
     memo: $('bMemo').value.trim(),
     pin: $('bPin').value.trim(),
   };
+  // 学籍番号の欄が学籍番号だけ（g6508・Ｇ６５０８ など）なら、半角の大文字にそろえる（所属名などはそのまま）
+  const aff = payload.affiliation.normalize('NFKC');
+  if (/^[A-Za-z]{1,3}\d{3,}$/.test(aff) && aff.toUpperCase() !== payload.affiliation) {
+    payload.affiliation = aff.toUpperCase();
+    $('bAff').value = payload.affiliation;
+  }
   // 氏名の欄の先頭の学籍番号は、学籍番号の欄へ移す（欄にも書き戻し、この端末に覚える値も分けた形にする）
   const split = splitIdFromName(payload.name, payload.affiliation);
   if (split) {
