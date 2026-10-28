@@ -69,3 +69,44 @@ test('更新情報（RELEASES）の形がそろっている', () => {
   const appVersion = (/APP_VERSION = '([^']+)'/.exec(read('web/api.js')) || [])[1];
   assert.ok(RELEASES.some((r) => r.ver === appVersion), `今の版 ${appVersion} が更新情報にない`);
 });
+
+// 外側の名前（`function foo`・`const foo` など、字下げのない宣言）は、読み込むファイルをまたいで共有される。
+// 同じ名前が2つのファイルにあると、後のファイルが前を上書きする（または読み込み順で中身が変わる）。
+// 画面が丸ごと止まる事故になるので、ここで止める。
+function topLevelNames(file) {
+  const text = read(file);
+  const names = [];
+  for (const m of text.matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) names.push(m[1]);
+  for (const m of text.matchAll(/^(?:const|let|var|class)\s+([A-Za-z_$][\w$]*)/gm)) names.push(m[1]);
+  return names;
+}
+
+for (const page of ['web/index.html', 'web/admin.html']) {
+  test(`${page} の外側の名前が、読み込むファイルをまたいで重ならない`, () => {
+    const seen = new Map();
+    for (const src of [...read(page).matchAll(/<script src="([^"]+)"/g)].map((m) => m[1])) {
+      const file = path.posix.normalize(path.posix.join(path.posix.dirname(page), src));
+      for (const name of topLevelNames(file)) {
+        assert.ok(!seen.has(name), `${name} が ${seen.get(name)} と ${file} の両方にある`);
+        seen.set(name, file);
+      }
+    }
+  });
+}
+
+test('画面の外側の名前が、GAS・Store の外側の名前と重ならない', () => {
+  const server = new Set([
+    ...topLevelNames('gas/Code.gs'),
+    ...topLevelNames('cache/store.js'),
+    // store.js は全体が即時関数の中なので、外に出す名前だけを足す
+    'StoreCore',
+  ]);
+  for (const page of ['web/index.html', 'web/admin.html']) {
+    for (const src of [...read(page).matchAll(/<script src="([^"]+)"/g)].map((m) => m[1])) {
+      const file = path.posix.normalize(path.posix.join(path.posix.dirname(page), src));
+      for (const name of topLevelNames(file)) {
+        assert.ok(!server.has(name), `${name} が ${file} と GAS/Store の両方にある`);
+      }
+    }
+  }
+});

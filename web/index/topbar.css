@@ -1,8 +1,15 @@
 /* 予約表: 上部（試験運用中の帯・タイトル・管理と更新・お知らせ・表示の切り替え・日付の移動・設備の絞り込み・凡例） */
+/* 上部はガラスの帯。予約表がこの下を通り抜ける。ぼかしは端で弱まり、上端では後ろの文字がそのまま透けてチラつくので、
+   上の方（試験運用中の帯との境目）は透かさない */
 .topbar {
   flex: none;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   display: flex; flex-direction: column; gap: 8px;
+  position: relative; z-index: 20; margin-bottom: calc(-1 * var(--hdr-h));
+  background: linear-gradient(180deg, #fff 0, #fff 40%, rgba(255, 255, 255, .86) 70%, rgba(255, 255, 255, .66));
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
+  --text-inset: 15px;
 }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -27,25 +34,23 @@ body.offline .status .ic-offline { display: block; }
 }
 /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
 .notice {
-  margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; font-size: 13px; font-weight: 600; line-height: 1.5;
+  margin: 0; display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; font-weight: 600; line-height: 1.5;
 }
-.notice svg { flex: none; margin-top: 2px; }
+.notice svg { flex: none; margin-top: 0; }
 .notice .ic-alert, .notice.important .ic-info { display: none; }
 /* お知らせは1行に収め、はみ出す分は「…」。押すと全文の小窓（index/notice.js） */
-.notice { align-items: center; }
-.notice svg { margin-top: 0; }
 #noticeText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notice.overflow { cursor: pointer; }
 .notice-full { margin: 0; font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 .notice.important .ic-alert { display: inline; }
 /* お知らせの行。お知らせが短いときの右側の余白に「不具合を報告」を置く */
 /* PC では1段目のタイトルとボタンの間に置く。お知らせは左、「不具合を報告」は右のボタンの手前 */
-.notice-row { display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
+.notice-row { order: 1; display: flex; align-items: center; gap: 6px 12px; flex: 1; min-width: 0; }
 .notice-row .notice { flex: 1; min-width: 0; }
 /* 幅 999px 以下では、タイトルとボタンの間に押し込むと縦に潰れるので、お知らせを次の行に回す
    （iPad 12.9 インチ縦の 1024px はタイトルの段に入る） */
 @media (min-width: 601px) and (max-width: 999px) {
-  .notice-row { order: 3; flex: 1 0 100%; }
+  .notice-row { flex: 1 0 100%; }
 }
 /* 試験運用中の帯 */
 .beta-band {
@@ -64,11 +69,11 @@ body.offline .status .ic-offline { display: block; }
 .seg { display: inline-flex; }
 .range-label { font-size: 15px; font-weight: 700; white-space: nowrap; }
 .selects { display: inline-flex; gap: 6px; align-items: center; }
-/* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く */
+/* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く
+   （背景はこのあとの「ガラスの帯」の指定で描く） */
 .selects select {
   font-size: 14px; /* ほかのボタンと同じ大きさにそろえる */
   -webkit-appearance: none; appearance: none; padding: 0 30px 0 10px;
-  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
 }
 /* 一覧・部屋別の日付（期間）は日付欄と表を見ればわかるので出さない。カレンダーの「○年○月」だけ出す */
 .range-label.redundant { display: none; }
@@ -79,16 +84,13 @@ body.offline .status .ic-offline { display: block; }
   align-items: center;
   justify-content: center;
 }
-/* 前日・日付・翌日を1枚のガラスの面にまとめ、間を細い線で区切る */
+/* 前日・日付・翌日を1枚のガラスの面にまとめ、間を細い線で区切る
+   （角丸・面の色・ぼかし・影は、あとの「Safari のツールバー」の指定で決める） */
 .date-step {
-  display: inline-flex; align-items: center; gap: 0; border-radius: 11px;
-  background-color: var(--glass); background-image: var(--glass-sheen);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  display: inline-flex; align-items: center; gap: 0;
+  background-image: var(--glass-sheen);
 }
-.date-step .btn.arrow, .date-step .date-display {
-  background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-radius: 0;
-}
+.date-step .btn.arrow, .date-step .date-display { border-radius: 0; }
 .date-step .btn.arrow:active { transform: none; background-color: var(--fill-field); }
 .date-step .btn.arrow:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .date-step .date-field:focus-within .date-display { box-shadow: inset 0 0 0 2px var(--accent); }
@@ -129,7 +131,7 @@ body.offline .status .ic-offline { display: block; }
   .topbar .row { display: contents; }
   /* 1段目（タイトル・ボタン・お知らせ）は表の列とは切り離し、ボタンの幅を確保してタイトル側を縮める */
   .topbar .row:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; grid-area: head; min-width: 0; }
-  .brand { flex: 1 1 0; min-width: 0; overflow: hidden; overflow: clip; overflow-y: visible; } /* 上下は切らない（「管理」の件数バッジを出すため） */
+  .brand { flex: 1 1 0; min-width: 0; overflow: hidden; overflow: clip; overflow-y: visible; gap: 6px; } /* 上下は切らない（「管理」の件数バッジを出すため） */
   .brand h1 { min-width: 0; flex: 0 1 auto; }
   .admin-mode .lg { display: none; }
   .brand .admin-mode { font-size: 10px; padding: 1px 4px; }
@@ -143,10 +145,10 @@ body.offline .status .ic-offline { display: block; }
   .tools .lg, .admin-link .lg { display: none; }
   .tools .sm, .admin-link .sm { display: inline; }
   .legend, .status #statusText { display: none; }
-  .notice-row { order: 3; flex: 1 0 100%; }
+  .notice-row { flex: 1 0 100%; }
   .beta-label .wide-text { display: none; }
   .beta-label .narrow-text { display: inline; }
-  .selects { display: flex; }
+  .selects { display: flex; grid-area: select; min-width: 0; }
   .selects select {
     flex: 1;
     width: 100%;
@@ -173,32 +175,18 @@ body.offline .status .ic-offline { display: block; }
   .free-btn, #todayBtn { width: 54px; flex: none; padding: 0; }
   .tabs .btn { padding: 0 9px; }
   .notice { padding: 6px 9px; font-size: 13px; }
-  .selects { grid-area: select; min-width: 0; }
 }
 /* 幅 380px 以下の小さなスマホでは、日付欄の余白を詰める（タブ・選択欄・矢印はファイルの終わりの方） */
 @media (max-width: 380px) {
   .datenav .date-display { padding: 0 26px; }
   .datenav .date-display svg { right: 8px; }
 }
-/* ---------- 上部: ガラスの帯。予約表がこの下を通り抜ける ---------- */
-.topbar {
-  position: relative; z-index: 20; margin-bottom: calc(-1 * var(--hdr-h));
-  /* ぼかしは端で弱まり、上端では後ろの文字がそのまま透けてチラつくので、上の方（試験運用中の帯との境目）は透かさない */
-  background: linear-gradient(180deg, #fff 0, #fff 40%, rgba(255, 255, 255, .86) 70%, rgba(255, 255, 255, .66));
-  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 0; box-shadow: 0 .5px 0 var(--sep), 0 6px 16px -10px rgba(0, 0, 0, .18);
-}
 .beta-band { position: relative; z-index: 21; }
 .selects select {
-  border: 0; border-radius: 11px; /* 全部を丸いカプセルにすると安っぽく見えるので、角丸の四角に */
-  background-color: var(--glass); background-image: var(--glass-sheen);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
-  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), box-shadow .18s, background-color .18s;
-}
-.selects select {
+  border: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen);
-  background-repeat: no-repeat, no-repeat; background-position: right 12px center, 0 0; background-size: auto, 100% 100%;
+  background-repeat: no-repeat, no-repeat; background-size: auto, 100% 100%;
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), box-shadow .18s, background-color .18s;
 }
 #todayBtn { color: var(--text); }
 #todayBtn.on-today { color: var(--accent); font-weight: 600; }
@@ -206,25 +194,18 @@ body.offline .status .ic-offline { display: block; }
 .admin-mode { border: 0; border-radius: 7px; background: rgba(255, 59, 48, .12); color: #c4261d; }
 .limited-mode { background: rgba(175, 82, 222, .14); color: #7d3aa8; }
 /* ---------- 表示の切り替え: ガラスの溝の中を、白いガラスのつまみが滑る ---------- */
-.seg {
-  position: relative; height: 34px; padding: 2px; gap: 0; border-radius: 11px;
-  background-color: rgba(118, 118, 128, .1);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  /* 下端に白い線を入れると、隣のボタン（下に影がある）より 1〜2px 低く見えるので、外側に同じ縁と影を付けてそろえる */
-  box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), var(--glass-edge), var(--glass-lift);
-}
+.seg { position: relative; height: 34px; gap: 0; }
 .seg::before {
-  content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x, 2px); width: var(--thumb-w, 0);
-  border-radius: 9px; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+  content: ""; position: absolute; left: var(--thumb-x, 2px); width: var(--thumb-w, 0);
+  background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
   box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
   transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
 }
 .seg.no-anim::before { transition: none; }
 .seg .btn, .seg .btn:first-child, .seg .btn:last-child {
-  position: relative; z-index: 1; height: 30px; margin: 0; border-radius: 9px;
-  background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; font-weight: 500;
+  position: relative; z-index: 1; margin: 0; font-weight: 500;
 }
-.seg .btn[aria-pressed="true"] { background: none; color: var(--text); font-weight: 600; box-shadow: none; }
+.seg .btn[aria-pressed="true"] { color: var(--text); font-weight: 600; }
 .seg .btn:active { transform: none; }
 /* ---------- お知らせ・試験運用中の帯 ---------- */
 .notice {
@@ -237,9 +218,6 @@ body.offline .status .ic-offline { display: block; }
 /* 管理（歯車）と更新（↻）の中のアイコンと文字（ボタンの形は下の「1つのカプセルに」） */
 .admin-link svg, .status svg { flex: none; }
 .status #statusText { color: var(--muted); }
-@media (max-width: 600px) {
-  .brand { gap: 6px; }
-}
 /* お知らせ: 管理者モードでは押すと変更の小窓を出す（index/notice.js） */
 .notice.editable { cursor: pointer; }
 @media (hover: hover) {
@@ -257,18 +235,13 @@ html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180d
    表がそのまま透けて見えたため。ふだんは半透明のまま、縁の屈折とぼかしで表を透かす） */
 html.hdr-solid .topbar, html.hdr-solid .refract .topbar { background: #fff; }
 html.dark.hdr-solid .topbar, html.dark.hdr-solid .refract .topbar { background: #000; }
-html.dark .seg::before {
-  background: rgba(99, 99, 102, .9);
-  background-color: #3a3a3c;
-}
 html.dark .seg .btn[aria-pressed="true"] { color: #fff; }
 html.dark .notice { background: rgba(10, 132, 255, .18); color: #a8d1ff; box-shadow: none; }
 html.dark .notice.important { background: rgba(255, 69, 58, .2); color: #ffb3ad; }
 html.dark .beta-band { background: #1f1c10; color: #e8c766; border-bottom-color: rgba(255, 214, 10, .2); }
 html.dark .beta-report { background: rgba(255, 255, 255, .08); color: #e8c766; }
-html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen); }
 html.dark .seg { background-color: #1c1c1e; box-shadow: none; }
-html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
+html.dark .seg::before { box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
 html.dark #todayBtn.on-today { color: #409cff; }
 html.dark .topbar .free-btn[aria-pressed="true"] { color: #7ee29a; }
 html.dark .admin-mode { background: rgba(255, 69, 58, .2); color: #ff9d97; }
@@ -280,7 +253,6 @@ html.dark .limited-mode { background: rgba(191, 90, 242, .22); color: #dcaef7; }
    幅によってボタンの場所が変わると、両方を使う人が探してしまうため */
 .topbar .row:first-child .brand, .topbar .row:first-child .tools { display: contents; }
 .brand h1, .brand .admin-mode { order: 0; }
-.notice-row { order: 1; }
 #refreshBtn { order: 2; margin-left: auto; }
 #searchBtn { order: 3; }
 #myBtn { order: 4; }
@@ -310,15 +282,12 @@ html.dark .limited-mode { background: rgba(191, 90, 242, .22); color: #dcaef7; }
 /* 4つを別々のボタンに分けると上部がにぎやかになるので、1枚のガラスに並べ、中のボタンは背景なしのアイコンだけにする */
 .hdr-pill {
   order: 2; margin-left: auto; flex: none;
-  display: inline-flex; align-items: center; height: 34px; padding: 0 3px; border-radius: 999px;
-  background-color: var(--glass); background-image: var(--glass-sheen);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
+  display: inline-flex; align-items: center; height: 34px; padding: 0 3px;
+  background-image: var(--glass-sheen);
 }
 #refreshBtn { margin-left: 0; }
 .topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status {
-  width: 38px; min-width: 38px; height: 34px; padding: 0; border-radius: 999px;
-  background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--text);
+  width: 38px; min-width: 38px; height: 34px; padding: 0; border-radius: 999px; color: var(--text);
 }
 .topbar .hdr-pill > .status { width: auto; padding: 0 10px; }
 /* 管理（歯車）と更新（↻）: 同じ大きさ・同じ線の太さのアイコンをそろえる
@@ -377,6 +346,7 @@ html.dark .topbar .date-step .btn.arrow { color: #f2f2f7; }
 html.dark .topbar .seg::before { background: rgba(255, 255, 255, .14); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .1); }
 /* ダーク: 縁の光と影を消すと、隣の「全設備」より上にずれて見えるので、ほかのカプセルと同じ縁と影を付ける */
 html.dark .topbar .seg { box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-shadow); }
+/* カプセルの中のボタンは、上のカプセルの縁・影を打ち消してアイコンだけにする（351 行の指定より後で戻す） */
 .topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status { box-shadow: none; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* スマホ: 横幅が足りないので、カプセルの内側の余白は元の詰めた値のまま */
 @media (max-width: 600px) {
@@ -388,8 +358,7 @@ html.dark .topbar .seg { box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-sha
 html:not(.dark) .topbar .seg { background-color: rgba(118, 118, 128, .12); box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06); }
 html:not(.dark) .topbar .seg::before { background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .12); }
 /* タイトルとお知らせの文字の左端を、表示の切り替えの「一覧」の文字の左端にそろえる
-   （溝の余白 3px ＋ ボタンの内側の余白） */
-.topbar { --text-inset: 15px; }
+   （溝の余白 3px ＋ ボタンの内側の余白。--text-inset は .topbar の先頭で決める） */
 .brand h1 { padding-left: var(--text-inset); }
 .topbar .notice { padding-left: var(--text-inset); }
 .topbar .notice .ic-info { margin-left: -2px; } /* 拡声器の絵は枠の内側に約 2px の余白があるので、その分だけ左へ寄せて線の端をそろえる */
