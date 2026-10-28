@@ -27,13 +27,11 @@ body.offline .status .ic-offline { display: block; }
 }
 /* お知らせ: 通常は青い帯、「重要」は赤い注意帯（管理画面の「お知らせの種類」で切り替え） */
 .notice {
-  margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; font-size: 13px; font-weight: 600; line-height: 1.5;
+  margin: 0; display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; font-weight: 600; line-height: 1.5;
 }
-.notice svg { flex: none; margin-top: 2px; }
+.notice svg { flex: none; margin-top: 0; }
 .notice .ic-alert, .notice.important .ic-info { display: none; }
 /* お知らせは1行に収め、はみ出す分は「…」。押すと全文の小窓（index/notice.js） */
-.notice { align-items: center; }
-.notice svg { margin-top: 0; }
 #noticeText { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notice.overflow { cursor: pointer; }
 .notice-full { margin: 0; font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -45,7 +43,7 @@ body.offline .status .ic-offline { display: block; }
 /* 幅 999px 以下では、タイトルとボタンの間に押し込むと縦に潰れるので、お知らせを次の行に回す
    （iPad 12.9 インチ縦の 1024px はタイトルの段に入る） */
 @media (min-width: 601px) and (max-width: 999px) {
-  .notice-row { order: 3; flex: 1 0 100%; }
+  .notice-row { flex: 1 0 100%; }
 }
 /* 試験運用中の帯 */
 .beta-band {
@@ -64,11 +62,11 @@ body.offline .status .ic-offline { display: block; }
 .seg { display: inline-flex; }
 .range-label { font-size: 15px; font-weight: 700; white-space: nowrap; }
 .selects { display: inline-flex; gap: 6px; align-items: center; }
-/* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く */
+/* 設備・部屋の選択欄は標準の矢印だと右端に寄りすぎるので、日付欄のアイコンと同じ位置に矢印を描く
+   （背景はこのあとの「ガラスの帯」の指定で描く） */
 .selects select {
   font-size: 14px; /* ほかのボタンと同じ大きさにそろえる */
   -webkit-appearance: none; appearance: none; padding: 0 30px 0 10px;
-  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2366727f' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
 }
 /* 一覧・部屋別の日付（期間）は日付欄と表を見ればわかるので出さない。カレンダーの「○年○月」だけ出す */
 .range-label.redundant { display: none; }
@@ -86,9 +84,7 @@ body.offline .status .ic-offline { display: block; }
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-lift);
 }
-.date-step .btn.arrow, .date-step .date-display {
-  background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-radius: 0;
-}
+.date-step .btn.arrow, .date-step .date-display { border-radius: 0; }
 .date-step .btn.arrow:active { transform: none; background-color: var(--fill-field); }
 .date-step .btn.arrow:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .date-step .date-field:focus-within .date-display { box-shadow: inset 0 0 0 2px var(--accent); }
@@ -143,7 +139,7 @@ body.offline .status .ic-offline { display: block; }
   .tools .lg, .admin-link .lg { display: none; }
   .tools .sm, .admin-link .sm { display: inline; }
   .legend, .status #statusText { display: none; }
-  .notice-row { order: 3; flex: 1 0 100%; }
+  .notice-row { flex: 1 0 100%; }
   .beta-label .wide-text { display: none; }
   .beta-label .narrow-text { display: inline; }
   .selects { display: flex; }
@@ -214,15 +210,14 @@ body.offline .status .ic-offline { display: block; }
   box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06), var(--glass-edge), var(--glass-lift);
 }
 .seg::before {
-  content: ""; position: absolute; top: 2px; bottom: 2px; left: var(--thumb-x, 2px); width: var(--thumb-w, 0);
-  border-radius: 9px; background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
+  content: ""; position: absolute; left: var(--thumb-x, 2px); width: var(--thumb-w, 0);
+  background: rgba(255, 255, 255, .92); background-image: var(--glass-sheen);
   box-shadow: var(--glass-rim), 0 0 0 .5px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .1);
   transition: left .38s cubic-bezier(.3, 1.35, .45, 1), width .38s cubic-bezier(.3, 1.35, .45, 1);
 }
 .seg.no-anim::before { transition: none; }
 .seg .btn, .seg .btn:first-child, .seg .btn:last-child {
-  position: relative; z-index: 1; height: 30px; margin: 0; border-radius: 9px;
-  background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; font-weight: 500;
+  position: relative; z-index: 1; margin: 0; font-weight: 500;
 }
 .seg .btn[aria-pressed="true"] { background: none; color: var(--text); font-weight: 600; box-shadow: none; }
 .seg .btn:active { transform: none; }
@@ -257,18 +252,13 @@ html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180d
    表がそのまま透けて見えたため。ふだんは半透明のまま、縁の屈折とぼかしで表を透かす） */
 html.hdr-solid .topbar, html.hdr-solid .refract .topbar { background: #fff; }
 html.dark.hdr-solid .topbar, html.dark.hdr-solid .refract .topbar { background: #000; }
-html.dark .seg::before {
-  background: rgba(99, 99, 102, .9);
-  background-color: #3a3a3c;
-}
 html.dark .seg .btn[aria-pressed="true"] { color: #fff; }
 html.dark .notice { background: rgba(10, 132, 255, .18); color: #a8d1ff; box-shadow: none; }
 html.dark .notice.important { background: rgba(255, 69, 58, .2); color: #ffb3ad; }
 html.dark .beta-band { background: #1f1c10; color: #e8c766; border-bottom-color: rgba(255, 214, 10, .2); }
 html.dark .beta-report { background: rgba(255, 255, 255, .08); color: #e8c766; }
-html.dark .selects select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2398989f' stroke-width='1.5'/%3E%3C/svg%3E"), var(--glass-sheen); }
 html.dark .seg { background-color: #1c1c1e; box-shadow: none; }
-html.dark .seg::before { background-image: var(--glass-sheen); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
+html.dark .seg::before { box-shadow: 0 0 0 .5px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35); }
 html.dark #todayBtn.on-today { color: #409cff; }
 html.dark .topbar .free-btn[aria-pressed="true"] { color: #7ee29a; }
 html.dark .admin-mode { background: rgba(255, 69, 58, .2); color: #ff9d97; }
@@ -377,6 +367,7 @@ html.dark .topbar .date-step .btn.arrow { color: #f2f2f7; }
 html.dark .topbar .seg::before { background: rgba(255, 255, 255, .14); box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .1); }
 /* ダーク: 縁の光と影を消すと、隣の「全設備」より上にずれて見えるので、ほかのカプセルと同じ縁と影を付ける */
 html.dark .topbar .seg { box-shadow: var(--sf-rim), var(--sf-ring), var(--sf-shadow); }
+/* カプセルの中のボタンは、上のカプセルの縁・影を打ち消してアイコンだけにする（351 行の指定より後で戻す） */
 .topbar .hdr-pill > .btn, .topbar .hdr-pill > .admin-link, .topbar .hdr-pill > .status { box-shadow: none; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* スマホ: 横幅が足りないので、カプセルの内側の余白は元の詰めた値のまま */
 @media (max-width: 600px) {
