@@ -13,7 +13,7 @@ function personText(r) { return r.affiliation ? `${r.name}（${r.affiliation}）
 
 function openDetail(id) {
   const r = visibleReservations().find((x) => x.id === id);
-  if (!r) return;
+  if (!r) { toast('この予約は見つかりませんでした。'); return; }
   if (r.pending || r.settling) { toast('予約を送信中です。少し待ってから操作してください。'); return; }
   state.detail = r;
   const room = roomById(r.roomId);
@@ -28,17 +28,18 @@ function openDetail(id) {
   const ended = isEnded(r);
   const mine = isMine(r.id);
   const admin = isAdminMode();
+  const canEdit = !ended || admin; // 終了した予約は、管理者モードだけ変更・取消できる（仕様 2.6）
   // 編集用パスワード欄は「編集用パスワードが設定された予約」を管理者モード以外で操作するときだけ出す
-  $('dOps').hidden = ended || admin || !r.hasPin;
-  $('dEdit').hidden = $('dCancel').hidden = ended;
+  $('dOps').hidden = !canEdit || admin || !r.hasPin;
+  $('dEdit').hidden = $('dCancel').hidden = !canEdit;
   $('dCancel').disabled = $('dEdit').disabled = false;
-  $('dSeriesArea').hidden = ended || !r.groupId;
+  $('dSeriesArea').hidden = !canEdit || !r.groupId;
   $('dSeries').checked = false;
   const notes = [];
   if (ended) notes.push('この予約は終了しています。');
   if (r.groupId) notes.push('まとめて登録された予約（くり返し・複数部屋）の1件です。');
   if (mine) notes.push('この端末で作成した予約です。');
-  if (!ended && admin) notes.push('管理者モード: 編集用パスワードなしで変更・取消できます。');
+  if (admin) notes.push(ended ? '管理者モード: 終了した予約も変更・取消できます。' : '管理者モード: 編集用パスワードなしで変更・取消できます。');
   if (!admin && room && room.restriction === ADMIN_ONLY && !ended) notes.push('この部屋の予約の変更・取消は管理者のみ行えます。');
   $('dNote').hidden = !notes.length;
   $('dNote').textContent = notes.join(' ');
