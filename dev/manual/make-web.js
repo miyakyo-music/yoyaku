@@ -17,7 +17,7 @@ const h2 = (s) => `<h3>${esc(s)}</h3>`;
 const steps = (items) => [`<ol>${items.map((x) => `<li>${runs(x)}</li>`).join('')}</ol>`];
 const bullets = (items) => [`<ul>${items.map((x) => `<li>${runs(x)}</li>`).join('')}</ul>`];
 const table = (w, rows) => `<div class="tbl"><table><thead><tr>${rows[0].map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.slice(1).map((r) => `<tr>${r.map((c, i) => (i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
-const box = (children) => `<section class="key">${children.map((c) => (c && c.__title ? `<p class="key-title">${runs(c.runs)}</p>` : c)).join('')}</section>`;
+const box = (children) => `<section class="key">${children.map((c) => (c && c.__title ? `<p class="key-title">${runs(c.runs)}</p>` : c && c.__sub ? `<p class="key-sub">${runs(c.runs)}</p>` : c)).join('')}</section>`;
 const gap = () => '';
 const img = (file, w, caption) => [`<figure><img src="manual/${file}" alt="${esc(caption.replace(/^図\d+　/, ''))}" style="max-width:${Math.round(w * 1.25)}px" loading="lazy"><figcaption>${esc(caption)}</figcaption></figure>`];
 // 表題などの Paragraph（docx 用）は、色や大きさの指定から役目を見分けて置き換える
@@ -26,6 +26,7 @@ class Paragraph {
   constructor(o) {
     const r = o.children[0];
     if (r && r.size === 26) return { __title: true, runs: o.children };
+    if (r && r.bold && !r.size) return { __sub: true, runs: o.children };
     return { __head: true, runs: o.children };
   }
 }
