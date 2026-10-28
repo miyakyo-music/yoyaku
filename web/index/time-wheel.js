@@ -174,6 +174,7 @@ for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
   $('bookDialog').addEventListener(type, (e) => { if (state.booking && e.target.closest && e.target.closest('.twheel')) state.booking.timeTouched = true; }, { passive: true });
 }
 
+/** 時刻のホイール用。管理画面の同名関数（admin/core.js）と違い、分（数値）で扱う */
 function setTime(hSel, mSel, min) {
   // 選択肢にない時刻（予約単位の刻みでない・利用時間の外）は、欄が空になって0時と読まれるので、選べる時刻に寄せる
   const s = state.settings, u = s.unitMinutes;
@@ -181,4 +182,5 @@ function setTime(hSel, mSel, min) {
   hSel.value = String(Math.floor(min / 60)); mSel.value = String(min % 60);
   syncWheel(hSel); syncWheel(mSel);
 }
+/** 時刻のホイール用。管理画面の同名関数（admin/core.js）と違い、分（数値）を返す */
 function getTime(hSel, mSel) { return Number(hSel.value) * 60 + Number(mSel.value); }

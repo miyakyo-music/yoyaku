@@ -18,6 +18,7 @@ const state = {
 };
 
 // ---------------- 汎用 ----------------
+/** 管理画面のログインの印（管理用パスワード）を読む。予約表の sessionGet（index/core.js）と違い、鍵は1つだけ */
 function sessionGet() { try { return sessionStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
 function sessionSet(v) { try { if (v) sessionStorage.setItem(SESSION_KEY, v); else sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* 保存できない環境では毎回ログイン */ } }
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -37,6 +38,7 @@ function dateLabel(s) {
   return { text: `${y}/${m}/${d}(${WEEKDAY_NAMES[w]})`, cls: wdClass(w) };
 }
 let toastTimer;
+/** 管理画面のトースト。予約表の toast（index/core.js）と違い、種類・操作ボタンは無い */
 function toast(msg) {
   const el = $('toast');
   el.textContent = msg;
@@ -45,6 +47,8 @@ function toast(msg) {
   toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
 }
 
+/** 管理画面の通信。予約表の api（index/data.js）と違い、管理用パスワードを必ず添え、
+ *  ADMIN_AUTH はログイン切れとして例外にする */
 async function api(fn, payload) {
   const res = await callApi(fn, Object.assign({ adminPassword: state.pw }, payload)); // web/api.js
   if (res && res.code === 'ADMIN_AUTH') { logout(res.message); throw new Error(res.message); }
@@ -73,5 +77,7 @@ function timeSelects(hSel, mSel, maxHour) {
   mSel.innerHTML = '';
   for (let m = 0; m < 60; m += 5) mSel.add(new Option(pad(m), String(m)));
 }
+/** 管理画面の時刻の欄用。予約表の同名関数（index/time-wheel.js）と違い、HH:MM の文字列で扱う */
 function setTime(hSel, mSel, t) { const m = toMin(t); hSel.value = String(Math.floor(m / 60)); mSel.value = String(m % 60); }
+/** 管理画面の時刻の欄用。予約表の同名関数（index/time-wheel.js）と違い、HH:MM の文字列を返す */
 function getTime(hSel, mSel) { return toHHMM(Number(hSel.value) * 60 + Number(mSel.value)); }
