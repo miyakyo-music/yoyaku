@@ -101,6 +101,9 @@ async function pkRegister() {
 }
 
 $('pkLoginBtn').hidden = !pkSupported;
+// パスキーが使えるときは、パスキーのボタンを青くして上に置き、パスワードのログインは控えめにする
+$('pkLoginBtn').classList.toggle('primary', pkSupported);
+$('loginBtn').classList.toggle('primary', !pkSupported);
 $('pkCard').dataset.unsupported = pkSupported ? '' : '1';
 $('pkLoginBtn').addEventListener('click', pkLogin);
 $('pkAddBtn').addEventListener('click', pkRegister);
