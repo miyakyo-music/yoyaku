@@ -35,15 +35,19 @@ const CASES = {
   'admin-pc': { page: 'admin', size: PC, steps: ['adminTabs'] },
   'admin-sp': { page: 'admin', size: PHONE, steps: ['adminTabs'] },
 };
-const PARALLEL = 4; // 同時に開く数（多すぎると計算が重なって遅くなる）
 const CASE_TIMEOUT = 10 * 60 * 1000;
 // テスト環境では接続先がないので、毎回出るエラー（作業と関係ない）
-const IGNORE_ERR = [/dev-cf\.test\/live/];
+const IGNORE_ERR = [
+  /dev-cf\.test\/live/,
+  // 比べるためにページ元の CSS を外して差し替えるので、その読み込みの取り消しはエラーではない
+  /net::ERR_CONNECTION_RESET[^\n]*\.css(\?|$|\s)/,
+];
 
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
 if (args.includes('--list')) { for (const [k, c] of Object.entries(CASES)) console.log(k, c.size.width + 'px', c.steps.join('+')); process.exit(0); }
 const only = opt('--only') ? opt('--only').split(',') : Object.keys(CASES);
+const parallel = Math.max(1, Number(opt('--parallel') || 4));
 for (const k of only) if (!CASES[k]) { console.error('知らない場面: ' + k); process.exit(2); }
 const port = Number(opt('--port') || 8765);
 const BASE = `http://127.0.0.1:${port}`;
@@ -177,7 +181,7 @@ async function runCase(cdp, name) {
   const results = [];
   try {
     const queue = [...only];
-    await Promise.all(Array.from({ length: Math.min(PARALLEL, queue.length) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(parallel, queue.length) }, async () => {
       while (queue.length) { const n = queue.shift(); const r = await runCase(cdp, n); results.push(r); process.stdout.write('.'); }
     }));
   } finally {
