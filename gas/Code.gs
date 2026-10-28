@@ -119,7 +119,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-10-28.1';
+const GAS_BUILD = '2026-10-28.2';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -1730,7 +1730,7 @@ function master_(ss) {
   return m;
 }
 function invalidateMaster_() {
-  CacheService.getScriptCache().put('masterVer', String(Date.now()) + Math.floor(Math.random() * 1000), 21600);
+  CacheService.getScriptCache().put('masterVer', Utilities.getUuid(), 21600);
   MEMO_.master = null;
 }
 
@@ -2283,7 +2283,7 @@ function scheduleVersion_() {
   return v;
 }
 function bumpScheduleVersion_() {
-  CacheService.getScriptCache().put('schedVer', String(Date.now()) + Math.floor(Math.random() * 1000), 21600);
+  CacheService.getScriptCache().put('schedVer', Utilities.getUuid(), 21600);
 }
 
 /** 現在使われている「りざぶ郎」の部屋構成に合わせた初期データ。実際の設備に合わせて部屋マスタを編集すること。 */
