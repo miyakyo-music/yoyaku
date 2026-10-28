@@ -430,7 +430,8 @@ const R326 = 'https://www.r326.com/b/';
 
 /**
  * 指定した日付だけをりざぶ郎から取り込み、正本（Store）に渡す。
- * 1日あたり2回（表示する日の切り替えと CSV）。dates は cache/rizaburo-plan.js が決める（最大23日。この期間の定期実行では19日）。
+ * 1回につき1日分（表示する日の切り替えと CSV で2通信）。表示の状態は前回の結果から使い回し、初回だけ確認の通信が1回増える。
+ * dates は cache/rizaburo-plan.js が決める（1回につき1日）。
  */
 async function rizaburoSync(env, dates) {
   const group = String(env.R326_GROUP || '').trim();
@@ -442,7 +443,10 @@ async function rizaburoSync(env, dates) {
   const send = async (body) => (await store(env).fetch('https://store/rizaburo', {
     method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: JSON.stringify(body),
   })).json();
+  let st = '';
   try {
+    const last = await (await store(env).fetch('https://store/rizaburo/last')).json().catch(() => ({}));
+    st = String(last.status || '');
     const cookies = {};
     const get = async (path, form) => {
       const res = await fetch(R326 + path, {
@@ -465,7 +469,7 @@ async function rizaburoSync(env, dates) {
       if (!m) throw new Error('りざぶ郎の画面を読めませんでした');
       return m[1];
     };
-    let st = statusOf(await get('main.aspx?g=' + group));
+    if (!st) st = statusOf(await get('main.aspx?g=' + group));
     const lines = [];
     for (const d of dates) {
       st = statusOf(await get('main.aspx?g=' + group, { date: d.replace(/-/g, '/'), status: st }));
@@ -476,9 +480,9 @@ async function rizaburoSync(env, dates) {
       }
       lines.push(...rows);
     }
-    return await send({ lines, dates, from, to, fetchMs: Date.now() - t0 });
+    return await send({ lines, dates, from, to, fetchMs: Date.now() - t0, status: st });
   } catch (e) {
-    await send({ error: String(e && e.message || e), dates, from, to, fetchMs: Date.now() - t0 }).catch(() => {});
+    await send({ error: String(e && e.message || e), dates, from, to, fetchMs: Date.now() - t0, status: st }).catch(() => {});
     throw e;
   }
 }

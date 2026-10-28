@@ -447,7 +447,7 @@
      */
     importRizaburo(body) {
       body = body || {};
-      const head = { at: nowStr('yyyy-MM-dd HH:mm:ss'), from: String(body.from || ''), to: String(body.to || ''), fetchMs: Number(body.fetchMs) || 0 };
+      const head = { at: nowStr('yyyy-MM-dd HH:mm:ss'), from: String(body.from || ''), to: String(body.to || ''), fetchMs: Number(body.fetchMs) || 0, status: String(body.status || '') };
       if (body.error) {
         this.kput('rizaburoLast', JSON.stringify(Object.assign(head, { ok: false, error: String(body.error) })));
         return { ok: false, error: String(body.error) };

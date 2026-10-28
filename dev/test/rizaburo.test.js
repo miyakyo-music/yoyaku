@@ -18,33 +18,45 @@ const range = (from, to) => {
   return out;
 };
 
-test('今日は10分ごと、明日〜7日後は1時間ごと（0分と30分に分ける）', () => {
-  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:00:00+09:00')), ['2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31']);
-  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:30:00+09:00')), ['2026-10-28', '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04']);
+test('今日は20分ごと、翌日は毎時30分', () => {
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:00:00+09:00')), ['2026-10-28']);
   assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:20:00+09:00')), ['2026-10-28']);
-  assert.deepStrictEqual(P.datesFor(at('2026-10-28T10:10:00+09:00')), ['2026-10-28']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:40:00+09:00')), ['2026-10-28']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:10:00+09:00')), []);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:30:00+09:00')), ['2026-10-29']);
 });
 
-test('8〜14日後は6時間ごと、15日後以降は4日に1回', () => {
-  const early = P.datesFor(at('2026-10-28T06:10:00+09:00'));
-  assert.deepStrictEqual(early, ['2026-10-28'].concat(range('2026-11-05', '2026-11-08')));
-  const later = P.datesFor(at('2026-10-28T09:10:00+09:00'));
-  assert.deepStrictEqual(later, ['2026-10-28'].concat(range('2026-11-09', '2026-11-11')));
-  const far = P.datesFor(at('2026-10-28T04:20:00+09:00'));
-  assert.strictEqual(far.length, 5);
-  assert.ok(far.every((d) => d >= '2026-11-12' && d <= '2026-11-30'));
-  // 1回の通信は 1日2回まで。10回の上限に収まる
-  assert.ok(far.length * 2 <= 10);
+test('2日後以降は朝夕に5分間隔で1日ずつ', () => {
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T04:05:00+09:00')), ['2026-10-30']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T04:15:00+09:00')), ['2026-10-31']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T16:05:00+09:00')), ['2026-10-30']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T16:25:00+09:00')), ['2026-11-01']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:15:00+09:00')), ['2026-11-30']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T09:25:00+09:00')), []);
 });
 
-test('夜間は回数を落とす', () => {
+test('夜間は今日と翌日だけ', () => {
   assert.deepStrictEqual(P.datesFor(at('2026-10-28T23:10:00+09:00')), []);
   assert.deepStrictEqual(P.datesFor(at('2026-10-28T23:00:00+09:00')), ['2026-10-28']);
+  assert.deepStrictEqual(P.datesFor(at('2026-10-28T23:30:00+09:00')), ['2026-10-29']);
   assert.deepStrictEqual(P.datesFor(at('2026-10-28T00:00:00+09:00')), ['2026-10-28']);
-  assert.deepStrictEqual(P.datesFor(at('2026-10-28T04:10:00+09:00')), []);
-  const farNight = P.datesFor(at('2026-10-28T04:20:00+09:00'));
-  assert.strictEqual(farNight.length, 5);
-  assert.ok(!farNight.includes('2026-10-28'));
+});
+
+test('1日を通して、どの回も1日分だけ', () => {
+  const count = {};
+  let max = 0;
+  let total = 0;
+  for (let ms = at('2026-10-28T00:00:00+09:00'); ms < at('2026-10-29T00:00:00+09:00'); ms += 5 * 60000) {
+    const ds = P.datesFor(ms);
+    max = Math.max(max, ds.length);
+    total += ds.length;
+    for (const d of ds) count[d] = (count[d] || 0) + 1;
+  }
+  assert.strictEqual(max, 1);
+  assert.strictEqual(total, 146);
+  assert.strictEqual(count['2026-10-28'], 58);
+  assert.strictEqual(count['2026-10-29'], 24);
+  for (let d = '2026-10-30'; d <= '2026-11-30'; d = P.addDays(d, 1)) assert.strictEqual(count[d], 2, d);
 });
 
 test('停止日と範囲の終わり', () => {

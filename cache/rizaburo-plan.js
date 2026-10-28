@@ -2,12 +2,11 @@
  * りざぶ郎からの取り込み: 「いつ、どの日を取り込むか」だけを決める（通信はしない）。
  *
  * 2026-10-28 から 2026-11-04 00:00 までの一時的な運用。予約表の更新が少ない夜間は回数を落とす。
- * - 今日: 日中は10分ごと、夜間（23時〜6時）は1時間ごと
- * - 明日〜7日後: 日中は1時間ごと（0分に1〜3日後、30分に4〜7日後）。夜間は取らない
- * - 8〜14日後: 日中は6時間ごと（前半・後半を交互に）。夜間は取らない
- * - 15日後〜2026-11-30: 4日に1回、5日ずつ（4時20分）
+ * - 今日: 日中は20分ごと、夜間（23時〜6時）は1時間ごと。1回につき1日分
+ * - 翌日: 毎時30分に1回
+ * - 2日後〜2026-11-30: 4:05〜9:55 と 16:05〜21:55 に、5分間隔で1日ずつ（どの日も1日2回）
  *
- * 1回に取るのは最大5日（1日あたり通信2回なので10回）。Cloudflare の無料枠の「1回の実行で50回まで」に収める。
+ * 1回は1日分だけ（通信2回）。1日あたり約146回・292通信。Cloudflare の無料枠の「1回の実行で50回まで」に収める。
  * 取り込みをやめたあとも、このファイルは 2026-11-04 に消す（仕様書 4.8）。
  */
 (function (g) {
@@ -37,26 +36,22 @@
     if (p.date > END) return [];
     const night = p.hour >= 23 || p.hour < 6;
     const day = !night;
-    const out = new Set();
-    const add = (from, to) => {
-      for (let d = from; d <= to && d <= END; d = addDays(d, 1)) if (d >= p.date) out.add(d);
-    };
-    // 今日
-    if (day || p.minute === 0) out.add(p.date);
-    // 明日〜7日後: 日中、0分に1〜3日後、30分に4〜7日後（どの日も1時間ごと）
-    if (day && p.minute === 0) add(addDays(p.date, 1), addDays(p.date, 3));
-    if (day && p.minute === 30) add(addDays(p.date, 4), addDays(p.date, 7));
-    // 8〜14日後: 日中の3時間ごと。前半・後半を交互にして、どの日も6時間ごと
-    if (day && p.minute === 10 && p.hour % 3 === 0) {
-      const later = Math.floor(p.hour / 3) % 2 === 1;
-      add(addDays(p.date, later ? 12 : 8), addDays(p.date, later ? 14 : 11));
+    // 今日: 日中は20分ごと、夜間は1時間ごと。1回につき1日分だけ取る
+    if (day ? p.minute % 20 === 0 : p.minute === 0) return [p.date];
+    // 翌日: 毎時30分に1回
+    const tomorrow = addDays(p.date, 1);
+    if (p.minute === 30 && tomorrow <= END) return [tomorrow];
+    // 2日後〜末日: 4:05〜9:55 と 16:05〜21:55 に、5分間隔で1日ずつ（どの日も1日2回）
+    if ((p.hour >= 4 && p.hour < 10) || (p.hour >= 16 && p.hour < 22)) {
+      if (p.minute >= 5 && p.minute <= 55 && (p.minute - 5) % 10 === 0) {
+        const start = addDays(p.date, 2);
+        const total = daysBetween(start, END);
+        const base = p.hour < 10 ? 4 : 16;
+        const idx = (p.hour - base) * 6 + (p.minute - 5) / 10;
+        if (idx < total) return [addDays(start, idx)];
+      }
     }
-    // 15日後〜末日: 4日に1回、5日ずつ（4時20分）
-    if (p.minute === 20 && p.hour === 4) {
-      const slot = Math.floor(Date.parse(p.date + 'T00:00:00Z') / DAY) % 4;
-      add(addDays(p.date, 15 + slot * 5), addDays(p.date, 19 + slot * 5));
-    }
-    return [...out].sort();
+    return [];
   }
 
   /**
