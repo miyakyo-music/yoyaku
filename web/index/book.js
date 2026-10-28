@@ -382,13 +382,16 @@ function bookingFail(msg, focusId) {
   if (focusId) ($(focusId).wheel || $(focusId)).focus();
 }
 
+// 学籍番号の形（G6508 のように英字1〜3文字＋数字3桁以上、26E02 のように数字2桁＋英字＋数字2桁以上）
+const STUDENT_ID = '[A-Za-z]{1,3}\\d{3,}|\\d{2}[A-Za-z]\\d{2,}';
+
 /**
  * 氏名の欄に、りざぶ郎のように学籍番号と氏名を続けて書いたもの（g6508本田理空・Ｇ6508 本田理空 など）を分ける。
- * 先頭が英字1〜3文字＋数字3桁以上で、その後ろに氏名があるときだけ分ける（英字は大文字に）。
+ * 先頭が学籍番号の形（STUDENT_ID）で、その後ろに氏名があるときだけ分ける（英字は大文字に）。
  * 学籍番号の欄に別のものが入っているときは分けない（同じ学籍番号なら氏名から外す）。分けないときは null
  */
 function splitIdFromName(name, affiliation) {
-  const m = name.normalize('NFKC').match(/^([A-Za-z]{1,3}\d{3,})[\s・、,_-]*([^\s\d・、,_-].*)$/);
+  const m = name.normalize('NFKC').match(new RegExp('^(' + STUDENT_ID + ')[\\s・、,_-]*([^\\s\\d・、,_-].*)$'));
   if (!m) return null;
   const id = m[1].toUpperCase();
   if (affiliation && affiliation.normalize('NFKC').toUpperCase() !== id) return null;
@@ -417,7 +420,7 @@ function readBookingPayload() {
   };
   // 学籍番号の欄が学籍番号だけ（g6508・Ｇ６５０８ など）なら、半角の大文字にそろえる（所属名などはそのまま）
   const aff = payload.affiliation.normalize('NFKC');
-  if (/^[A-Za-z]{1,3}\d{3,}$/.test(aff) && aff.toUpperCase() !== payload.affiliation) {
+  if (new RegExp('^(?:' + STUDENT_ID + ')$').test(aff) && aff.toUpperCase() !== payload.affiliation) {
     payload.affiliation = aff.toUpperCase();
     $('bAff').value = payload.affiliation;
   }
