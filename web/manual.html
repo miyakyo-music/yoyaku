@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  // ダークモード: 端末の設定に合わせる（URL に ?dark で常にダーク、?light で常にライト）
+  (function () {
+    var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+    var apply = function () { document.documentElement.classList.toggle('dark', /[?&]dark\b/.test(location.search) || (!/[?&]light\b/.test(location.search) && !!(mq && mq.matches))); };
+    apply();
+    if (mq && mq.addEventListener) mq.addEventListener('change', apply);
+  })();
+</script>
+<meta name="robots" content="noindex">
+<meta name="description" content="宮教大音楽棟 練習室予約の管理者画面の使い方（教員向け）。管理者ログインで演習室の予約と一括予約ができます。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>管理者画面の使い方｜宮教大音楽棟 練習室予約</title>
+<style>
+  :root {
+    --bg: #f2f2f7; --surface: #fff; --text: #1c1c1e; --muted: #6e6e73; --line: rgba(60, 60, 67, .16); --accent: #007aff;
+    --key-bg: #eef4fb; --key-line: #1f5fa8; --key-title: #1f3f78; --th-bg: #f2f2f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--text); line-height: 1.85; font-size: 15.5px; -webkit-text-size-adjust: 100%;
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+    background: radial-gradient(1200px 600px at 10% -10%, rgba(0, 122, 255, .08), transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, rgba(255, 149, 0, .07), transparent 60%), var(--bg);
+    background-attachment: fixed;
+  }
+  a { color: var(--accent); }
+  .topbar {
+    position: sticky; top: 0; z-index: 2; box-shadow: 0 .5px 0 var(--line); background: rgba(255, 255, 255, .72);
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+  }
+  .back {
+    display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 9px; text-decoration: none; font-size: 13px;
+    color: var(--accent); font-weight: 500; background: rgba(255, 255, 255, .7);
+    box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .08), 0 2px 8px rgba(0, 0, 0, .07);
+  }
+  main { max-width: 820px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card { border-radius: 18px; padding: 28px; background: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 #fff, 0 0 0 .5px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .05); }
+  header.doc { text-align: center; margin-bottom: 24px; }
+  header.doc .sub { margin: 0; font-size: 16px; }
+  header.doc h1 { margin: 2px 0 4px; font-size: 26px; }
+  header.doc .meta { margin: 0; color: var(--muted); font-size: 13px; }
+  .key { background: var(--key-bg); border: 2px solid var(--key-line); border-radius: 14px; padding: 18px 22px; }
+  .key .key-title { margin: 0 0 10px; font-weight: 700; font-size: 18px; line-height: 1.6; color: var(--key-title); }
+  .key p:last-child { margin-bottom: 0; font-size: 14px; }
+  .toc { margin: 22px 0 8px; padding: 14px 20px; border-radius: 14px; background: var(--th-bg); }
+  .toc-title { margin: 0 0 4px; font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 1.6em; columns: 2; column-gap: 32px; }
+  h2 { font-size: 20px; color: var(--key-title); margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1.5px solid var(--key-line); scroll-margin-top: 64px; }
+  h3 { font-size: 16.5px; margin: 26px 0 8px; }
+  p { margin: 0 0 12px; }
+  ol, ul { margin: 6px 0 14px; padding-left: 1.6em; }
+  li + li { margin-top: 6px; }
+  .tbl { overflow-x: auto; margin: 10px 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; line-height: 1.7; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border: 1px solid var(--line); }
+  thead th { background: var(--th-bg); }
+  tbody th { font-weight: 600; width: 32%; }
+  figure { margin: 18px auto 22px; text-align: center; }
+  figure img { width: 100%; height: auto; border-radius: 10px; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .12), 0 4px 16px rgba(0, 0, 0, .08); }
+  figcaption { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .site-foot { margin-top: 20px; text-align: center; font-size: 12px; color: var(--muted); }
+  @media (max-width: 600px) {
+    body { font-size: 15px; }
+    .card { padding: 18px 16px; }
+    header.doc h1 { font-size: 22px; }
+    .key { padding: 14px 16px; }
+    .toc ol { columns: 1; }
+    .tbl thead { display: none; }
+    .tbl table, .tbl tbody, .tbl tr, .tbl tbody th, .tbl td { display: block; width: auto; }
+    .tbl table { border-top: 1px solid var(--line); }
+    .tbl tbody th, .tbl td { border: 0; padding: 0 4px; }
+    .tbl tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  }
+  @media print {
+    .topbar { display: none; }
+    body { background: #fff; }
+    .card { box-shadow: none; padding: 0; }
+  }
+  /* ダークモード（予約表と同じ色）: 端末がダークモードのとき（または URL に ?dark）、html に .dark を付ける */
+  html.dark {
+    color-scheme: dark; --bg: #000; --surface: #1c1c1e; --text: #fff; --muted: #8e8e93; --line: rgba(84, 84, 88, .6); --accent: #409cff;
+    --key-bg: rgba(64, 156, 255, .12); --key-line: #409cff; --key-title: #8cc2ff; --th-bg: #2c2c2e;
+  }
+  html.dark body { background: var(--bg); }
+  html.dark .topbar { background: rgba(0, 0, 0, .82); }
+  html.dark .back { background: #262628; box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .14); }
+  html.dark .card { background: var(--surface); box-shadow: none; }
+  html.dark figure img { box-shadow: 0 0 0 .5px rgba(255, 255, 255, .18); }
+</style>
+</head>
+<body>
+<div class="topbar"><a class="back" href="admin.html">‹ 管理画面へ</a></div>
+<main>
+  <article class="card">
+    <header class="doc">
+      <p class="sub">練習室予約システム</p>
+      <h1><b>管理者画面の使い方</b></h1>
+      <p class="meta">教員向け　2026年10月　v1.0.0</p>
+    </header>
+<section class="key"><p class="key-title"><b>演習室の予約と一括予約は、管理者ログインをすると使えるようになります</b></p><p>一般の利用者の画面には、演習室などの限定公開の部屋や、くり返し予約・複数部屋の同時予約が出てきません。次の手順で管理者モードに入ると、いつもの予約表から予約できます。</p><ol><li>予約表の右上の歯車のボタンを押し、管理画面を開きます。PC では歯車の横に「管理」と出ています。</li><li>「管理者ログイン」で管理用パスワードを入れ、<b>ログイン</b>を押します。パスキーを登録した端末なら、青い「パスキーでログイン」でも入れます。</li><li>左上の<b>‹ 予約表に戻る</b>を押します。タイトルの横に赤い<b>管理者モード</b>の札が出ていれば準備は終わりです。</li><li>あとは空いている所を押すか「＋ 新規予約」から予約します。演習室も部屋の一覧に並び、予約画面には「くり返し予約する」「他の部屋も同時に予約する」が出ます。</li></ol><p>管理者モードは、管理画面にログインした同じタブの中だけで続きます。別のタブで予約表を開き直すと一般の画面に戻るので、そのときはもう一度ログインしてください。</p></section>
+<nav class="toc" aria-label="目次"><p class="toc-title">目次</p><ol><li><a href="#s1">管理者モードでできること</a></li><li><a href="#s2">ログインとログアウト</a></li><li><a href="#s3">演習室を予約する</a></li><li><a href="#s4">一括予約（まとめて予約）</a></li><li><a href="#s5">予約の変更と取消</a></li><li><a href="#s6">管理画面のタブ</a></li><li><a href="#s7">よくある問い合わせ</a></li></ol></nav>
+
+<p>管理用パスワードは、この文書には書いていません。責任者の教員またはシステム担当者から受け取ってください。文書中の画面の写真は本番の画面で、予約した人の名前と学籍番号はぼかしています。</p>
+<h2 id="s1">1. 管理者モードでできること</h2>
+<p>管理者モードの予約表では、一般の利用者には出てこない操作が加わります。</p>
+<div class="tbl"><table><thead><tr><th>できること</th><th>内容</th></tr></thead><tbody><tr><th scope="row">演習室などの予約</th><td>予約制限が「限定公開」の部屋（演習室など）が表に並び、予約・変更・取消ができます。一般の利用者には、部屋があること自体が表示されません。</td></tr><tr><th scope="row">管理者のみの部屋の予約</th><td>予約制限が「管理者のみ」の部屋を、管理用パスワードを入れ直さずに予約・変更・取消できます。</td></tr><tr><th scope="row">一括予約</th><td>くり返し予約（毎週・隔週・毎日）と、他の部屋の同時予約ができます。予約のコピーもここに入ります。設定で全員に許可しているときは、一般の利用者も使えます。</td></tr><tr><th scope="row">他の人の予約の変更・取消</th><td>編集用パスワードを知らなくても、どの予約でも変更・取消ができます。</td></tr><tr><th scope="row">重要な予定の色</th><td>予約画面で赤・紫・緑を選ぶと、予約表でその予約の帯に色が付き、文字が太くなります。</td></tr><tr><th scope="row">予約の制限を受けない</th><td>設定の「1回の最大予約時間」「予約受付期間」の制限がかかりません。</td></tr><tr><th scope="row">お知らせの書き換え</th><td>予約表の上部のお知らせを押すと、その場で内容と種類を書き換えられます。</td></tr></tbody></table></div>
+<figure><img src="manual/03-index-admin.png" alt="管理者モードの予約表。タイトルの横に「管理者モード」の札が出る" style="max-width:700px" loading="lazy"><figcaption>図1　管理者モードの予約表。タイトルの横に「管理者モード」の札が出る</figcaption></figure>
+<h2 id="s2">2. ログインとログアウト</h2>
+<h3>2.1 ログインする</h3>
+<ol><li>予約表の右上の歯車を押します。管理画面のアドレスを直接開いてもかまいません。</li><li>「管理用パスワード」の欄にパスワードを入れ、下の「ログイン」を押します。「表示」を押すと、入れた文字を確かめられます。パスキーを登録した端末では、上の青い「パスキーでログイン」を押し、Face ID などで入ります。</li><li>上部に「予約履歴」「統計」「休館・利用停止」「設定」「変更履歴」「不具合報告」のタブが出たらログインできています。</li></ol>
+<figure><img src="manual/01-login.png" alt="管理者ログインの画面" style="max-width:650px" loading="lazy"><figcaption>図2　管理者ログインの画面</figcaption></figure>
+<ul><li>管理用パスワードを全体で10回続けて間違えると、10分間ログインできなくなります。一度ログインしたことのある端末は端末ごとに数えるので、ほかの人の誤入力で止められることはありません。</li><li>パスキーは、Face ID・Touch ID・端末のロック解除で管理画面に入る方法です。使う端末で一度ログインし、「設定」タブの「パスキー」で「この端末を登録」を押すと使えるようになります。パスキーで入ったときは、12時間たつと入り直しになります。</li><li>同じタブで管理画面を開き直したときは、自動でログインし直します。</li></ul>
+<h3>2.2 管理者モードを終える</h3>
+<p>予約表のタイトルの横の「管理者モード」の札を押し、「管理者モードを終了しますか？（管理画面からもログアウトします）」で OK を押します。管理画面の右上の「ログアウト」でも終えられます。タブを閉じても管理者モードは終わります。研究室や教室の共用パソコンで使ったときは、終えてから席を離れてください。</p>
+<h2 id="s3">3. 演習室を予約する</h2>
+<ol><li>はじめの囲みの手順で管理者モードに入ります。</li><li>予約表に演習室などの限定公開の部屋も並んでいることを確かめます。部屋が多いときは、上の<b>すべての設備</b>の絞り込みで部屋の種類を選ぶと探しやすくなります。</li><li>PC では空いている所をクリックします（ドラッグで時間を指定できます）。スマホでは空いている所をタップし、出てきた「＋予約」の帯をもう一度タップします。「＋ 新規予約」やスマホの右下の「＋」から開くこともできます。</li><li>部屋・日付・開始と終了の時刻を確かめ、氏名／団体名を入れます。学籍番号／所属・備考・編集用パスワードは任意です。授業名などは備考に書けます。</li><li><b>予約確定</b>を押します。表にその予約の帯が出れば完了です。</li></ol>
+<ul><li>演習室を学生など一般の利用者にも使わせるときは、「設定」タブの「限定公開の部屋」で演習室などのパスワード（6文字以上）を決め、入口の URL と一緒に使う人だけに伝えます。この URL から開いてパスワードを入れた端末では、演習室が表示・予約できるようになります。限定公開のパスワードを知っていても、設定の変更や他人の予約の取消はできません。</li><li>限定公開のパスワードを変えると、覚えていた端末でも演習室が表示されなくなります。使う人に新しいパスワードを伝え直してください。</li></ul>
+<h2 id="s4">4. 一括予約（まとめて予約）</h2>
+<p>授業や行事で同じ時間を何週も押さえるときや、いくつもの部屋を同時に押さえるときに使います。どちらも予約画面の中で選び、組み合わせることもできます。予約できる件数は「部屋の数×日数」で数え、設定の「まとめて予約の最大件数」までです。</p>
+<h3>4.1 くり返し予約</h3>
+<ol><li>最初の1回分の部屋・日付・時刻・氏名を入れます。</li><li><b>くり返し予約する</b>にチェックを入れます。</li><li>「くり返し」で<b>毎週・隔週・毎日</b>のどれかを選び、<b>最終日</b>を決めます。</li><li>下に何件になるかが表示されます。確かめてから「予約確定」を押します。</li></ol>
+<h3>4.2 他の部屋も同時に予約</h3>
+<ol><li><b>他の部屋も同時に予約する</b>にチェックを入れます。</li><li>部屋のボタンを押して選びます。選んだ部屋は青くなり、もう一度押すと外れます。上で選んだ部屋は外せません。同じ名前の部屋がいくつもあるときは、先頭の「全◯室」のボタンでまとめて選べます。</li><li>くり返し予約と組み合わせると、選んだ部屋それぞれに同じくり返しで予約が入ります。</li></ol>
+<figure><img src="manual/04-book.png" alt="予約画面。他の部屋の同時予約とくり返し予約を選んだところ" style="max-width:269px" loading="lazy"><figcaption>図3　予約画面。他の部屋の同時予約とくり返し予約を選んだところ</figcaption></figure>
+<h3>4.3 予約できない日があったとき</h3>
+<p>ほかの予約と重なるなど、予約できない日があると、予約は入らず「◯件中◯件は予約できません。」と、その日の一覧が出ます。ボタンが「予約できる◯件だけ予約」に変わるので、それを押すと重ならない分だけ予約されます。日付や時刻を直してやり直すこともできます。</p>
+<h3>4.4 予約のコピー</h3>
+<p>すでにある予約と同じ時間・氏名で、別の日や別の部屋に予約を足すときに使います。</p>
+<ol><li>予約の帯を押して詳細を開き、見出しの右の「コピー」を押します。スマホでは重なった四角の絵です。</li><li>「日」で7日分のボタンから日を選びます。‹ と › で1週間ずつ動かせます。今日より前と定休日は選べません。</li><li>「部屋」で部屋を選びます。日も部屋も複数選べ、「選んだ日×選んだ部屋」から元の予約と同じ組み合わせを除いた分が予約されます。</li><li>くり返し予約も使えます（毎週・隔週）。「予約確定」を押します。</li></ol>
+<h3>4.5 まとめて変更する・途中で終える</h3>
+<p>一括予約で入れた予約は、1件ずつ変えることも、ある日から先をまとめて変えることもできます。</p>
+<ul><li><b>まとめて変更</b>　その日の予約を開いて「変更」を押し、「同じまとめ予約のうち、この日以降の分もまとめて変更する」にチェックを入れて保存します。まとめて変わるのは時間・氏名／団体名・学籍番号／所属・備考で、日付と部屋はそれぞれのままです。</li><li><b>途中で終える</b>　取り消したい最初の日の予約を開き、「同じまとめ予約のうち、この日以降の分（全部屋）をまとめて取り消す」にチェックを入れて「取消」を押します。</li></ul>
+<h3>4.6 管理者モードに入っていないとき</h3>
+<p>管理者モードでなくても、設定で一括予約が管理者だけになっている場合は、予約画面に「管理用パスワード（まとめて予約は管理者のみ）」の欄が出ます。ここに管理用パスワードを入れても予約できます。ただし演習室などの限定公開の部屋は、管理者モードか限定公開のパスワードがないと表に出てきません。</p>
+<h2 id="s5">5. 予約の変更と取消</h2>
+<p>管理者モードでは、どの予約でも編集用パスワードなしで変更・取消できます。予約の帯を押すと詳細が開き、「管理者モード: 編集用パスワードなしで変更・取消できます。」と表示されます。</p>
+<ul><li><b>変更</b>　「変更」を押し、内容を直して「変更を保存」を押します。PC では予約の帯をつかんで別の時間や部屋へ動かすこともでき、離すと変更の画面が開きます。</li><li><b>取消</b>　「取消」を押すと確認なしで表から消え、下に「予約を取り消しました　元に戻す」が5秒出ます。間違えたときは、その間に「元に戻す」を押してください。</li><li>終わった予約は予約表では変更・取消できず、詳細に「この予約は終了しています。」と出て、「変更」「取消」のボタンも出ません。消す必要があるときは、管理画面の「予約履歴」で選んで削除します。</li></ul>
+<figure><img src="manual/05-detail.png" alt="終わった予約の詳細。「コピー」は使えるが、変更・取消のボタンは出ない" style="max-width:475px" loading="lazy"><figcaption>図4　終わった予約の詳細。「コピー」は使えるが、変更・取消のボタンは出ない</figcaption></figure>
+<h2 id="s6">6. 管理画面のタブ</h2>
+<p>ログインすると、上部にタブが並びます。スマホでは名前が短くなります（予約履歴は「履歴」、変更履歴は「変更」など）。</p>
+<figure><img src="manual/02-admin.png" alt="管理画面。最初は「予約履歴」が開く" style="max-width:700px" loading="lazy"><figcaption>図5　管理画面。最初は「予約履歴」が開く</figcaption></figure>
+<h3>6.1 予約履歴</h3>
+<p>期間・部屋・曜日・検索で絞った予約の一覧です。開いたときは今月の1日から末日までが出ます。検索は氏名・団体名・学籍番号／所属・備考・部屋名から探します。「重要な予定」を押すと、色を付けた予約だけになります。一度に扱えるのは2年分までで、画面の一覧は2000件までです。</p>
+<ul><li>行を押すと、その予約の情報（備考・まとめ予約かどうか・重要な予定の色など）が下に開きます。件数の右の「古い順」を押すたびに、並び順が入れ替わります。</li><li>「印刷」と、「エクスポート」の CSV・Excel・PDF は、今の一覧と同じ条件で作ります。印刷と PDF は、入れる項目（時間・部屋・氏名・団体名・学籍番号／所属・備考）を選んでから実行します。名前と学籍番号が入るので、ファイルや紙の扱いに気をつけてください。</li><li>「選択」を押すと行を選べるようになり、赤い「◯件を削除」で選んだ予約を削除できます。過去の予約も消せますが、元に戻せません。</li></ul>
+<h3>6.2 統計</h3>
+<p>今週・今月・先月・今年度の中から期間を選ぶと、予約件数・合計時間・1件あたりの時間・いちばん混む曜日と時間帯が出ます。曜日と時刻ごとの混み具合を色の濃さで見せる表と、設備ごと・部屋ごとの利用の割合もあります。名前ごとの集計はありません。</p>
+<h3>6.3 休館・利用停止</h3>
+<p>調律・入試・清掃などで予約を受け付けない日時を登録します。日付・対象の部屋（何も選ばなければ全室）・終日か時間帯か・理由を入れて「追加」を押すと、すぐ保存されます。すでに入っている予約は自動では取り消されないので、重なる予約があれば予約者に連絡のうえ取り消してください。毎週決まった曜日が休みなら、「設定」の定休日を使います。</p>
+<h3>6.4 設定</h3>
+<div class="tbl"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><th scope="row">一般</th><td>予約表のタイトル、お知らせとその種類（通常は青、重要は赤）、利用開始・終了時刻、予約単位、1回の最大予約時間、予約受付期間、定休日、まとめて予約の最大件数、まとめて予約を管理者だけにするかどうか。保存すると、利用者の画面には最大1分後に反映されます。</td></tr><tr><th scope="row">限定公開の部屋</th><td>演習室などのパスワード（6文字以上）と、入口の URL のコピー。空欄なら管理者以外は使えません。</td></tr><tr><th scope="row">予約表全体の閲覧制限</th><td>ふだんは使いません。決めると、利用者全員が予約表を開くときにパスワードを求められます。</td></tr><tr><th scope="row">パスキー</th><td>「この端末を登録」で、その端末をパスキーで入れるようにします。使わなくなった端末や、担当を外れた人のパスキーは削除してください。</td></tr><tr><th scope="row">管理用パスワードの変更</th><td>新しいパスワード（6文字以上）を2回入れて「変更する」。変えると、ほかの端末の管理者モードやパスキーでのログインは入り直しになります。</td></tr><tr><th scope="row">りざぶ郎から取り込む</th><td>りざぶ郎の予約表の「CSVダウンロード」で保存したファイルを選び、「取り込む」を押すと、中の予約がこの予約表に入ります。同じ予約がすでにあるものと、ほかの予約・休館と重なるものは入りません。</td></tr><tr><th scope="row">練習室</th><td>部屋の追加・削除・名前・特徴タグ・設備区分・予約制限（なし／管理者のみ／限定公開／使用停止）・備考。並び順は左端の番号をつまんでドラッグします。今日以降の予約が残る部屋は削除できないので、使用停止にします。</td></tr></tbody></table></div>
+<p>一般と練習室は、変えたあと「保存」を押すまで反映されません。保存していない変更があると「未保存の変更があります」と出て、「設定」のタブに赤い点が付きます。</p>
+<h3>6.5 変更履歴</h3>
+<p>予約・変更・取消・削除と、管理画面での設定・部屋・休館・パスワードの変更の記録を、新しい順に見られます。「予約が消えた」「勝手に変えられた」という問い合わせのときに使います。種類（すべて・予約・変更・取消・設定）と検索で絞り込め、一度に200件ずつ出て、続きは「さらに読み込む」で出します。パスワード類は「変更」とだけ記録し、中身は残しません。</p>
+<h3>6.6 不具合報告</h3>
+<p>利用者が予約表の「不具合を報告」から送った内容の一覧です。状態（未対応・対応中・対応済み・対応しない）を選ぶとすぐ保存されます。タブの数字は、未対応と対応中の件数です。</p>
+<h3>6.7 データベース</h3>
+<p>上部の「データベース」を押すと、予約のスプレッドシートが開きます。開けるのは、スプレッドシートが共有されている Google アカウントだけです。</p>
+<h2 id="s7">7. よくある問い合わせ</h2>
+<div class="tbl"><table><thead><tr><th>こんなとき</th><th>すること</th></tr></thead><tbody><tr><th scope="row">演習室が予約表に出てこない</th><td>管理者モードに入っているか、タイトルの横の札で確かめます。別のタブで開いた予約表では管理者モードになりません。</td></tr><tr><th scope="row">くり返し予約の欄が出てこない</th><td>同じく管理者モードかどうかを確かめます。予約の変更の画面には出ません。</td></tr><tr><th scope="row">授業で毎週予約したい</th><td>4.1 のくり返し予約で「毎週」を選び、最終日を学期の終わりにします。</td></tr><tr><th scope="row">授業の予約を学期の途中で終える</th><td>4.5 のとおり、最初に消したい日の予約を開いて、この日以降をまとめて取り消します。</td></tr><tr><th scope="row">学生が編集用パスワードを忘れた</th><td>管理者モードで、その予約を変更・取消します。</td></tr><tr><th scope="row">学生が編集用パスワードを5回間違えて操作できない</th><td>10分待てば操作できます。急ぐときは管理者モードで対応します。</td></tr><tr><th scope="row">いたずらの予約がある</th><td>管理者モードで取り消します。記録は変更履歴に残ります。</td></tr><tr><th scope="row">管理用パスワードを10回間違えた</th><td>10分待ってからやり直します。</td></tr></tbody></table></div>
+  </article>
+  <footer class="site-foot"><a href="./">予約表</a>・<a href="privacy.html">プライバシーポリシー</a></footer>
+</main>
+</body>
+</html>
