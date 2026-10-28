@@ -27,7 +27,7 @@ function makeWheel(sel) {
   sel.after(el);
   sel.hidden = true;
   sel.parentNode.classList.add('has-wheel');
-  let items = [], index = -1, raf = 0, sig = '';
+  let items = [], index = -1, raf = 0, sig = '', changeTimer = 0;
   // 回し直し中（sync で位置を合わせている最中）は、読み取った位置で値を書き戻さない。
   // 小窓が開く動きの最中などは、指定した位置へすぐには動かず、古い位置を読んで値が元に戻ることがあったため
   let syncing = false;
@@ -69,7 +69,10 @@ function makeWheel(sel) {
       el.setAttribute('aria-valuetext', items[now].textContent);
       if (sel.selectedIndex !== now) {
         sel.selectedIndex = now;
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        // 遠い段へ一気に回すと、途中の段ごとに change が飛んで画面を何度も描き直してしまう。
+        // 止まってから1回だけ送る（その前に次の段へ動いたら、やり直す）
+        clearTimeout(changeTimer);
+        changeTimer = setTimeout(() => sel.dispatchEvent(new Event('change', { bubbles: true })), 120);
       }
     }
   }
@@ -137,6 +140,7 @@ function makeWheel(sel) {
   sel.wheel = {
     /** 選択欄の選択肢・値に合わせて、ホイールを作り直す・回し直す（change は送らない） */
     sync() {
+      clearTimeout(changeTimer); // 前の操作の change が、合わせ直しのあとに遅れて届かないように
       const nextSig = [...sel.options].map((o) => o.text).join('|');
       if (nextSig !== sig) {
         sig = nextSig;
