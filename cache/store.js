@@ -470,9 +470,11 @@
             if (dates.size && !dates.has(x.value.date)) { out.problems.push('範囲外の日付: ' + x.value.date); return; }
             const where = x.value.date + ' ' + x.times[0].start + ' ' + x.value.roomId + ' ';
             // 前に入れた同じ予約（同じ部屋・氏名で、時刻の差が予約単位未満。前は学籍番号だけの人も学籍番号/所属に入れていた）
-            const prev = call.resWhere('WHERE date = ? AND room_id = ? AND st < ? AND en > ?', x.value.date, x.value.roomId, hhmm(x.raw.e0 + unit), hhmm(x.raw.s0 - unit))
+            // 取り込みで入れた予約だけを「前の分」とみなす。普通の予約を、取り込みの直しで書き換えない
+            let prev = call.resWhere('WHERE date = ? AND room_id = ? AND st < ? AND en > ?', x.value.date, x.value.roomId, hhmm(x.raw.e0 + unit), hhmm(x.raw.s0 - unit))
               .find((r) => r.name === x.value.name && (r.affiliation === x.value.affiliation || (!x.value.affiliation && r.affiliation === r.name)) &&
                 Math.abs(toMin(r.start) - x.raw.s0) < unit && Math.abs(toMin(r.end) - x.raw.e0) < unit);
+            if (prev && !this.db.exec("SELECT 1 FROM oplog WHERE res_id = ? AND action IN ('取り込み（りざぶ郎）', '取り込み（りざぶ郎）の直し') LIMIT 1", prev.id).length) prev = null;
             // 予約単位の時刻のうち、ほかの予約に重ならない、元の時刻にいちばん近いもの
             let r = null;
             let problem = '';

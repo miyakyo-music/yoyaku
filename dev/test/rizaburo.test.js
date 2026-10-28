@@ -88,6 +88,22 @@ test('予約者が違う重なりは、本システムの予約を優先する',
   assert.strictEqual(hit[0].name, '自分');
 });
 
+test('普通の予約を、取り込みの直しで書き換えない', async () => {
+  const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
+  await w.run('migrateToCloudflare()');
+  await w.settle();
+  const made = await w.run(`devCf.core.api({ action: 'createReservation', params: { roomId: 'room_01', date: '2026-10-31', start: '10:05', end: '11:00', name: '自分', affiliation: 'G1' } })`);
+  assert.strictEqual(made.ok, true, JSON.stringify(made));
+  const res = await w.run(`devCf.core.importRizaburo({ from: '2026-10-31', to: '2026-10-31', dates: ['2026-10-31'], lines: ['練習室1,"",202610311002,202610311100,G1 自分'] })`);
+  assert.strictEqual(res.ok, true, JSON.stringify(res));
+  assert.strictEqual(res.fixed, 0);
+  assert.strictEqual(res.overlap, 1);
+  const list = await w.run(`devCf.core.api({ action: 'getSchedule', params: { from: '2026-10-31', to: '2026-10-31' } })`);
+  const hit = list.reservations.filter((r) => r.roomId === 'room_01' && r.date === '2026-10-31');
+  assert.strictEqual(hit.length, 1);
+  assert.strictEqual(hit[0].start, '10:05');
+});
+
 test('引用符つきカンマの行も読める', async () => {
   const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
   await w.run('migrateToCloudflare()');
