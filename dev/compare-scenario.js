@@ -67,6 +67,23 @@
   out[out.length - 1][4] = r.deletedIds && r.deletedIds.length;
   r = rec('delAgain', await c('adminDeleteReservations', { adminPassword: A, ids: delIds }));
   out[out.length - 1][4] = r.deletedIds && r.deletedIds.length;
+  // りざぶ郎の CSV の取り込み（時刻は予約単位に合わせ、同じ予約は飛ばし、重なり・休館・読めないものは入れない。終わった日も入れる）
+  const imp = [
+    { date: D, roomId: 'room_13', start: '11:03', end: '11:58', affiliation: 'G9', name: '丙' },
+    { date: D, roomId: 'room_13', start: '11:30', end: '12:30', affiliation: '', name: '丁' },
+    { date: T, roomId: 'room_10', start: '15:00', end: '16:00', affiliation: '', name: '戊' },
+    { date: '2026-10-01', roomId: 'room_13', start: '10:00', end: '11:00', affiliation: '', name: '己' },
+    { date: D, roomId: 'room_99', start: '10:00', end: '11:00', affiliation: '', name: '庚' },
+    { date: D, roomId: 'room_13', start: '9時', end: '10:00', affiliation: '', name: '辛' },
+  ];
+  rec('impNoAdmin', await c('adminImportReservations', { items: imp }));
+  rec('impEmpty', await c('adminImportReservations', { adminPassword: A, items: [] }));
+  r = rec('imp', await c('adminImportReservations', { adminPassword: A, items: imp }));
+  out[out.length - 1][4] = r.ok && [r.added, r.same, r.skipped.join(' / ')];
+  r = rec('impAgain', await c('adminImportReservations', { adminPassword: A, items: imp.slice(0, 1).concat([Object.assign({}, imp[0], { start: '11:05', end: '12:00' })]) }));
+  out[out.length - 1][4] = r.ok && [r.added, r.same, r.skipped.length];
+  r = rec('impSched', await c('getSchedule', { from: D, to: D }), null);
+  out[out.length - 1][4] = r.reservations.filter((x) => x.roomId === 'room_13').map((x) => x.start + x.end + x.affiliation + x.name).join(',');
   CacheService.getScriptCache().remove('writes_' + Math.floor(Date.now() / 60000)); // 削除の分で、書き込みの上限に当たらないよう数え直す
   devCf.core.kdel('writes_' + Math.floor(Date.now() / 60000));
   // まとめて作った予約は同じパスワード。間違いは予約を替えてもまとめて数え、5回で全部が止まる

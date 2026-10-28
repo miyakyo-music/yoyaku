@@ -56,6 +56,7 @@ const SYSTEM = {
   MAX_MINE: 1000, // 「名前で探す」で返す予約の上限
   MAX_ADMIN_FAILURES: 10, // 管理用パスワードを、この回数間違えると一定時間受け付けない（全体、またはログインしたことのある端末ごと）
   MAX_ADMIN_DELETE: 2000, // 管理画面の予約履歴から一度に削除できる件数（一覧に並ぶ上限と同じ）
+  MAX_IMPORT: 3000, // りざぶ郎の CSV から一度に取り込める予約の件数（仕様書 4.7）
   LOG_PAGE: 200, // 管理画面の変更履歴を一度に読む件数
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
   MAX_VIEW_FAILURES: 30, // 閲覧パスワードを、全体でこの回数間違えると一定時間受け付けない
@@ -118,7 +119,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-10-27.3';
+const GAS_BUILD = '2026-10-28.1';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -130,6 +131,7 @@ const API = {
   updateReservation: updateReservation,
   cancelReservation: cancelReservation,
   adminDeleteReservations: adminDeleteReservations,
+  adminImportReservations: adminImportReservations,
   submitBugReport: submitBugReport,
   adminGetData: adminGetData,
   adminSaveSettings: adminSaveSettings,
@@ -569,6 +571,92 @@ function adminDeleteReservations(p) {
     }
     return { ok: true, deletedIds: targets.map(r => r.id) };
   });
+}
+
+/**
+ * りざぶ郎の画面から管理者が手で書き出した CSV の予約を取り込む（管理画面の「設定」から。仕様書 4.7）。
+ * CSV は画面が読み、部屋を当てて items にして送る。時刻はりざぶ郎のまま（予約単位に合っていなくてよい）で、ここで合わせる。
+ * すでに同じ予約があれば飛ばし、ほかの予約・休館と重なるものは入れない。終わった予約・定休日の予約も記録として入れる。
+ * cache/store.js の adminImportReservations と同じ
+ * @param {{adminPassword, items:Array<{date, roomId, start, end, affiliation, name}>}} p
+ */
+function adminImportReservations(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const items = Array.isArray(p.items) ? p.items : [];
+  if (!items.length) return fail_('取り込む予約がありません。');
+  if (items.length > SYSTEM.MAX_IMPORT) return fail_('一度に取り込めるのは' + SYSTEM.MAX_IMPORT + '件までです。');
+  const ctx = context_(p);
+
+  return withLock_(() => {
+    const rows = readReservations_(ctx.resSheet);
+    // 日・部屋ごとに分けておく（件数が多くても、重なりを探すのが遅くならないように）
+    const byDay = {};
+    rows.forEach(r => (byDay[r.date + '|' + r.roomId] = byDay[r.date + '|' + r.roomId] || []).push(r));
+    const now = nowStr_('yyyy-MM-dd HH:mm:ss');
+    const created = [];
+    const out = { ok: true, added: 0, same: 0, skipped: [] };
+    items.forEach(x => {
+      const plan = importPlan_(ctx, x);
+      if (plan.error) { out.skipped.push(plan.error); return; }
+      const day = byDay[plan.value.date + '|' + plan.value.roomId] || (byDay[plan.value.date + '|' + plan.value.roomId] = []);
+      if (day.some(plan.isSame)) { out.same++; return; }
+      let problem = '';
+      for (const t of plan.times) {
+        const v = validateBooking_(ctx, Object.assign({}, plan.value, t), true);
+        const reason = v.error || closureError_(ctx, v.value);
+        const conflict = reason ? null : findConflict_(day, v.value, null);
+        if (reason || conflict) { problem = problem || reason || '既存の予約と重複（' + describe_(conflict) + '）'; continue; }
+        const r = Object.assign({}, v.value, { id: newId_('res'), groupId: '', createdAt: now, updatedAt: '', color: '' });
+        created.push(r);
+        day.push(r);
+        return;
+      }
+      out.skipped.push(plan.where + ' ' + problem);
+    });
+    if (created.length) {
+      appendRows_(ctx.resSheet, created.map(toRow_));
+      MEMO_.resAfter = rows.concat(created);
+      try {
+        appendLog_(ctx.ss, created.map(r => [now, '取り込み（りざぶ郎）', r.id, r.date, r.roomId, r.start + '〜' + r.end,
+          (r.affiliation ? r.affiliation + ' ' : '') + r.name, '']));
+      } catch (e) {
+        console.error(e); // ログの失敗で取り込み自体は失敗させない
+      }
+    }
+    out.added = created.length;
+    return out;
+  });
+}
+
+/**
+ * 取り込む1件を確かめ、予約単位に合わせた時刻の候補（times。元の時刻に近い順）と、
+ * すでにある同じ予約を見分ける関数（isSame。同じ氏名・学籍番号/所属で、開始と終了の差がどちらも予約単位未満）を返す
+ */
+function importPlan_(ctx, x) {
+  x = x || {};
+  const value = {
+    date: normDate_(x.date), roomId: String(x.roomId || '').trim(),
+    affiliation: String(x.affiliation || '').trim(), name: String(x.name || '').trim(), memo: '', pin: '',
+  };
+  const raw = [String(x.start || ''), String(x.end || '')];
+  const room = roomOf_(ctx, value.roomId);
+  const where = value.date + ' ' + raw.join('〜') + ' ' + (room.name ? room.name + (room.tags ? '（' + room.tags + '）' : '') : value.roomId) + ' ' + value.name;
+  if (!isValidDate_(value.date) || !raw.every(t => /^\d{2}:\d{2}$/.test(t))) return { error: where + ' 日付か時刻が読めません。' };
+  const unit = Number(ctx.settings.unitMinutes) || 5;
+  const s0 = toMin_(raw[0]);
+  const e0 = toMin_(raw[1]);
+  const near = m => Array.from(new Set([Math.round(m / unit) * unit, Math.floor(m / unit) * unit, Math.ceil(m / unit) * unit]));
+  const times = [];
+  near(s0).forEach(st => near(e0).forEach(en => { if (st < en) times.push({ st: st, en: en, gap: Math.abs(st - s0) + Math.abs(en - e0) }); }));
+  times.sort((a, b) => a.gap - b.gap);
+  if (!times.length) return { error: where + ' 終了が開始より前です。' };
+  return {
+    value: value, where: where,
+    times: times.map(t => ({ start: pad2_(Math.floor(t.st / 60)) + ':' + pad2_(t.st % 60), end: pad2_(Math.floor(t.en / 60)) + ':' + pad2_(t.en % 60) })),
+    isSame: r => r.name === value.name && r.affiliation === value.affiliation &&
+      Math.abs(toMin_(r.start) - s0) < unit && Math.abs(toMin_(r.end) - e0) < unit,
+  };
 }
 
 /**
