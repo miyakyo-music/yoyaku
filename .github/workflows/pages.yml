@@ -1,4 +1,4 @@
-# main に push すると、web/ フォルダの中身を GitHub Pages に公開する
+# main に push すると、試験が通ってから web/ フォルダの中身を GitHub Pages に公開する（試験が通らなければ公開しない）
 name: GitHub Pages に公開
 
 on:
@@ -17,7 +17,18 @@ concurrency:
   cancel-in-progress: false # 公開の途中で止めると、半端な状態が残ることがあるので、前の公開が終わるのを待つ
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 試験をまとめて流す
+        run: node --test 'dev/test/*.test.js'
+
   deploy:
+    needs: test   # 試験が通らなければ公開しない
     runs-on: ubuntu-latest
     environment:
       name: github-pages
