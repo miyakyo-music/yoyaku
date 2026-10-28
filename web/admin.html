@@ -37,6 +37,7 @@
 <link rel="stylesheet" href="admin/info.css">
 <link rel="stylesheet" href="admin/stats.css">
 <link rel="stylesheet" href="admin/settings.css">
+<link rel="stylesheet" href="admin/import.css">
 <link rel="stylesheet" href="shared/button.css">
 <link rel="stylesheet" href="admin/fallback.css">
 </head>
@@ -163,6 +164,19 @@
           <div class="full submit-row"><button type="submit" class="btn primary" id="pwBtn">変更する</button></div>
         </form>
         <p class="msg error" role="alert" id="pwError"></p>
+      </div>
+
+      <!-- りざぶ郎の CSV の取り込み（admin/import.js） -->
+      <div class="card" data-panel="setup" hidden>
+        <h2>りざぶ郎から取り込む <button type="button" class="info" aria-label="説明" data-tip="りざぶ郎の予約表の「CSVダウンロード」で保存したファイルを選び、「取り込む」を押すと、中の予約がこの予約表に入ります（複数のファイルをまとめて選べます）。同じ予約がすでにあるもの、ほかの予約・休館と重なるものは入りません。時刻は予約単位に合わせます。">i</button></h2>
+        <div class="import-bar">
+          <label class="btn" for="importFile">CSV を選ぶ</label>
+          <input type="file" id="importFile" accept=".csv,.txt,text/csv,text/plain" multiple hidden>
+          <span class="import-summary" id="importSummary"></span>
+          <button type="button" class="btn primary" id="importBtn" disabled>取り込む</button>
+        </div>
+        <p class="msg import-result" role="status" id="importResult"></p>
+        <p class="msg error" role="alert" id="importError"></p>
       </div>
 
       <!-- 練習室 -->
@@ -309,6 +323,7 @@
 <script src="admin/stats.js"></script>
 <script src="admin/history.js"></script>
 <script src="admin/export.js"></script>
+<script src="admin/import.js"></script>
 <script src="admin/bugs.js"></script>
 <script src="admin/oplog.js"></script>
 <script src="admin/passkey.js"></script>

@@ -28,6 +28,7 @@
     MAX_MINE: 1000, // 「名前で探す」で返す予約の上限
     MAX_ADMIN_FAILURES: 10,
     MAX_ADMIN_DELETE: 2000,
+    MAX_IMPORT: 3000, // りざぶ郎の CSV から一度に取り込める予約の件数
     LOG_PAGE: 200,
     MAX_LIMITED_FAILURES: 30,
     MAX_VIEW_FAILURES: 30,
@@ -796,6 +797,64 @@
     return { ok: true, deletedIds: targets.map((r) => r.id) };
   }
 
+  /** りざぶ郎の画面から手で書き出した CSV の予約を取り込む（gas/Code.gs の adminImportReservations と同じ。仕様書 4.7） */
+  function adminImportReservations(p) {
+    const denied = this.requireAdmin(p);
+    if (denied) return denied;
+    const items = Array.isArray(p.items) ? p.items : [];
+    if (!items.length) return fail('取り込む予約がありません。');
+    if (items.length > SYSTEM.MAX_IMPORT) return fail('一度に取り込めるのは' + SYSTEM.MAX_IMPORT + '件までです。');
+    const ctx = this.context(p);
+    const now = nowStr('yyyy-MM-dd HH:mm:ss');
+    const out = { ok: true, added: 0, same: 0, skipped: [] };
+    items.forEach((x) => {
+      const plan = importPlan(ctx, x);
+      if (plan.error) { out.skipped.push(plan.error); return; }
+      if (this.resWhere('WHERE date = ? AND room_id = ?', plan.value.date, plan.value.roomId).some(plan.isSame)) { out.same++; return; }
+      let problem = '';
+      for (const t of plan.times) {
+        const v = validateBooking(ctx, Object.assign({}, plan.value, t), true);
+        const reason = v.error || closureError(ctx, v.value);
+        const conflict = reason ? null : findConflict.call(this, v.value, null);
+        if (reason || conflict) { problem = problem || reason || '既存の予約と重複（' + describe(conflict) + '）'; continue; }
+        const r = Object.assign({}, v.value, { id: newId('res'), groupId: '', createdAt: now, updatedAt: '', color: '' });
+        this.insertRes(r);
+        this.addLog([now, '取り込み（りざぶ郎）', r.id, r.date, r.roomId, r.start + '〜' + r.end, (r.affiliation ? r.affiliation + ' ' : '') + r.name, '']);
+        out.added++;
+        return;
+      }
+      out.skipped.push(plan.where + ' ' + problem);
+    });
+    return out;
+  }
+
+  /** 取り込む1件の時刻の候補と、すでにある同じ予約の見分け方（gas/Code.gs の importPlan_ と同じ） */
+  function importPlan(ctx, x) {
+    x = x || {};
+    const value = {
+      date: normDate(x.date), roomId: String(x.roomId || '').trim(),
+      affiliation: String(x.affiliation || '').trim(), name: String(x.name || '').trim(), memo: '', pin: '',
+    };
+    const raw = [String(x.start || ''), String(x.end || '')];
+    const room = roomOf(ctx, value.roomId);
+    const where = value.date + ' ' + raw.join('〜') + ' ' + (room.name ? room.name + (room.tags ? '（' + room.tags + '）' : '') : value.roomId) + ' ' + value.name;
+    if (!isValidDate(value.date) || !raw.every((t) => /^\d{2}:\d{2}$/.test(t))) return { error: where + ' 日付か時刻が読めません。' };
+    const unit = Number(ctx.settings.unitMinutes) || 5;
+    const s0 = toMin(raw[0]);
+    const e0 = toMin(raw[1]);
+    const near = (m) => Array.from(new Set([Math.round(m / unit) * unit, Math.floor(m / unit) * unit, Math.ceil(m / unit) * unit]));
+    const times = [];
+    near(s0).forEach((st) => near(e0).forEach((en) => { if (st < en) times.push({ st, en, gap: Math.abs(st - s0) + Math.abs(en - e0) }); }));
+    times.sort((a, b) => a.gap - b.gap);
+    if (!times.length) return { error: where + ' 終了が開始より前です。' };
+    return {
+      value, where,
+      times: times.map((t) => ({ start: pad2(Math.floor(t.st / 60)) + ':' + pad2(t.st % 60), end: pad2(Math.floor(t.en / 60)) + ':' + pad2(t.en % 60) })),
+      isSame: (r) => r.name === value.name && r.affiliation === value.affiliation &&
+        Math.abs(toMin(r.start) - s0) < unit && Math.abs(toMin(r.end) - e0) < unit,
+    };
+  }
+
   function submitBugReport(p) {
     const message = String(p.message || '').trim();
     const contact = String(p.contact || '').trim();
@@ -1036,7 +1095,7 @@
 
   const API = {
     getSchedule, getReservationsByIds, findMyReservations, createReservation, createBulkReservations, updateReservation, cancelReservation,
-    adminDeleteReservations, submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
+    adminDeleteReservations, adminImportReservations, submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
     adminGetBugReports, adminSetBugStatus, adminGetLog, adminChangePassword, adminPasskeyTicket,
   };
 
