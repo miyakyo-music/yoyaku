@@ -34,7 +34,10 @@ function rizaburoItem(f, rooms) {
   const s = String(f[2] || '').replace(/\D/g, '').slice(0, 12);
   const e = String(f[3] || '').replace(/\D/g, '').slice(0, 12);
   if (s.length !== 12 || e.length !== 12) return { error: '日時が読めない行' };
-  if (s.slice(0, 8) !== e.slice(0, 8)) return { error: '日をまたぐ予約' };
+  // りざぶ郎は 24:00 を翌日の 0:00 と書くので、24:00 に戻す
+  let end = e.slice(8, 10) + ':' + e.slice(10, 12);
+  if (e.slice(8) === '0000' && e.slice(0, 8) === nextDay8(s.slice(0, 8))) end = '24:00';
+  else if (s.slice(0, 8) !== e.slice(0, 8)) return { error: '日をまたぐ予約' };
   const roomName = String(f[0] || '').normalize('NFKC').trim();
   let hit = rooms.filter((r) => r.name.normalize('NFKC') === roomName);
   if (hit.length !== 1) {
@@ -51,9 +54,15 @@ function rizaburoItem(f, rooms) {
   return {
     value: {
       date: s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8), roomId: hit[0].id,
-      start: s.slice(8, 10) + ':' + s.slice(10, 12), end: e.slice(8, 10) + ':' + e.slice(10, 12), affiliation, name,
+      start: s.slice(8, 10) + ':' + s.slice(10, 12), end, affiliation, name,
     },
   };
+}
+
+/** 20261028 の翌日（20261029） */
+function nextDay8(d) {
+  const t = new Date(Number(d.slice(0, 4)), Number(d.slice(4, 6)) - 1, Number(d.slice(6, 8)) + 1);
+  return t.getFullYear() + pad(t.getMonth() + 1) + pad(t.getDate());
 }
 
 $('importFile').addEventListener('change', async (ev) => {
