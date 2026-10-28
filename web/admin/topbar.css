@@ -16,11 +16,13 @@
 }
 h1 { font-size: 17px; margin: 0; }
 .app-name { color: var(--muted); font-size: 13px; }
-#sheetLink { margin-left: auto; } /* 折り返したときも右端に寄せ、左の「予約表に戻る」と離す */
+#manualLink { margin-left: auto; } /* 折り返したときも右端に寄せ、左の「予約表に戻る」と離す */
 @media (max-width: 600px) {
   .topbar { gap: 8px; padding-top: 8px; padding-bottom: 8px; flex-wrap: nowrap; }
   .topbar h1 { font-size: 16px; white-space: nowrap; }
   .topbar .app-name, .topbar .lg { display: none; }
   .topbar .btn.small { padding: 0 8px; }
+  /* ログイン中は「マニュアル」「データベース」「ログアウト」で幅が足りないので、見出し「管理画面」を隠す（下のタブで管理画面とわかる） */
+  .topbar:has(#logoutBtn:not([hidden])) h1 { display: none; }
 }
 html.dark .topbar { background: rgba(0, 0, 0, .82); box-shadow: 0 .5px 0 var(--sep); }
