@@ -121,6 +121,7 @@ function save_(key, value) {
 function forgetSnapshot() {
   try { localStorage.removeItem(LS.snapshot); } catch (e) { /* 保存できない環境では何もしない */ }
 }
+/** 予約表の端末の覚え（key を指定して読む）。管理画面の sessionGet（admin/core.js）とは鍵の持ち方が違う */
 function sessionGet(key) { try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; } }
 function isAdminMode() { return !!state.adminPw; }
 function exitAdminMode(message) {
@@ -151,7 +152,8 @@ function isOffline() { return navigator.onLine === false; }
 const OFFLINE_MSG = 'オフラインのため送信できません。電波の届く所で、もう一度押してください。';
 
 let toastTimer;
-/** 画面の下に短く知らせる。action（{ label, run }）を渡すと右にボタンを付ける（例: 取消の「元に戻す」） */
+/** 画面の下に短く知らせる。action（{ label, run }）を渡すと右にボタンを付ける（例: 取消の「元に戻す」）
+ *  管理画面の toast（admin/core.js）と違い、種類（error）・操作ボタン・エラー記録を持つ */
 function toast(message, type, ms, action) {
   if (type === 'error') state.lastError = `${new Date().toLocaleString('ja-JP')} ${message}`;
   const el = $('toast');

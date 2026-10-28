@@ -3,6 +3,8 @@
 
 // ---------------- API呼び出し ----------------
 class AuthError extends Error {}
+/** 予約表の通信。管理画面の api（admin/core.js）と違い、閲覧パスワード・限定公開・管理者モードの印を添え、
+ *  AUTH_REQUIRED は画面のログインに渡す（管理者モードの期限切れは、一般の見え方で読み直す） */
 async function api(fn, payload, opts) {
   const body = Object.assign({}, payload, { viewKey: state.viewKey });
   if (state.limitedKey && !body.limitedKey) body.limitedKey = state.limitedKey;
