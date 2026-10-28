@@ -1,0 +1,36 @@
+# 【一時的】りざぶ郎の予約を、手でまとめて取り込む（2026-11-04 まで。仕様書 4.7）。
+# ふだんは Cloudflare の定期実行（cache/worker.js の scheduled）が取り込む。これは、その日の分をすぐ取り込みたいとき用。
+# 開始日を空にすると今日から。終了日は 2026-11-30 固定。23日ずつ /rizaburo/run に頼む（合言葉が要る）。
+name: りざぶ郎から予約を移す（手動）
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: '開始日（例: 2026-10-28。空なら今日）'
+        required: false
+
+permissions: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 移す
+        env:
+          TOKEN: ${{ secrets.CACHE_PUSH_TOKEN }}
+          FROM: ${{ inputs.from }}
+        run: |
+          from="${FROM:-$(TZ=Asia/Tokyo date +%F)}"
+          to="2026-11-30"
+          d="$from"; fail=0
+          while [[ ! "$d" > "$to" ]]; do
+            e=$(date -d "$d +22 days" +%F); [[ "$e" > "$to" ]] && e="$to"
+            res=$(curl -s -X POST -H "Authorization: Bearer $TOKEN" "https://yoyaku-cache.kuridanho.workers.dev/rizaburo/run?from=$d&to=$e")
+            echo "$d〜$e: $res"
+            echo "$res" | grep -q '"ok":true' || fail=1
+            [[ "$e" == "$to" ]] && break
+            d=$(date -d "$e +1 day" +%F)
+          done
+          exit $fail

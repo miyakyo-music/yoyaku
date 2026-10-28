@@ -39,8 +39,10 @@
  */
 
 import './store.js';
+import './rizaburo-plan.js';
 
 const StoreCore = globalThis.StoreCore;
+const RizaburoPlan = globalThis.RizaburoPlan;
 const { hmac, b64url, safeEqual } = StoreCore.util; // 合言葉の照合と署名は、Store（store.js）と同じものを使う
 let tableReady = false;
 
@@ -59,7 +61,7 @@ export default {
         if (data && data.ok && data.primary === true) await disableCopy(env);
         return res;
       }
-      if (url.pathname.startsWith('/mirror/') || url.pathname === '/store/status') return await store(env).fetch(request);
+      if (url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/rizaburo/last') return await store(env).fetch(request);
       if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
         // 正本になっていれば正本から（まだなら、これまでどおり写しから）。
         // 正本なのに返せないとき（閲覧パスワード・範囲が広すぎる。primary 付きの MISS）は、D1 の古い写しを返さず MISS のまま返す
@@ -69,6 +71,7 @@ export default {
       }
       await ensureTable(env);
       if (url.pathname === '/schedule' && request.method === 'GET') return cors(await schedule(url, env));
+      if (url.pathname === '/rizaburo/run' && request.method === 'POST') return await rizaburoRun(url, request, env);
       if (url.pathname === '/ics' && request.method === 'GET') return icsResponse(url);
       if (url.pathname === '/push' && request.method === 'POST') return await push(request, env, ctx);
       // パスキーの応答は、管理画面のサイトからだけ読めるようにする
@@ -78,6 +81,17 @@ export default {
     } catch (e) {
       return cors(json({ ok: false, code: 'ERROR', message: String(e && e.message || e) }, 500));
     }
+  },
+
+  /**
+   * 定期実行（wrangler.toml の crons、10分ごと）。どの日を取るかは cache/rizaburo-plan.js が決める。
+   * 2026-11-04 00:00 を過ぎたら何もしない（コードはその日に消す。仕様書 4.8）。
+   */
+  async scheduled(event, env, ctx) {
+    if (!env.STORE) return;
+    const dates = RizaburoPlan.datesFor(Number(event.scheduledTime) || Date.now());
+    if (!dates.length) return;
+    ctx.waitUntil(rizaburoSync(env, dates).catch((e) => console.error(e)));
   },
 };
 
@@ -409,6 +423,100 @@ function icsResponse(url) {
 // ---------------- 予約の正本 ----------------
 
 function store(env) { return env.STORE.get(env.STORE.idFromName('main')); }
+
+// ---------------- りざぶ郎からの取り込み（2026-11-04 まで） ----------------
+
+const R326 = 'https://www.r326.com/b/';
+
+/**
+ * 指定した日付だけをりざぶ郎から取り込み、正本（Store）に渡す。
+ * 1日あたり2回（表示する日の切り替えと CSV）。dates は cache/rizaburo-plan.js が決める（最大23日。この期間の定期実行では19日）。
+ */
+async function rizaburoSync(env, dates) {
+  const group = String(env.R326_GROUP || '').trim();
+  const token = String(env.PUSH_TOKEN || '').trim();
+  if (!group || !env.STORE || !token) return { ok: false, code: 'DISABLED' };
+  if (!dates.length) return { ok: true, skipped: true };
+  const from = dates[0], to = dates[dates.length - 1];
+  const t0 = Date.now();
+  const send = async (body) => (await store(env).fetch('https://store/rizaburo', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: JSON.stringify(body),
+  })).json();
+  try {
+    const cookies = {};
+    const get = async (path, form) => {
+      const res = await fetch(R326 + path, {
+        method: form ? 'POST' : 'GET',
+        headers: Object.assign({ 'User-Agent': 'Mozilla/5.0', Cookie: Object.entries(cookies).map(([k, v]) => k + '=' + v).join('; ') },
+          form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        body: form ? new URLSearchParams(form).toString() : undefined,
+      });
+      const set = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
+      for (const c of set) {
+        const kv = c.split(';')[0];
+        const i = kv.indexOf('=');
+        if (i > 0) cookies[kv.slice(0, i).trim()] = kv.slice(i + 1);
+      }
+      if (!res.ok) throw new Error('りざぶ郎が ' + res.status + ' を返しました');
+      return res.text();
+    };
+    const statusOf = (html) => {
+      const m = html.match(/var statusId="([^"]*)"/);
+      if (!m) throw new Error('りざぶ郎の画面を読めませんでした');
+      return m[1];
+    };
+    let st = statusOf(await get('main.aspx?g=' + group));
+    const lines = [];
+    for (const d of dates) {
+      st = statusOf(await get('main.aspx?g=' + group, { date: d.replace(/-/g, '/'), status: st }));
+      const rows = (await get(`csv.aspx?g=${group}&status=${st}`, { del: '0', code: '0', ok: 'ok' })).split(/\r?\n/).filter((l) => l && l[0] !== '#');
+      for (const line of rows) {
+        const f = csvFields(line);
+        if (String(f[2] || '').slice(0, 8) !== d.replace(/-/g, '')) throw new Error(d + ' に別の日の予約が混ざりました');
+      }
+      lines.push(...rows);
+    }
+    return await send({ lines, dates, from, to, fetchMs: Date.now() - t0 });
+  } catch (e) {
+    await send({ error: String(e && e.message || e), dates, from, to, fetchMs: Date.now() - t0 }).catch(() => {});
+    throw e;
+  }
+}
+
+/** 手で期間を指定して取り込む（合言葉が要る）。今日〜2026-11-30・23日以内。停止日を過ぎたら 410 */
+async function rizaburoRun(url, request, env) {
+  const token = String(env.PUSH_TOKEN || '').trim();
+  if (!token || !safeEqual((request.headers.get('Authorization') || '').trim(), 'Bearer ' + token)) return json({ ok: false, code: 'UNAUTHORIZED' }, 401);
+  const from = url.searchParams.get('from') || '';
+  const to = url.searchParams.get('to') || from;
+  const range = RizaburoPlan.manualRange(from, to, Date.now());
+  if (range.stopped) return json({ ok: false, code: 'GONE', message: range.error }, 410);
+  if (range.error) return json({ ok: false, code: 'BAD_REQUEST', message: range.error }, 400);
+  const dates = [];
+  for (let d = range.from; d <= range.to; d = RizaburoPlan.addDays(d, 1)) dates.push(d);
+  try {
+    return json(await rizaburoSync(env, dates));
+  } catch (e) {
+    return json({ ok: false, code: 'ERROR', message: String(e && e.message || e) }, 500);
+  }
+}
+
+/** CSV の1行を、引用符つきカンマも正しく分ける（りざぶ郎の CSV は、備考にカンマが入ると "..." で囲まれる） */
+function csvFields(line) {
+  const out = [];
+  let cur = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quoted) {
+      if (ch !== '"') cur += ch;
+      else if (line[i + 1] === '"') { cur += '"'; i++; } else quoted = false;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
 
 /** POST の応答（/api・/passkey/〜）を、allowOrigin のサイトからだけ読めるようにする */
 function withCors(res, allowOrigin) {
