@@ -1,4 +1,4 @@
-/* 管理画面: 設定の「りざぶ郎から取り込む」（admin/import.js）。色は共通の名前だけなので、ダークモードもそのまま */
+/* 管理画面: 設定の「CSVから取り込む」（admin/import.js）。色は共通の名前だけなので、ダークモードもそのまま */
 .import-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .import-summary { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
 .import-result { max-height: 240px; overflow: auto; background: var(--fill-field); color: var(--text); }
