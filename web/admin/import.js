@@ -46,7 +46,9 @@ function rizaburoItem(f, rooms) {
     hit = num ? rooms.filter((r) => r.name === '練習室' + Number(num) && (!p || String(r.tags || '').split('・').includes('電子P.' + p))) : [];
   }
   if (hit.length !== 1) return { error: '部屋が決まらない: ' + (roomName || '（空欄）') };
-  const who = String(f[4] || '').normalize('NFKC').trim();
+  // 全角の英数字と空白だけ半角にする（括弧などの記号は書いたまま残す）
+  const who = String(f[4] || '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\u3000/g, ' ').trim();
   const w = who.match(/^([A-Za-z0-9]*\d[A-Za-z0-9]*)\s*・?\s*(.*)$/);
   const affiliation = w && w[2].trim() ? w[1].toUpperCase() : '';
   const name = w ? (w[2].trim() || w[1].toUpperCase()) : who;
