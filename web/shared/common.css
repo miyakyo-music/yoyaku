@@ -23,5 +23,18 @@ html { overflow-x: auto; }
 /* 通知（下に出る小さな帯）を出したとき */
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* ホーム画面から開いたとき（iOS 26 以降）: 画面の上の端にシステムのぼかしがかかり、上部のタイトルやボタンがにじむ。
+   上の端に幅いっぱいの一色の板（position: fixed）があると、iOS はぼかしの代わりにその色で塗るので、
+   上部の上の端と同じ色の板を置く。時計の欄が重なるときはその高さ、重ならないときは 1px（出欠システムの対策と同じ。issue #43） */
+@media (display-mode: standalone) {
+  body::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; height: max(1px, env(safe-area-inset-top));
+    background: #fff; z-index: 100; pointer-events: none;
+  }
+}
+
 /* ダークモード */
 html.dark body { background: var(--bg); }
+@media (display-mode: standalone) {
+  html.dark body::before { background: #000; }
+}
