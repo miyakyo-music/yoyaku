@@ -104,6 +104,60 @@ test('普通の予約を、取り込みの直しで書き換えない', async ()
   assert.strictEqual(hit[0].start, '10:05');
 });
 
+test('取り込み済みの予約を削除しても、りざぶ郎が同じなら戻らない', async () => {
+  const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
+  await w.run('migrateToCloudflare()');
+  await w.settle();
+  const line = '練習室1,"",202611011000,202611011100,G1 自分';
+  const first = await w.run(`devCf.core.importRizaburo({ from: '2026-11-01', to: '2026-11-01', dates: ['2026-11-01'], lines: ['${line}'] })`);
+  assert.strictEqual(first.added, 1, JSON.stringify(first));
+  const before = await w.run(`devCf.core.api({ action: 'getSchedule', params: { from: '2026-11-01', to: '2026-11-01' } })`);
+  const id = before.reservations.find((r) => r.roomId === 'room_01' && r.date === '2026-11-01').id;
+  const del = await w.run(`devCf.core.api({ action: 'adminDeleteReservations', params: { adminPassword: 'admin123', ids: ['${id}'] } })`);
+  assert.strictEqual(del.ok, true, JSON.stringify(del));
+  const again = await w.run(`devCf.core.importRizaburo({ from: '2026-11-01', to: '2026-11-01', dates: ['2026-11-01'], lines: ['${line}'] })`);
+  assert.strictEqual(again.added, 0, JSON.stringify(again));
+  assert.ok(again.ignored >= 1);
+  const after = await w.run(`devCf.core.api({ action: 'getSchedule', params: { from: '2026-11-01', to: '2026-11-01' } })`);
+  assert.strictEqual(after.reservations.filter((r) => r.roomId === 'room_01' && r.date === '2026-11-01').length, 0);
+});
+
+test('取り込み済みの予約を変更しても、りざぶ郎が同じなら上書きしない', async () => {
+  const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
+  await w.run('migrateToCloudflare()');
+  await w.settle();
+  const line = '練習室1,"",202611021000,202611021100,G1 自分';
+  const first = await w.run(`devCf.core.importRizaburo({ from: '2026-11-02', to: '2026-11-02', dates: ['2026-11-02'], lines: ['${line}'] })`);
+  assert.strictEqual(first.added, 1, JSON.stringify(first));
+  const before = await w.run(`devCf.core.api({ action: 'getSchedule', params: { from: '2026-11-02', to: '2026-11-02' } })`);
+  const id = before.reservations.find((r) => r.roomId === 'room_01' && r.date === '2026-11-02').id;
+  const upd = await w.run(`devCf.core.api({ action: 'updateReservation', params: { id: '${id}', roomId: 'room_01', date: '2026-11-02', start: '10:30', end: '11:30', name: '自分', affiliation: 'G1', adminPassword: 'admin123' } })`);
+  assert.strictEqual(upd.ok, true, JSON.stringify(upd));
+  const again = await w.run(`devCf.core.importRizaburo({ from: '2026-11-02', to: '2026-11-02', dates: ['2026-11-02'], lines: ['${line}'] })`);
+  assert.strictEqual(again.added, 0, JSON.stringify(again));
+  assert.ok(again.ignored >= 1);
+  const after = await w.run(`devCf.core.api({ action: 'getSchedule', params: { from: '2026-11-02', to: '2026-11-02' } })`);
+  assert.strictEqual(after.reservations.find((r) => r.roomId === 'room_01' && r.date === '2026-11-02').start, '10:30');
+});
+
+test('この仕組みを入れる前の取り込みも、操作ログから引き継ぐ', async () => {
+  const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
+  await w.run('migrateToCloudflare()');
+  await w.settle();
+  const line = '練習室1,"",202611031000,202611031100,G1 自分';
+  const first = await w.run(`devCf.core.importRizaburo({ from: '2026-11-03', to: '2026-11-03', dates: ['2026-11-03'], lines: ['${line}'] })`);
+  assert.strictEqual(first.added, 1, JSON.stringify(first));
+  const before = await w.run(`devCf.core.api({ action: 'getSchedule', params: { from: '2026-11-03', to: '2026-11-03' } })`);
+  const id = before.reservations.find((r) => r.roomId === 'room_01' && r.date === '2026-11-03').id;
+  const del = await w.run(`devCf.core.api({ action: 'adminDeleteReservations', params: { adminPassword: 'admin123', ids: ['${id}'] } })`);
+  assert.strictEqual(del.ok, true, JSON.stringify(del));
+  // 仕組みを入れる前の状態にする（指紋の記録を消す）。操作ログの「取り込み」から作り直せるはず
+  await w.run(`devCf.core.db.exec("DELETE FROM kv WHERE k = 'rizaburoSeen:2026-11-03'")`);
+  const again = await w.run(`devCf.core.importRizaburo({ from: '2026-11-03', to: '2026-11-03', dates: ['2026-11-03'], lines: ['${line}'] })`);
+  assert.strictEqual(again.added, 0, JSON.stringify(again));
+  assert.ok(again.ignored >= 1);
+});
+
 test('引用符つきカンマの行も読める', async () => {
   const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
   await w.run('migrateToCloudflare()');

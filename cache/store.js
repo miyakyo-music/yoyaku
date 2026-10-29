@@ -441,8 +441,9 @@
 
     /**
      * りざぶ郎の CSV の行を予約として入れる（仕様書 4.8。2026-11-04 まで）。
+     * 一度取り込んだ行は、りざぶ郎側が変わらない限り無視する（本システム側で変更・削除しても戻さない）。
      * 本システムにすでにある予約と重なる所には入れない（予約者が違うコンフリクトは、本システム側の予約を優先する）。
-     * 前に入れた同じ予約（同じ部屋・氏名で時刻の差が予約単位未満）は、時刻・学籍番号を今の形に直す。
+     * 取り込みで入れた同じ予約（同じ部屋・氏名で時刻の差が予約単位未満）は、時刻・学籍番号を今の形に直す。
      * 結果は kv の rizaburoLast に残し、GET /rizaburo/last で見られる（件数だけ。名前は入れない）。
      */
     importRizaburo(body) {
@@ -463,11 +464,37 @@
           const m = call.master();
           const unit = Math.max(1, Number(m.settings.unitMinutes) || 5);
           const ctx = { settings: m.settings, rooms: m.rooms, closures: m.closures, limited: { ok: true }, isAdmin: true };
-          const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, fixed: 0, same: 0, overlap: 0, problems: [] });
+          const out = Object.assign(head, { ok: true, rows: lines.length, added: 0, fixed: 0, same: 0, ignored: 0, overlap: 0, problems: [] });
+          // 取り込んだことのある指紋（日付ごと）。りざぶ郎側が変わらない限り、何度取り込んでも無視する。
+          // ただし、この仕組みを入れる前の取り込みは、操作ログから指紋を作って引き継ぐ（削除・変更済みでも戻さない）。
+          const seenByDate = new Map();
+          const seenFor = (date) => {
+            if (seenByDate.has(date)) return seenByDate.get(date);
+            const stored = this.kget('rizaburoSeen:' + date);
+            let list = [];
+            if (stored == null) {
+              const old = this.db.exec("SELECT room_id, time, who FROM oplog WHERE date = ? AND action IN ('取り込み（りざぶ郎）', '取り込み（りざぶ郎）の直し', '取り込み（CSV）')", date);
+              old.forEach((r) => {
+                const m = /^(\d{1,2}):(\d{2})〜(\d{1,2}):(\d{2})$/.exec(String(r.time || ''));
+                if (!m) return;
+                list.push([date, r.room_id, Number(m[1]) * 60 + Number(m[2]), Number(m[3]) * 60 + Number(m[4]), r.who].join('|'));
+              });
+            } else {
+              try { list = JSON.parse(stored) || []; } catch (e) { list = []; }
+            }
+            const set = new Set(list);
+            seenByDate.set(date, set);
+            return set;
+          };
           lines.forEach((line) => {
             const x = rizaburoRow(m.rooms, String(line), unit);
             if (x.error) { out.problems.push(x.error); return; }
             if (dates.size && !dates.has(x.value.date)) { out.problems.push('範囲外の日付: ' + x.value.date); return; }
+            // りざぶ郎の行そのものの指紋。本システム側で変更・削除しても、りざぶ郎側が同じなら取り込まない
+            const who = (x.value.affiliation ? x.value.affiliation + ' ' : '') + x.value.name;
+            const fp = [x.value.date, x.value.roomId, x.raw.s0, x.raw.e0, who].join('|');
+            const seen = seenFor(x.value.date);
+            if (seen.has(fp)) { out.ignored++; return; }
             const where = x.value.date + ' ' + x.times[0].start + ' ' + x.value.roomId + ' ';
             // 前に入れた同じ予約（同じ部屋・氏名で、時刻の差が予約単位未満。前は学籍番号だけの人も学籍番号/所属に入れていた）
             // 取り込みで入れた予約だけを「前の分」とみなす。普通の予約を、取り込みの直しで書き換えない
@@ -489,25 +516,28 @@
               break;
             }
             if (!r) {
-              if (prev) out.same++; // 前に入れたものをそのまま残す
+              if (prev) { seen.add(fp); out.same++; } // 前に入れたものをそのまま残す
               else if (problem) out.problems.push(where + problem);
               else out.overlap++;
               return;
             }
             if (prev) {
-              if (prev.start === r.start && prev.end === r.end && prev.affiliation === r.affiliation) { out.same++; return; }
+              if (prev.start === r.start && prev.end === r.end && prev.affiliation === r.affiliation) { seen.add(fp); out.same++; return; }
               const fixed = Object.assign({}, prev, { start: r.start, end: r.end, affiliation: r.affiliation, updatedAt: head.at });
               call.insertRes(fixed);
               call.log('取り込み（りざぶ郎）の直し', fixed, (prev.affiliation !== r.affiliation ? '学籍番号/所属を空に' : '') +
                 (prev.start !== r.start || prev.end !== r.end ? (prev.affiliation !== r.affiliation ? '・' : '') + '時刻 ' + prev.start + '〜' + prev.end + ' から' : ''));
+              seen.add(fp);
               out.fixed++;
               return;
             }
             const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: head.at, updatedAt: '', color: '' });
             call.insertRes(created);
             call.log('取り込み（りざぶ郎）', created, '');
+            seen.add(fp);
             out.added++;
           });
+          for (const [d, set] of seenByDate) this.kput('rizaburoSeen:' + d, JSON.stringify([...set]));
           out.problems = out.problems.slice(0, 20);
           this.kput('rizaburoLast', JSON.stringify(out));
           return out;
