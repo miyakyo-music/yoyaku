@@ -235,6 +235,14 @@ html.dark .topbar, html.dark .refract .topbar { background: linear-gradient(180d
    表がそのまま透けて見えたため。ふだんは半透明のまま、縁の屈折とぼかしで表を透かす） */
 html.hdr-solid .topbar, html.hdr-solid .refract .topbar { background: #fff; }
 html.dark.hdr-solid .topbar, html.dark.hdr-solid .refract .topbar { background: #000; }
+/* ホーム画面から開いたとき（iOS 26 以降）: 上の端に一色で塗った帯が貼りついていないと、iOS が上の端から帯の下までぼかしをかけ、
+   タイトルとボタンがにじむ。上部を上に貼りつけ（sticky。表は中でスクロールするので位置は変わらない）、透かしとぼかしをやめて一色で塗る。
+   半透明やぼかしがあると iOS は一色と見なさない（出欠システムで確かめた方法。issue #43） */
+@media (display-mode: standalone) {
+  .topbar { position: sticky; top: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html .topbar, html.refract .topbar { background: #fff; }
+  html.dark .topbar, html.dark.refract .topbar { background: #000; }
+}
 html.dark .seg .btn[aria-pressed="true"] { color: #fff; }
 html.dark .notice { background: rgba(10, 132, 255, .18); color: #a8d1ff; box-shadow: none; }
 html.dark .notice.important { background: rgba(255, 69, 58, .2); color: #ffb3ad; }

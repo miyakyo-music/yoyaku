@@ -26,3 +26,8 @@ h1 { font-size: 17px; margin: 0; }
   .topbar:has(#logoutBtn:not([hidden])) h1 { display: none; }
 }
 html.dark .topbar { background: rgba(0, 0, 0, .82); box-shadow: 0 .5px 0 var(--sep); }
+/* ホーム画面から開いたとき（iOS 26 以降）: 半透明やぼかしの帯だと iOS が上の端にぼかしをかけて文字がにじむので、一色で塗る（予約表の index/topbar.css と同じ。issue #43） */
+@media (display-mode: standalone) {
+  .topbar { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html.dark .topbar { background: #000; }
+}
