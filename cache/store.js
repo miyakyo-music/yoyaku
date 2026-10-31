@@ -585,14 +585,16 @@
       const end = /^\d{4}-\d{2}-\d{2}$/.test(this.kget('rizaburoRangeEnd') || '') ? this.kget('rizaburoRangeEnd') : '2026-11-30';
       const byDate = new Map();
       this.db.exec("SELECT k, v FROM kv WHERE k LIKE 'rizaburoSeen:%'").forEach((r) => {
+        const date = String(r.k).slice('rizaburoSeen:'.length);
+        if (date < today || date > end) return;
         let n = 0;
         try { n = (JSON.parse(r.v) || []).length; } catch (e) { n = 0; }
-        byDate.set(String(r.k).slice('rizaburoSeen:'.length), { seen: n, current: 0 });
+        byDate.set(date, { seen: n, current: 0 });
       });
       // いま予約表に残っている、取り込みで入れた予約の数（本システム側で消した分は数えない）
       this.db.exec(`SELECT r.date AS date, COUNT(DISTINCT r.id) AS n FROM reservations r
-        WHERE EXISTS (SELECT 1 FROM oplog o WHERE o.res_id = r.id AND o.action IN ('取り込み（りざぶ郎）', '取り込み（りざぶ郎）の直し'))
-        GROUP BY r.date`).forEach((r) => {
+        WHERE r.date >= ? AND r.date <= ? AND EXISTS (SELECT 1 FROM oplog o WHERE o.res_id = r.id AND o.action IN ('取り込み（りざぶ郎）', '取り込み（りざぶ郎）の直し'))
+        GROUP BY r.date`, today, end).forEach((r) => {
         const cur = byDate.get(r.date) || { seen: 0, current: 0 };
         cur.current = Number(r.n) || 0;
         byDate.set(r.date, cur);
