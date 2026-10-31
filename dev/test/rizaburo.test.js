@@ -177,6 +177,8 @@ test('取り込みの履歴と日別の件数を残す', async () => {
   assert.strictEqual(d2.current, 1);
   assert.strictEqual(p.totals.seen, 2);
   assert.strictEqual(p.totals.current, 2);
+  assert.strictEqual(p.totals.recorded, 2);
+  assert.strictEqual(p.totals.pending, 32);
   assert.strictEqual(p.range.to, '2026-11-30');
   assert.strictEqual(p.dates.length, 34);
   assert.strictEqual(p.dates[0].date, '2026-10-28');

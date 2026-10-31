@@ -589,28 +589,28 @@
         if (date < today || date > end) return;
         let n = 0;
         try { n = (JSON.parse(r.v) || []).length; } catch (e) { n = 0; }
-        byDate.set(date, { seen: n, current: 0 });
+        byDate.set(date, { seen: n, current: 0, recorded: true });
       });
       // いま予約表に残っている、取り込みで入れた予約の数（本システム側で消した分は数えない）
       this.db.exec(`SELECT r.date AS date, COUNT(DISTINCT r.id) AS n FROM reservations r
         WHERE r.date >= ? AND r.date <= ? AND EXISTS (SELECT 1 FROM oplog o WHERE o.res_id = r.id AND o.action IN ('取り込み（りざぶ郎）', '取り込み（りざぶ郎）の直し'))
         GROUP BY r.date`, today, end).forEach((r) => {
-        const cur = byDate.get(r.date) || { seen: 0, current: 0 };
+        const cur = byDate.get(r.date) || { seen: 0, current: 0, recorded: false };
         cur.current = Number(r.n) || 0;
         byDate.set(r.date, cur);
       });
       // 今日から末日までは、まだ取っていない日も0件として並べる
-      for (let d = today; d <= end; d = addDays(d, 1)) if (!byDate.has(d)) byDate.set(d, { seen: 0, current: 0 });
+      for (let d = today; d <= end; d = addDays(d, 1)) if (!byDate.has(d)) byDate.set(d, { seen: 0, current: 0, recorded: false });
       const dates = Array.from(byDate.keys()).sort().map((date) => Object.assign({ date }, byDate.get(date)));
       const last = JSON.parse(this.kget('rizaburoLast') || '{"ok":null}');
       const runs = this.db.exec(`SELECT v FROM kv WHERE k LIKE 'rizaburoRun:%' ORDER BY k DESC LIMIT ${limit}`)
         .map((r) => { try { return JSON.parse(r.v); } catch (e) { return null; } }).filter(Boolean);
       const sum = (key) => dates.reduce((n, d) => n + (Number(d[key]) || 0), 0);
-      const pending = dates.filter((d) => d.date >= today && !d.seen).length;
+      const pending = dates.filter((d) => d.date >= today && !d.recorded).length;
       return {
         ok: true, now: nowStr('yyyy-MM-dd HH:mm:ss'),
         range: { from: today, to: end, stopAt: this.kget('rizaburoStopAt') || '2026-11-04T00:00:00+09:00' },
-        totals: { seen: sum('seen'), current: sum('current'), dates: dates.length, pending },
+        totals: { seen: sum('seen'), current: sum('current'), dates: dates.length, recorded: dates.filter((d) => d.recorded).length, pending },
         dates, last, runs,
       };
     }
