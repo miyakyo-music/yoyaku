@@ -158,6 +158,40 @@ test('この仕組みを入れる前の取り込みも、操作ログから引�
   assert.ok(again.ignored >= 1);
 });
 
+test('取り込みの履歴と日別の件数を残す', async () => {
+  const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
+  await w.run('migrateToCloudflare()');
+  await w.settle();
+  const line1 = '練習室1,"",202611011000,202611011100,G1 自分';
+  const line2 = '練習室2,"",202611021000,202611021100,G2 自分';
+  assert.strictEqual((await w.run(`devCf.core.importRizaburo({ from: '2026-11-01', to: '2026-11-01', dates: ['2026-11-01'], lines: ['${line1}'] })`)).added, 1);
+  assert.strictEqual((await w.run(`devCf.core.importRizaburo({ from: '2026-11-01', to: '2026-11-01', dates: ['2026-11-01'], lines: ['${line1}'] })`)).ignored, 1);
+  assert.strictEqual((await w.run(`devCf.core.importRizaburo({ from: '2026-11-02', to: '2026-11-02', dates: ['2026-11-02'], lines: ['${line2}'] })`)).added, 1);
+  const p = await w.run(`devCf.core.rizaburoProgress(10)`);
+  assert.strictEqual(p.ok, true, JSON.stringify(p));
+  const d1 = p.dates.find((d) => d.date === '2026-11-01');
+  assert.strictEqual(d1.seen, 1);
+  assert.strictEqual(d1.current, 1);
+  const d2 = p.dates.find((d) => d.date === '2026-11-02');
+  assert.strictEqual(d2.seen, 1);
+  assert.strictEqual(d2.current, 1);
+  assert.strictEqual(p.totals.seen, 2);
+  assert.strictEqual(p.totals.current, 2);
+  assert.strictEqual(p.range.to, '2026-11-30');
+  assert.strictEqual(p.runs.length, 3, JSON.stringify(p.runs));
+  assert.strictEqual(p.runs[0].added, 1);
+  assert.ok(p.runs.some((r) => r.ignored === 1), JSON.stringify(p.runs));
+});
+
+test('取り込みの履歴は直近500回まで', async () => {
+  const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
+  await w.run(`for (let i = 0; i < 505; i++) devCf.core.saveRizaburoRun({ at: '2026-10-28 09:00:00', ok: true, rows: i });`);
+  const p = await w.run(`devCf.core.rizaburoProgress(500)`);
+  assert.strictEqual(p.runs.length, 500);
+  assert.strictEqual(p.runs[0].rows, 504);
+  assert.strictEqual(p.runs[499].rows, 5);
+});
+
 test('引用符つきカンマの行も読める', async () => {
   const w = createWorld({ now: '2026-10-28T09:00:00+09:00' });
   await w.run('migrateToCloudflare()');

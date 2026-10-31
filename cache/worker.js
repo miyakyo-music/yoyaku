@@ -61,7 +61,7 @@ export default {
         if (data && data.ok && data.primary === true) await disableCopy(env);
         return res;
       }
-      if (url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/rizaburo/last') return await store(env).fetch(request);
+      if (url.pathname.startsWith('/mirror/') || url.pathname === '/store/status' || url.pathname === '/rizaburo/last' || url.pathname === '/rizaburo/progress') return await store(env).fetch(request);
       if (url.pathname === '/schedule' && request.method === 'GET' && env.STORE) {
         // 正本になっていれば正本から（まだなら、これまでどおり写しから）。
         // 正本なのに返せないとき（閲覧パスワード・範囲が広すぎる。primary 付きの MISS）は、D1 の古い写しを返さず MISS のまま返す
@@ -439,6 +439,7 @@ async function rizaburoSync(env, dates) {
   if (!group || !env.STORE || !token) return { ok: false, code: 'DISABLED' };
   if (!dates.length) return { ok: true, skipped: true };
   const from = dates[0], to = dates[dates.length - 1];
+  const meta = { rangeEnd: RizaburoPlan.END, stopAt: new Date(RizaburoPlan.STOP_AT + 9 * 3600 * 1000).toISOString().slice(0, 19) + '+09:00' };
   const t0 = Date.now();
   const send = async (body) => (await store(env).fetch('https://store/rizaburo', {
     method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: JSON.stringify(body),
@@ -480,9 +481,9 @@ async function rizaburoSync(env, dates) {
       }
       lines.push(...rows);
     }
-    return await send({ lines, dates, from, to, fetchMs: Date.now() - t0, status: st });
+    return await send(Object.assign({ lines, dates, from, to, fetchMs: Date.now() - t0, status: st }, meta));
   } catch (e) {
-    await send({ error: String(e && e.message || e), dates, from, to, fetchMs: Date.now() - t0, status: st }).catch(() => {});
+    await send(Object.assign({ error: String(e && e.message || e), dates, from, to, fetchMs: Date.now() - t0, status: st }, meta)).catch(() => {});
     throw e;
   }
 }

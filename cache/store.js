@@ -449,9 +449,14 @@
     importRizaburo(body) {
       body = body || {};
       const head = { at: nowStr('yyyy-MM-dd HH:mm:ss'), from: String(body.from || ''), to: String(body.to || ''), fetchMs: Number(body.fetchMs) || 0, status: String(body.status || '') };
+      // 取り込みの範囲と停止日は、進捗を見るときに使う（初回だけ入ればよい）
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(body.rangeEnd || ''))) this.kput('rizaburoRangeEnd', String(body.rangeEnd));
+      if (body.stopAt) this.kput('rizaburoStopAt', String(body.stopAt).slice(0, 40));
       if (body.error) {
-        this.kput('rizaburoLast', JSON.stringify(Object.assign(head, { ok: false, error: String(body.error) })));
-        return { ok: false, error: String(body.error) };
+        const error = String(body.error).slice(0, 200);
+        this.kput('rizaburoLast', JSON.stringify(Object.assign(head, { ok: false, error })));
+        this.saveRizaburoRun({ at: head.at, from: head.from, to: head.to, fetchMs: head.fetchMs, ok: false, error });
+        return { ok: false, error };
       }
       if (!this.isPrimary()) return fail('Cloudflare が正本になっていません。', 'NOT_PRIMARY');
       const lines = (Array.isArray(body.lines) ? body.lines : []).slice(0, 3000);
@@ -540,14 +545,72 @@
           for (const [d, set] of seenByDate) this.kput('rizaburoSeen:' + d, JSON.stringify([...set]));
           out.problems = out.problems.slice(0, 20);
           this.kput('rizaburoLast', JSON.stringify(out));
+          this.saveRizaburoRun({
+            at: out.at, from: out.from, to: out.to, fetchMs: out.fetchMs, ok: true,
+            rows: out.rows, added: out.added, fixed: out.fixed, same: out.same, ignored: out.ignored, overlap: out.overlap,
+            problems: out.problems.length,
+          });
           return out;
         });
       } catch (e) {
         console.error(e);
+        try { this.saveRizaburoRun({ at: head.at, from: head.from, to: head.to, fetchMs: head.fetchMs, ok: false, error: 'サーバーでエラー' }); } catch (e2) { /* 履歴の失敗で応答を変えない */ }
         return fail('サーバーでエラーが発生しました。', 'SERVER_ERROR');
       }
       if (call.memo.wrote && this.hooks.changed) { try { this.hooks.changed(); } catch (e) { /* 合図の失敗で取り込みを失敗させない */ } }
       return res;
+    }
+
+    /**
+     * 取り込みの実行履歴を1件残す（直近500回まで。名前は入れず、件数と結果だけ）。
+     * 連番を鍵にして、同じ秒に複数回動いても上書きしない。
+     */
+    saveRizaburoRun(entry) {
+      const n = Number(this.kget('rizaburoRunSeq') || 0) + 1;
+      this.kput('rizaburoRunSeq', n);
+      this.kput('rizaburoRun:' + String(n).padStart(10, '0'), JSON.stringify(entry));
+      const cut = this.db.exec("SELECT k FROM kv WHERE k LIKE 'rizaburoRun:%' ORDER BY k DESC LIMIT 1 OFFSET 500")[0];
+      if (cut) this.db.exec("DELETE FROM kv WHERE k LIKE 'rizaburoRun:%' AND k <= ?", cut.k);
+    }
+
+    /**
+     * 取り込みの進み具合（GET /rizaburo/progress。名前は入れない）。
+     * - dates[].seen … 取り込んだことのある行（指紋）の数。りざぶ郎側で変わると増える。本システム側で消した分も残る
+     * - dates[].current … いま予約表に残っている、取り込みで入れた予約の数
+     * - runs … 直近の実行履歴（件数と結果だけ）
+     */
+    rizaburoProgress(limit) {
+      limit = Math.min(Math.max(Math.floor(Number(limit) || 100), 1), 500);
+      const today = nowStr('yyyy-MM-dd');
+      const end = /^\d{4}-\d{2}-\d{2}$/.test(this.kget('rizaburoRangeEnd') || '') ? this.kget('rizaburoRangeEnd') : '2026-11-30';
+      const byDate = new Map();
+      this.db.exec("SELECT k, v FROM kv WHERE k LIKE 'rizaburoSeen:%'").forEach((r) => {
+        let n = 0;
+        try { n = (JSON.parse(r.v) || []).length; } catch (e) { n = 0; }
+        byDate.set(String(r.k).slice('rizaburoSeen:'.length), { seen: n, current: 0 });
+      });
+      // いま予約表に残っている、取り込みで入れた予約の数（本システム側で消した分は数えない）
+      this.db.exec(`SELECT r.date AS date, COUNT(DISTINCT r.id) AS n FROM reservations r
+        WHERE EXISTS (SELECT 1 FROM oplog o WHERE o.res_id = r.id AND o.action IN ('取り込み（りざぶ郎）', '取り込み（りざぶ郎）の直し'))
+        GROUP BY r.date`).forEach((r) => {
+        const cur = byDate.get(r.date) || { seen: 0, current: 0 };
+        cur.current = Number(r.n) || 0;
+        byDate.set(r.date, cur);
+      });
+      // 今日から末日までは、まだ取っていない日も0件として並べる
+      for (let d = today; d <= end; d = addDays(d, 1)) if (!byDate.has(d)) byDate.set(d, { seen: 0, current: 0 });
+      const dates = Array.from(byDate.keys()).sort().map((date) => Object.assign({ date }, byDate.get(date)));
+      const last = JSON.parse(this.kget('rizaburoLast') || '{"ok":null}');
+      const runs = this.db.exec(`SELECT v FROM kv WHERE k LIKE 'rizaburoRun:%' ORDER BY k DESC LIMIT ${limit}`)
+        .map((r) => { try { return JSON.parse(r.v); } catch (e) { return null; } }).filter(Boolean);
+      const sum = (key) => dates.reduce((n, d) => n + (Number(d[key]) || 0), 0);
+      const pending = dates.filter((d) => d.date >= today && !d.seen).length;
+      return {
+        ok: true, now: nowStr('yyyy-MM-dd HH:mm:ss'),
+        range: { from: today, to: end, stopAt: this.kget('rizaburoStopAt') || '2026-11-04T00:00:00+09:00' },
+        totals: { seen: sum('seen'), current: sum('current'), dates: dates.length, pending },
+        dates, last, runs,
+      };
     }
 
     status() {
@@ -1633,6 +1696,7 @@
       return { status: 200, body: res || (core.isPrimary() ? { ok: false, code: 'MISS', primary: true } : { ok: false, code: 'MISS' }) };
     }
     if (req.path === '/rizaburo/last' && req.method === 'GET') return { status: 200, body: JSON.parse(core.kget('rizaburoLast') || '{"ok":null}') };
+    if (req.path === '/rizaburo/progress' && req.method === 'GET') return { status: 200, body: core.rizaburoProgress(Number(req.query.get('limit')) || 100) };
     // ここから下は GAS 専用（合言葉が要る）
     const token = String(core.env.PUSH_TOKEN || '').trim();
     if (!token || !safeEqual(req.auth || '', 'Bearer ' + token)) return { status: 401, body: { ok: false, code: 'UNAUTHORIZED' } };
