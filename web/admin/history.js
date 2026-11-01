@@ -12,7 +12,7 @@ const showExportTo = dateField('xTo');
 function renderExportForm() {
   exportPick.render();
   const t = state.data.today;
-  if (!$('xFrom').value) $('xFrom').value = t.slice(0, 8) + '01'; // 今月の1日から
+  if (!$('xFrom').value) $('xFrom').value = t; // 今日から
   if (!$('xTo').value) { const [y, m] = t.split('-').map(Number); $('xTo').value = ymd(new Date(y, m, 0)); } // 今月の末日まで
   showExportFrom();
   showExportTo();

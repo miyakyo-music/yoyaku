@@ -52,6 +52,7 @@ function showAdmin() {
   renderClosures();
   if (!state.dirty.rooms) setDirty('rooms', false);
   if (!state.dirty.settings) setDirty('settings', false);
+  if (document.querySelector('.tabs [aria-selected="true"]').dataset.tab === 'oplog') loadOplog(false); // 最初に開くタブは変更履歴
 }
 $('loginForm').addEventListener('submit', (e) => {
   e.preventDefault();
