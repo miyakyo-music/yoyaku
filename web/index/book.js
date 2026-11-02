@@ -399,6 +399,15 @@ function splitIdFromName(name, affiliation) {
 }
 
 /**
+ * 分けたあとの氏名の欄に、まだ学籍番号の形（前後が英数字でないもの）が残っていれば、その学籍番号を返す（予約の前に知らせる）。
+ * 学籍番号だけの入力（G6508）、氏名の後ろの学籍番号（本田理空G6508）など。なければ ''
+ */
+function idInName(name) {
+  const m = name.normalize('NFKC').match(new RegExp('(?:^|[^A-Za-z0-9])(' + STUDENT_ID + ')(?![A-Za-z0-9])'));
+  return m ? m[1].toUpperCase() : '';
+}
+
+/**
  * 予約画面の入力を読み取って確かめる。だめなら知らせを出して null を返す。
  * 通れば、送る中身（payload）と、どの送り方か（変更か・まとめて変更か・まとめて予約か）を返す
  */
@@ -462,6 +471,11 @@ function readBookingPayload() {
   const bulk = !edit && total > 1;
   if (!edit && $('bRepeat').checked && !dates.length) return fail('最終日を正しく指定してください。', 'bUntil');
   if (bulk && total > s.maxBulkCount) return fail(`まとめて予約は最大${s.maxBulkCount}件までです（今回${total}件）。部屋か期間を減らしてください。`);
+  // 氏名の欄に学籍番号が残っていれば、知らせて送らずに氏名の欄へ戻る（管理者モードでは知らせない）
+  if (!isAdminMode() && idInName(payload.name)) {
+    alert('氏名を入力してください。');
+    return fail('', 'bPerson');
+  }
   if (!edit) save_(LS.profile, { affiliation: payload.affiliation, name: payload.name, pin: payload.pin }); // 予約確定時にこの端末へ保存
   // まとめ予約の1件を変更するときに「この日以降もまとめて変更」を選んだか
   const seriesEdit = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
