@@ -1,0 +1,29 @@
+# 練習室予約の見張り（監視用の Worker）の設定。予約の Worker（cache/）とは別の Worker として動く。
+# main に push すると、GitHub Actions（.github/workflows/cache-deploy.yml）が試験のあとこの設定で Cloudflare に公開する。
+name = "yoyaku-monitor"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+# 高速キャッシュの Worker（web/config.js の CACHE_API_URL と同じ）
+CACHE_URL = "https://yoyaku-cache.kuridanho.workers.dev"
+# 予約表の画面（GitHub Pages）
+PAGES_URL = "https://miyakyo-music.github.io/yoyaku/"
+# リポジトリの gas/Code.gs（GAS で動いている版と比べるため。公開されている生のファイル）
+CODE_URL = "https://raw.githubusercontent.com/miyakyo-music/yoyaku/main/gas/Code.gs"
+# GAS のウェブアプリの URL（web/config.js の GAS_API_URL と同じ）。知らせのメールを頼む
+GAS_URL = "https://script.google.com/macros/s/AKfycbwq8wtllGrITwNSLkfmBKNYXLwnh-LbF58fUbW1fYr_SLi4tArg2Irlp__zbOtUgQ/exec"
+
+# 5分ごとに見回る（無料のプランでも使える。定期実行はアカウント全体で5つまで）
+[triggers]
+crons = ["*/5 * * * *"]
+
+# 前の回の様子を覚える Durable Object（worker.js の State。1つだけ）。無料のプランで使えるのは SQLite を使う形だけ
+[[durable_objects.bindings]]
+name = "STATE"
+class_name = "State"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["State"]
