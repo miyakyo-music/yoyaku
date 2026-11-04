@@ -1,7 +1,7 @@
 # 練習室予約システム（GitHub Pages + GAS + スプレッドシート）
 
 > 詳細な仕様は **[docs/仕様書.md](docs/仕様書.md)** を参照してください（変更のたびに更新）。
-> システム構成図は **[docs/構成図.png](docs/構成図.png)** です。元データは Eraser（eraser.io）の DSL `docs/構成図.eraser` で、Eraser に貼り付けて PNG に書き出し、差し替えて更新してください。
+> システム構成図は **[docs/構成図.png](docs/構成図.png)** です。元データは draw.io の `docs/構成図.drawio` です。draw.io（デスクトップ版または app.diagrams.net）で開いて編集し、PNG に書き出して差し替えてください。
 
 「りざぶ郎」の代替として開発した、サーバー不要・維持費ゼロ・広告なしの練習室予約Webアプリです。
 
@@ -23,7 +23,7 @@
 | `gas/appsscript.json` | GAS マニフェスト（タイムゾーン・公開設定） |
 | `.github/workflows/pages.yml` | `main` ブランチへの push 時に `web/` を GitHub Pages へデプロイするワークフロー |
 | `dev/` | ローカル動作確認環境（本番環境には不要） |
-| `docs/構成図.eraser`・`docs/構成図.png` | システム構成図（GitHub Pages・Cloudflare Workers・GAS・GitHub Actions の構成。Eraser の DSL で編集） |
+| `docs/構成図.drawio`・`docs/構成図.png` | システム構成図（GitHub Pages・Cloudflare Workers・GAS・GitHub Actions の構成。draw.io で編集） |
 | `docs/デプロイ手順.md` | GitHub・GAS の初期構築および更新手順 |
 | `docs/運用・引き継ぎマニュアル.md` | 年度切り替え・卒業時の引き継ぎ手順（A4・1枚） |
 
