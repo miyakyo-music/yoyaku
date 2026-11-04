@@ -136,7 +136,15 @@
   // ---------------- パスワード欄の「表示」ボタン（予約表・管理画面で共通） ----------------
   /** 欄の中身を見せる／伏せる */
   window.setSecretShown = function (input, shown) {
-    if (input.classList.contains('pin-input')) input.classList.toggle('revealed', shown);
+    if (input.classList.contains('pin-input')) {
+      if (input.classList.contains('revealed') !== shown) {
+        input.classList.toggle('revealed', shown);
+        // iPhone の Safari は -webkit-text-security を切り替えても、中身が変わるまで描き直さない
+        // （伏せ字のまま、最後の1文字だけ見える）。一度空にして戻し、描き直させる
+        const v = input.value;
+        if (v) { input.value = ''; input.value = v; }
+      }
+    }
     else input.type = shown ? 'text' : 'password';
     const btn = input.parentNode.querySelector('.pw-reveal');
     if (btn) { btn.textContent = shown ? '隠す' : '表示'; btn.setAttribute('aria-pressed', String(shown)); }
