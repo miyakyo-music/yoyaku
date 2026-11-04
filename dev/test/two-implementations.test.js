@@ -1,7 +1,7 @@
 /**
  * GAS（gas/Code.gs）と Cloudflare（cache/store.js・cache/worker.js）は、意図して同じ処理を2つ持っている。
  * 動く場所が違うので、片方だけ直すと静かにずれる。ここでは「同じであるべきもの」を確かめる。
- *   - 画面から呼ぶ操作の一覧が、両方にある（GAS だけの mirrorNow・passkeyRevoked を除く）
+ *   - 画面から呼ぶ操作の一覧が、両方にある（GAS だけの mirrorNow・passkeyRevoked・monitorAlert を除く）
  *   - SYSTEM の定数が同じ値（意図して違うものは理由付きで除外）
  *   - パスキーのログインの印の有効時間が、Worker・Store・GAS で同じ
  *   - API_VERSION が3か所で同じ
@@ -39,7 +39,7 @@ function apiActions(file, style) {
 }
 
 // GAS だけにある操作（GAS から Cloudflare へ写すとき・パスキーを消したときの合図。画面からは呼ばない）
-const GAS_ONLY_ACTIONS = ['mirrorNow', 'passkeyRevoked'];
+const GAS_ONLY_ACTIONS = ['mirrorNow', 'passkeyRevoked', 'monitorAlert'];
 
 // GAS だけにある定数（GAS の実行環境に合わせたもの）
 const GAS_ONLY_CONSTANTS = {

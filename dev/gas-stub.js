@@ -166,6 +166,9 @@
     }),
   };
   window.Logger = { log: console.log };
+  // メール（見張りの知らせ。Code.gs の sendMonitorMail_）: テスト環境では送らず、送ったものを覚えてコンソールに出す
+  window.MailApp = { sent: [], sendEmail(to, subject, body) { this.sent.push({ to, subject, body }); console.log('MailApp.sendEmail', to, subject); } };
+  window.Session = { getEffectiveUser: () => ({ getEmail: () => 'owner@example.test' }) };
 
   // UrlFetchApp: ブラウザの中の Cloudflare（dev/cf-stub.js）にだけつなぐ。/push（高速キャッシュの写し）は受け取ったことにする
   window.UrlFetchApp = {

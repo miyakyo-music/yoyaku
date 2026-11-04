@@ -1,15 +1,17 @@
-# main に push すると、試験が通ってから cache/ フォルダの中身（高速キャッシュ）を Cloudflare Workers に公開する（試験が通らなければ公開しない）。
+# main に push すると、試験が通ってから cache/ フォルダの中身（高速キャッシュ）と monitor/ フォルダの中身（監視用の Worker）を
+# Cloudflare Workers に公開する（試験が通らなければ公開しない。変わった方だけでなく、両方を公開し直す）。
 # 使う秘密の値（GitHub のリポジトリの Settings > Secrets and variables > Actions に登録）:
 #   CLOUDFLARE_API_TOKEN  … Cloudflare の API トークン（Workers と D1 だけを編集できる権限）
 #   CLOUDFLARE_ACCOUNT_ID … Cloudflare のアカウント ID
-#   CACHE_PUSH_TOKEN      … GAS と共有する合言葉（GAS のスクリプトプロパティ CACHE_PUSH_TOKEN と同じ値）
+#   CACHE_PUSH_TOKEN      … GAS と共有する合言葉（GAS のスクリプトプロパティ CACHE_PUSH_TOKEN と同じ値）。
+#                           監視用の Worker も、GAS にメールを頼むときの署名に使う
 # 高速キャッシュを使わない場合は、これらを登録しなければ何もしない。
 name: 高速キャッシュを Cloudflare に公開
 
 on:
   push:
     branches: [main]
-    paths: ['cache/**', '.github/workflows/cache-deploy.yml']
+    paths: ['cache/**', 'monitor/**', '.github/workflows/cache-deploy.yml']
   workflow_dispatch:
 
 permissions:
@@ -56,6 +58,18 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: cache
+          command: deploy
+          secrets: |
+            PUSH_TOKEN
+      # 監視用の Worker（monitor/）。予約の Worker とは別の Worker として公開する
+      - uses: cloudflare/wrangler-action@v3
+        if: env.HAS_TOKEN == 'true'
+        env:
+          PUSH_TOKEN: ${{ secrets.CACHE_PUSH_TOKEN }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: monitor
           command: deploy
           secrets: |
             PUSH_TOKEN

@@ -119,7 +119,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-10-28.3';
+const GAS_BUILD = '2026-11-04.1';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -145,7 +145,11 @@ const API = {
   adminPasskeyTicket: adminPasskeyTicket,
   mirrorNow: mirrorNow,
   passkeyRevoked: passkeyRevoked,
+  monitorAlert: monitorAlert,
 };
+
+/** 正本が Cloudflare でも受ける操作（Cloudflare の Worker から来るもの） */
+const ANY_PRIMARY_ACTIONS_ = ['mirrorNow', 'passkeyRevoked', 'monitorAlert'];
 
 /**
  * 画面からの呼び出し口。本文は {"action": 処理名, "params": {...}} の JSON。
@@ -159,7 +163,7 @@ function doPost(e) {
     MEMO_ = {};
     REQ_DEVICE_ = String((req.params && req.params.adminDevice) || '').slice(0, 64);
     const fn = Object.prototype.hasOwnProperty.call(API, req.action) ? API[req.action] : null;
-    if (fn && req.action !== 'mirrorNow' && req.action !== 'passkeyRevoked' && isCloudflarePrimary_()) {
+    if (fn && !ANY_PRIMARY_ACTIONS_.includes(req.action) && isCloudflarePrimary_()) {
       result = moved_(); // 正本は Cloudflare に移っている。画面はこれを受けて Cloudflare へ送り直す（web/api.js）
     } else {
       result = fn ? fn(req.params || {}) : fail_('不明な操作です。', 'BAD_REQUEST');
@@ -1295,6 +1299,44 @@ function passkeyRevoked(p) {
   return { ok: true };
 }
 
+/**
+ * 見張り（監視用の Worker、monitor/worker.js）からの頼み: 知らせのメールを送る。合言葉で署名してある（mon1.時刻.件名 改行 本文）。
+ * 宛先はスクリプトプロパティ MONITOR_MAIL_TO（カンマ区切りで複数可）。なければ、この GAS のオーナー（デプロイした人）。
+ * 合言葉が漏れたときに大量に送られないよう、1日に MONITOR_MAIL_PER_DAY 通までにする。正本がどちらでも受ける
+ */
+const MONITOR_MAIL_PER_DAY = 20;
+function monitorAlert(p) {
+  const key = passkeyKey_();
+  const at = Number(p && p.at);
+  const subject = String((p && p.subject) || '').slice(0, 200);
+  const body = String((p && p.body) || '').slice(0, 20000);
+  if (!key || !Number.isInteger(at) || Math.abs(at - Date.now() / 1000) > 600 || !subject ||
+      String(p.sig || '') !== hmac_(key, 'mon1.' + at + '.' + subject + '\n' + body)) {
+    return fail_('署名が正しくありません。', 'UNAUTHORIZED');
+  }
+  return sendMonitorMail_(subject, body);
+}
+
+/** 見張りのメールを送る（1日の上限つき）。{ok} / {ok:false, message} */
+function sendMonitorMail_(subject, body) {
+  const today = nowStr_('yyyy-MM-dd');
+  const props = PropertiesService.getScriptProperties();
+  const count = String(props.getProperty('MONITOR_MAIL_COUNT') || '').split(':');
+  const n = count[0] === today ? Number(count[1]) || 0 : 0;
+  if (n >= MONITOR_MAIL_PER_DAY) return fail_('今日はもう ' + MONITOR_MAIL_PER_DAY + ' 通送ったので、送りません。', 'LIMIT');
+  const to = String(props.getProperty('MONITOR_MAIL_TO') || '').trim() || Session.getEffectiveUser().getEmail();
+  if (!to) return fail_('宛先が分かりません（スクリプトプロパティ MONITOR_MAIL_TO を設定してください）。', 'NO_ADDRESS');
+  MailApp.sendEmail(to, subject, body + '\n（この知らせは、練習室予約システムの見張りが ' + nowStr_('yyyy-MM-dd HH:mm') + ' に送りました）\n');
+  props.setProperty('MONITOR_MAIL_COUNT', today + ':' + (n + 1));
+  return { ok: true };
+}
+
+/** メニュー「見張りのメールを試す」: 試しの1通を送る（初めて実行するときは、メールを送る許可を求められる） */
+function testMonitorMail() {
+  const r = sendMonitorMail_('【練習室予約】見張りのメールの試し', '見張りの知らせは、このアドレスに届きます。\n');
+  alert_(r.ok ? '試しのメールを送りました。受信箱を確かめてください。' : r.message);
+}
+
 /** Cloudflare に積まれた変更を、順番どおりにスプレッドシートへ写す。{ok, applied} / {ok:false, message} */
 function mirrorPull_() {
   const lock = LockService.getScriptLock();
@@ -1567,6 +1609,8 @@ function onOpen() {
     .addItem('予約の正本を Cloudflare に移す', 'migrateToCloudflare')
     .addItem('Cloudflare から全部写し直す', 'mirrorFullMenu')
     .addItem('予約の正本を GAS に戻す', 'rollbackToGas')
+    .addSeparator()
+    .addItem('見張りのメールを試す', 'testMonitorMail')
     .addToUi();
 }
 
