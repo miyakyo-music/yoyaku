@@ -1,6 +1,7 @@
 # 練習室予約システム（GitHub Pages + GAS + スプレッドシート）
 
 > 詳細な仕様は **[docs/仕様書.md](docs/仕様書.md)** を参照してください（変更のたびに更新）。
+> 全体のつながりは **[構成図](docs/構成図.png)**（[SVG](docs/構成図.svg)、作り直しは `python3 dev/architecture.py docs/構成図.svg`）。
 
 「りざぶ郎」の代替として開発した、サーバー不要・維持費ゼロ・広告なしの練習室予約Webアプリです。
 
@@ -22,6 +23,7 @@
 | `gas/appsscript.json` | GAS マニフェスト（タイムゾーン・公開設定） |
 | `.github/workflows/pages.yml` | `main` ブランチへの push 時に `web/` を GitHub Pages へデプロイするワークフロー |
 | `dev/` | ローカル動作確認環境（本番環境には不要） |
+| `docs/構成図.png`・`docs/構成図.svg` | システム構成図（GitHub Pages・Cloudflare・GAS・GitHub Actions のつながり。台本は `dev/architecture.py`） |
 | `docs/デプロイ手順.md` | GitHub・GAS の初期構築および更新手順 |
 | `docs/運用・引き継ぎマニュアル.md` | 年度切り替え・卒業時の引き継ぎ手順（A4・1枚） |
 

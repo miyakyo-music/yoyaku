@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1460" viewBox="0 0 2000 1460">
+<defs><pattern id="gr" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#e8ebef" stroke-width="1"/></pattern><filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#1f2328" flood-opacity=".10"/></filter><marker id="arblue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#1a73e8"/></marker><marker id="arred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#cf222e"/></marker><marker id="argray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#57606a"/></marker></defs>
+<rect width="2000" height="1460" fill="#f7f8fa"/><rect width="2000" height="1460" fill="url(#gr)"/>
+<text x="40" y="58" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="26" font-weight="700" fill="#1f2328">練習室予約システム 構成図</text>
+<text x="40" y="86" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#6e7781">miyakyo-music/yoyaku ・ 2026-11-04 時点のコードと設定から（dev/architecture.py で作り直せる）</text>
+<rect x="250" y="400" width="360" height="340" rx="16" fill="#f6f7f9" stroke="#8c959f" stroke-width="1.4"/>
+<g transform="translate(266,415) scale(0.8333333333333334)" fill="#24292f" stroke="none"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.6-.2.6-.5v-1.7c-2.6.6-3.2-1.2-3.2-1.2-.4-1.1-1-1.4-1-1.4-.9-.6.1-.6.1-.6.9.1 1.4 1 1.4 1 .8 1.5 2.2 1 2.7.8.1-.6.3-1 .6-1.2-2.1-.2-4.3-1.1-4.3-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.5 1 2.6 0 3.7-2.2 4.5-4.3 4.7.3.3.6.9.6 1.8v2.6c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z"/></g>
+<text x="294" y="431" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="16" font-weight="700" fill="#24292f">GitHub Pages</text>
+<rect x="700" y="120" width="650" height="820" rx="16" fill="#fff5ec" stroke="#f38020" stroke-width="1.4"/>
+<g transform="translate(716,135) scale(0.8333333333333334)" fill="none" stroke="#f38020" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4 4 0 0 0 .6-8 5.8 5.8 0 0 0-11.1-1.2A4.6 4.6 0 0 0 7 18.5z"/></g>
+<text x="744" y="151" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="16" font-weight="700" fill="#f38020">Cloudflare（yoyaku-cache）</text>
+<rect x="1430" y="120" width="520" height="820" rx="16" fill="#f1f8f3" stroke="#34a853" stroke-width="1.4"/>
+<g transform="translate(1446,135) scale(0.8333333333333334)" fill="#1e7e34" stroke="none"><path d="M20.5 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h4.8a4.2 4.2 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.6-3.9 2.6-6.6z"/><path d="M12 21c2.4 0 4.5-.8 5.9-2.2l-2.9-2.2c-.8.5-1.8.9-3 .9-2.3 0-4.3-1.6-5-3.7H4v2.3A9 9 0 0 0 12 21zM7 13.8a5.4 5.4 0 0 1 0-3.6V7.9H4a9 9 0 0 0 0 8.2zM12 6.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 4 7.9l3 2.3c.7-2.1 2.7-3.6 5-3.6z"/></g>
+<text x="1474" y="151" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="16" font-weight="700" fill="#1e7e34">Google（Apps Script ＋ スプレッドシート）</text>
+<rect x="250" y="1090" width="1240" height="320" rx="16" fill="#ffffff" stroke="#8c959f" stroke-width="1.4" stroke-dasharray="6 5"/>
+<g transform="translate(266,1105) scale(0.8333333333333334)" fill="#24292f" stroke="none"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.6-.2.6-.5v-1.7c-2.6.6-3.2-1.2-3.2-1.2-.4-1.1-1-1.4-1-1.4-.9-.6.1-.6.1-.6.9.1 1.4 1 1.4 1 .8 1.5 2.2 1 2.7.8.1-.6.3-1 .6-1.2-2.1-.2-4.3-1.1-4.3-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.5 1 2.6 0 3.7-2.2 4.5-4.3 4.7.3.3.6.9.6 1.8v2.6c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z"/></g>
+<text x="294" y="1121" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="16" font-weight="700" fill="#24292f">GitHub Actions（main に push で動く）</text>
+<polyline points="155,450 205,450 205,548 388,548" fill="none" stroke="#1a73e8" stroke-width="1.7" marker-end="url(#arblue)"/>
+<text x="330" y="538" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#1a73e8" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">HTTPS</text>
+<polyline points="155,680 205,680 205,572 388,572" fill="none" stroke="#1a73e8" stroke-width="1.7" marker-end="url(#arblue)"/>
+<polyline points="475,545 898,545" fill="none" stroke="#1a73e8" stroke-width="1.7" marker-end="url(#arblue)"/>
+<text x="686" y="535" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#1a73e8" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">予約表を読む ・ 予約する</text>
+<polyline points="475,577 898,577" fill="none" stroke="#1a73e8" stroke-width="1.7" marker-end="url(#arblue)"/>
+<text x="686" y="600" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#1a73e8" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">/schedule  /api  /live  /passkey</text>
+<polyline points="430,515 430,215 1555,215 1555,518" fill="none" stroke="#1a73e8" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#arblue)"/>
+<text x="1000" y="205" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#1a73e8" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">正本が GAS のとき ・ 写しが使えないとき（GAS から直接）</text>
+<polyline points="985,560 1138,560" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1060" y="550" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">/api</text>
+<polyline points="920,515 920,448" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="910" y="490" text-anchor="end" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">写しを読む</text>
+<polyline points="962,515 962,480 1180,480 1180,448" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1075" y="472" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">変更を知らせる</text>
+<polyline points="1222,540 1528,540" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1375" y="530" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">変更の10秒後に合図（mirrorNow）</text>
+<polyline points="1528,572 1222,572" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1375" y="595" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">変更を読みに行く（/mirror/changes）</text>
+<polyline points="1592,518 1592,262 940,262 940,290" fill="none" stroke="#57606a" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#argray)"/>
+<text x="1265" y="254" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">/push（正本が GAS のとき）</text>
+<polyline points="1612,560 1768,560" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1690" y="550" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">写す</text>
+<polyline points="1570,752 1570,672" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1582" y="718" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">5分ごとに起動</text>
+<polyline points="1138,775 1015,775 1015,680" fill="none" stroke="#cf222e" stroke-width="1.7" marker-end="url(#arred)"/>
+<text x="1025" y="765" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#cf222e" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">GET / 正本・写し・版</text>
+<polyline points="1138,808 1080,808 1080,912 400,912 400,675" fill="none" stroke="#cf222e" stroke-width="1.7" marker-end="url(#arred)"/>
+<text x="700" y="904" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#cf222e" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">画面が開けるか</text>
+<polyline points="1222,790 1470,790 1470,672" fill="none" stroke="#cf222e" stroke-width="1.7" marker-end="url(#arred)"/>
+<text x="1346" y="780" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#cf222e" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">悪い状態が続いたら（monitorAlert）</text>
+<polyline points="1612,590 1700,590 1700,790 1768,790" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="1708" y="700" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">送る</text>
+<polyline points="155,1250 328,1250" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="240" y="1240" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">git push</text>
+<polyline points="412,1250 518,1250" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<polyline points="560,1350 560,1375 1130,1375 1130,1348" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<text x="845" y="1397" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">試験に通ったときだけ</text>
+<polyline points="750,1375 750,1348" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<polyline points="940,1375 940,1348" fill="none" stroke="#57606a" stroke-width="1.7" marker-end="url(#argray)"/>
+<polyline points="750,1208 750,1060 470,1060 470,675" fill="none" stroke="#57606a" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#argray)"/>
+<text x="480" y="1052" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">web/</text>
+<polyline points="940,1208 940,680" fill="none" stroke="#57606a" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#argray)"/>
+<text x="950" y="1040" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">cache/ ・ monitor/</text>
+<polyline points="1130,1208 1130,1000 1505,1000 1505,680" fill="none" stroke="#57606a" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#argray)"/>
+<text x="1515" y="980" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#57606a" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">gas/</text>
+<polyline points="1350,1208 1350,960 1260,960 1260,905" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 5" marker-end="url(#arred)"/>
+<text x="1360" y="985" text-anchor="start" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="13" fill="#cf222e" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">両方の Worker を見る</text>
+<rect x="73" y="413" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(91,431) scale(1.5833333333333333)" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></g>
+<text x="110" y="513" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f7f8fa" stroke-width="6">学生・利用者</text>
+<text x="110" y="535" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">ブラウザ / ホーム画面</text>
+<rect x="73" y="643" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(91,661) scale(1.5833333333333333)" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.8 2.9-6 6.5-6s6.5 2.2 6.5 6"/><circle cx="17" cy="9" r="2.8"/><path d="M16.5 14.2c3 .3 5 2.3 5 5.3"/></g>
+<text x="110" y="743" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f7f8fa" stroke-width="6">教員・管理者</text>
+<text x="110" y="765" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">管理画面 / パスキー</text>
+<rect x="73" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(91,1231) scale(1.5833333333333333)" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0 5 5L21 13l-8 8-3-3 8-8M9.5 17.5 3 11l2.5-2.5"/><path d="M14.7 6.3 17.5 3.5a4.5 4.5 0 0 0-6 6l-8 8 3 3 8-8a4.5 4.5 0 0 0 6-6l-2.8 2.8-2.3-.7z" /></g>
+<text x="110" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f7f8fa" stroke-width="6">保守担当</text>
+<text x="110" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f7f8fa" stroke-width="5">git push</text>
+<rect x="393" y="523" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(411,541) scale(1.5833333333333333)" fill="none" stroke="#24292f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="16" rx="2.5"/><path d="M2.5 9h19"/><circle cx="5.5" cy="6.5" r=".6"/><circle cx="7.8" cy="6.5" r=".6"/></g>
+<text x="430" y="623" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f6f7f9" stroke-width="6">予約表・管理画面</text>
+<text x="430" y="645" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f6f7f9" stroke-width="5">web/ ・ 静的ファイル</text>
+<text x="430" y="662" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f6f7f9" stroke-width="5">Service Worker</text>
+<rect x="903" y="523" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(921,541) scale(1.5833333333333333)" fill="none" stroke="#f38020" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 20.5 7.3v9.4L12 21.5 3.5 16.7V7.3z"/><path d="m9.5 9-2.5 3 2.5 3M14.5 9l2.5 3-2.5 3"/></g>
+<text x="940" y="623" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#fff5ec" stroke-width="6">Worker</text>
+<text x="940" y="645" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">worker.js</text>
+<text x="940" y="662" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">入口・パスキーの確認</text>
+<rect x="1143" y="523" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1161,541) scale(1.5833333333333333)" fill="none" stroke="#f38020" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v13c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-13"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/></g>
+<text x="1180" y="623" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#fff5ec" stroke-width="6">Store</text>
+<text x="1180" y="645" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">予約の正本 / store.js</text>
+<text x="1180" y="662" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">SQLite ・ 30日前まで戻せる</text>
+<rect x="1143" y="293" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1161,311) scale(1.5833333333333333)" fill="none" stroke="#f38020" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M8 8a5.6 5.6 0 0 0 0 8M16 8a5.6 5.6 0 0 1 0 8M5 5a9.9 9.9 0 0 0 0 14M19 5a9.9 9.9 0 0 1 0 14"/></g>
+<text x="1180" y="393" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#fff5ec" stroke-width="6">Hub</text>
+<text x="1180" y="415" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">リアルタイム同期</text>
+<text x="1180" y="432" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">WebSocket /live</text>
+<rect x="903" y="293" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(921,311) scale(1.5833333333333333)" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v13c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-13"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/></g>
+<text x="940" y="393" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#fff5ec" stroke-width="6">D1</text>
+<text x="940" y="415" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">予約表の写し</text>
+<text x="940" y="432" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">GAS が正本のとき</text>
+<rect x="1143" y="753" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1161,771) scale(1.5833333333333333)" fill="none" stroke="#cf222e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12h4l2.5-6 4.5 12 2.5-6h5.5"/></g>
+<text x="1180" y="853" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#fff5ec" stroke-width="6">監視用 Worker</text>
+<text x="1180" y="875" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">yoyaku-monitor / 5分ごと</text>
+<text x="1180" y="892" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#fff5ec" stroke-width="5">GAS の版を main と比べる</text>
+<rect x="1533" y="523" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1551,541) scale(1.5833333333333333)" fill="none" stroke="#1a73e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m9.5 8.5-3.5 3.5 3.5 3.5M14.5 8.5l3.5 3.5-3.5 3.5"/></g>
+<text x="1570" y="623" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f1f8f3" stroke-width="6">GAS</text>
+<text x="1570" y="645" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f1f8f3" stroke-width="5">Code.gs / ウェブアプリ</text>
+<text x="1570" y="662" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f1f8f3" stroke-width="5">もう一つの正本の道</text>
+<rect x="1773" y="523" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1791,541) scale(1.5833333333333333)" fill="none" stroke="#34a853" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M4 8.5h16M4 13h16M4 17.5h16M10 8.5v13"/></g>
+<text x="1810" y="623" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f1f8f3" stroke-width="6">スプレッドシート</text>
+<text x="1810" y="645" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f1f8f3" stroke-width="5">写し ・ 6枚のシート</text>
+<text x="1810" y="662" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f1f8f3" stroke-width="5">閲覧・控え用</text>
+<rect x="1533" y="753" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1551,771) scale(1.5833333333333333)" fill="none" stroke="#34a853" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></g>
+<text x="1570" y="853" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f1f8f3" stroke-width="6">トリガー</text>
+<text x="1570" y="875" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f1f8f3" stroke-width="5">cacheRetry / 5分ごと</text>
+<rect x="1773" y="753" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1791,771) scale(1.5833333333333333)" fill="none" stroke="#34a853" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></g>
+<text x="1810" y="853" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#f1f8f3" stroke-width="6">メール</text>
+<text x="1810" y="875" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#f1f8f3" stroke-width="5">MailApp / 保守担当へ</text>
+<rect x="333" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(351,1231) scale(1.5833333333333333)" fill="none" stroke="#24292f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="8" r="2.2"/><path d="M6 7.2v9.6M18 10.2c0 4-6 3.5-11 7"/></g>
+<text x="370" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#ffffff" stroke-width="6">リポジトリ</text>
+<text x="370" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">main</text>
+<rect x="523" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(541,1231) scale(1.5833333333333333)" fill="none" stroke="#1a7f37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m7.5 12.3 3 3 6-6.3"/></g>
+<text x="560" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#ffffff" stroke-width="6">試験</text>
+<text x="560" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">node --test</text>
+<rect x="713" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(731,1231) scale(1.5833333333333333)" fill="none" stroke="#24292f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"/></g>
+<text x="750" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#ffffff" stroke-width="6">Pages に公開</text>
+<text x="750" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">pages.yml</text>
+<rect x="903" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(921,1231) scale(1.5833333333333333)" fill="none" stroke="#f38020" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"/></g>
+<text x="940" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#ffffff" stroke-width="6">Cloudflare に公開</text>
+<text x="940" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">cache-deploy.yml</text>
+<rect x="1093" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1111,1231) scale(1.5833333333333333)" fill="none" stroke="#1a73e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"/></g>
+<text x="1130" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#ffffff" stroke-width="6">GAS に反映</text>
+<text x="1130" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">clasp / gas-deploy.yml</text>
+<rect x="1313" y="1213" width="74" height="74" rx="14" fill="#fff" stroke="#d9dde3" filter="url(#sh)"/>
+<g transform="translate(1331,1231) scale(1.5833333333333333)" fill="none" stroke="#cf222e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12h4l2.5-6 4.5 12 2.5-6h5.5"/></g>
+<text x="1350" y="1313" text-anchor="middle" font-family="'Hiragino Sans','Noto Sans JP','IPAPGothic',sans-serif" font-size="17" font-weight="700" fill="#1f2328" paint-order="stroke" stroke="#ffffff" stroke-width="6">見張り（予備）</text>
+<text x="1350" y="1335" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">monitor.yml / 1日1回</text>
+<text x="1350" y="1352" text-anchor="middle" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12.5" fill="#6e7781" paint-order="stroke" stroke="#ffffff" stroke-width="5">失敗で GitHub からメール</text>
+</svg>
