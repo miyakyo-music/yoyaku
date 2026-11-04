@@ -68,6 +68,9 @@ $('detailDialog').addEventListener('close', () => {
   for (const el of $('main').querySelectorAll('.blk.viewing')) el.classList.remove('viewing');
 });
 
+// パスワードを打ち直したら、前の「入力してください」の知らせを消す（入っているのに出たままに見えるため）
+$('dPin').addEventListener('input', () => { $('dError').textContent = ''; });
+
 $('dCopy').addEventListener('click', () => {
   const r = state.detail;
   $('detailDialog').close();
