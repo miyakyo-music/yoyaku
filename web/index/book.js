@@ -401,11 +401,16 @@ function splitIdFromName(name, affiliation) {
 
 /**
  * 分けたあとの氏名の欄に、まだ学籍番号の形（前後が英数字でないもの）が残っていれば、その学籍番号を返す。
- * 学籍番号だけの入力（G6508）、氏名の後ろの学籍番号（本田理空G6508）など。なければ ''
+ * 学籍番号だけの入力（G6508）、氏名の後ろの学籍番号（本田理空G6508）など。
+ * 氏名の欄が、桁の足りない番号（g80）や数字（8056）・記号だけで、ほかの文字がないときも、その文字を返す
+ * （「B4バンド」のように、ほかの文字があれば通す）。なければ ''
  */
 function idInName(name) {
-  const m = name.normalize('NFKC').match(new RegExp('(?:^|[^A-Za-z0-9])(' + STUDENT_ID + ')(?![A-Za-z0-9])'));
-  return m ? m[1].toUpperCase() : '';
+  const n = name.normalize('NFKC');
+  const m = n.match(new RegExp('(?:^|[^A-Za-z0-9])(' + STUDENT_ID + ')(?![A-Za-z0-9])'));
+  if (m) return m[1].toUpperCase();
+  const rest = n.replace(/[A-Za-z]{1,3}\d+|\d{2}[A-Za-z]\d+/g, '').replace(/[\s\d\p{P}\p{S}]/gu, '');
+  return n.trim() && !rest ? n.trim() : '';
 }
 
 /**
