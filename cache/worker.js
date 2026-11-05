@@ -378,11 +378,16 @@ function icsResponse(url) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(start) || !/^\d{1,2}:\d{2}$/.test(end)) {
     return new Response('bad request', { status: 400 });
   }
-  const stamp = (d, t) => {
+  // 日本時間の日付と時刻を YYYYMMDDTHHMMSS にする。utc なら世界標準時（末尾 Z）に直す
+  const fmt = (d, t, utc) => {
     const [y, mo, da] = d.split('-').map(Number);
     const [h, mi] = t.split(':').map(Number);
-    return new Date(Date.UTC(y, mo - 1, da, h - 9, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const s = new Date(Date.UTC(y, mo - 1, da, h - (utc ? 9 : 0), mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    return utc ? s : s.replace(/Z$/, '');
   };
+  const stamp = (d, t) => fmt(d, t, true);
+  // 予定の時刻は日本時間のまま Asia/Tokyo を付けて書く（世界標準時で書くと iPhone で時間帯が GMT と表示されるため）。DTSTAMP は決まりどおり世界標準時
+  const local = (d, t) => fmt(d, t, false);
   const text = (t) => String(t).replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, (c) => '\\' + c);
   const room = q('room') || '練習室';
   // サイトの URL は全体を確かめる（改行などを入れて、カレンダーのファイルに好きな行を差し込ませないように）
@@ -390,8 +395,11 @@ function icsResponse(url) {
   const id = (q('id').replace(/[^\w-]/g, '') || stamp(date, start)) + '@miyakyo-music.github.io';
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//miyakyo-music//yoyaku//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-TIMEZONE:Asia/Tokyo',
+    'BEGIN:VTIMEZONE', 'TZID:Asia/Tokyo', 'BEGIN:STANDARD', 'DTSTART:19700101T000000',
+    'TZOFFSETFROM:+0900', 'TZOFFSETTO:+0900', 'TZNAME:JST', 'END:STANDARD', 'END:VTIMEZONE',
     'BEGIN:VEVENT', `UID:${id}`, `DTSTAMP:${stamp(date, start)}`,
-    `DTSTART:${stamp(date, start)}`, `DTEND:${stamp(date, end)}`,
+    `DTSTART;TZID=Asia/Tokyo:${local(date, start)}`, `DTEND;TZID=Asia/Tokyo:${local(date, end)}`,
     `SUMMARY:${text(room + 'の予約')}`, `LOCATION:${text('宮城教育大学 音楽棟')}`,
     ...(site ? [`URL:${site}`, `DESCRIPTION:${text(site)}`] : []),
     'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:練習室の予約', 'TRIGGER:-PT15M', 'END:VALARM',

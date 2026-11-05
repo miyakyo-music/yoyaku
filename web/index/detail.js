@@ -175,17 +175,21 @@ async function sendCancel(r, pin, scope, series, targets, keepalive) {
 const calRoom = (r, room) => (room ? room.name : r.roomId);
 function calTitle(r, room) { return `${calRoom(r, room)}の予約`; }
 const CAL_PLACE = '宮城教育大学 音楽棟';
-/** 日本時間の日付と時刻を、カレンダーの書式（世界標準時 YYYYMMDDTHHMMSSZ）にする */
+/**
+ * 日本時間の日付と時刻を、カレンダーの書式（日本時間のまま YYYYMMDDTHHMMSS）にする。
+ * 世界標準時（末尾 Z）で書くと、iPhone のカレンダーで時間帯が GMT と表示されるため、Asia/Tokyo を付けて書く
+ */
+const CAL_TZ = 'Asia/Tokyo';
 function calStamp(date, hhmm) {
   const [y, mo, d] = date.split('-').map(Number);
   const [h, mi] = hhmm.split(':').map(Number);
-  return new Date(Date.UTC(y, mo - 1, d, h - 9, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  return new Date(Date.UTC(y, mo - 1, d, h, mi)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, '');
 }
 function googleCalendarUrl(r, room) {
   const q = new URLSearchParams({
     action: 'TEMPLATE', text: calTitle(r, room),
     dates: `${calStamp(r.date, r.start)}/${calStamp(r.date, r.end)}`,
-    location: CAL_PLACE, details: location.origin + location.pathname,
+    location: CAL_PLACE, details: location.origin + location.pathname, ctz: CAL_TZ,
   });
   return 'https://calendar.google.com/calendar/render?' + q.toString();
 }
@@ -203,10 +207,13 @@ function downloadIcs(r, room) {
   const icsText = (t) => String(t).replace(/[\\;,]/g, (c) => '\\' + c);
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//miyakyo-music//yoyaku//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    `X-WR-TIMEZONE:${CAL_TZ}`,
+    'BEGIN:VTIMEZONE', `TZID:${CAL_TZ}`, 'BEGIN:STANDARD', 'DTSTART:19700101T000000',
+    'TZOFFSETFROM:+0900', 'TZOFFSETTO:+0900', 'TZNAME:JST', 'END:STANDARD', 'END:VTIMEZONE',
     'BEGIN:VEVENT',
     `UID:${r.id}@miyakyo-music.github.io`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
-    `DTSTART:${calStamp(r.date, r.start)}`, `DTEND:${calStamp(r.date, r.end)}`,
+    `DTSTART;TZID=${CAL_TZ}:${calStamp(r.date, r.start)}`, `DTEND;TZID=${CAL_TZ}:${calStamp(r.date, r.end)}`,
     `SUMMARY:${icsText(calTitle(r, room))}`, `LOCATION:${icsText(CAL_PLACE)}`,
     `DESCRIPTION:${icsText(location.origin + location.pathname)}`,
     'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:練習室の予約', 'TRIGGER:-PT15M', 'END:VALARM',
