@@ -85,3 +85,26 @@ const syncDepth = () => {
 };
 const depthWatch = new MutationObserver(syncDepth);
 for (const d of dialogs) depthWatch.observe(d, { attributes: true, attributeFilter: ['open'] });
+
+// iPhone の Safari は、小窓の入力欄でキーボードを出すと、ページ全体を上へずらす（window のスクロール）。
+// キーボードを出したまま「予約確定」などで小窓を閉じると、そのずれが戻らずに残り、
+// 上部の帯が画面の上にはみ出して、予約表が上へずれたままになることがあった。
+// この画面は表（.main）の中だけがスクロールし、ページ全体の縦のスクロール位置は常に 0 が正しいので、
+// 小窓が閉じていて入力欄も選ばれていないときに縦のずれが残っていたら 0 に戻す（横は狭い画面の横スクロールがあるので触らない）。
+const typing = () => {
+  const el = document.activeElement;
+  return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes(el.type)));
+};
+const unshiftPage = () => {
+  if (anyDialogOpen() || typing()) return;
+  if (window.scrollY !== 0) window.scrollTo(window.scrollX, 0);
+};
+for (const dlg of dialogs) {
+  dlg.addEventListener('close', () => {
+    if (!anyDialogOpen() && typing()) document.activeElement.blur(); // 閉じた小窓の欄が選ばれたままだとキーボードが残る
+    unshiftPage();
+    setTimeout(unshiftPage, 350); // キーボードが下がりきったあとにも直す
+  });
+}
+document.addEventListener('focusout', () => setTimeout(unshiftPage, 100));
+if (window.visualViewport) visualViewport.addEventListener('resize', unshiftPage); // キーボードが閉じたとき
