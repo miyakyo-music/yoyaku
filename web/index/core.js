@@ -20,6 +20,7 @@ const LS = {
 const APP_VERSION = window.APP_VERSION; // web/api.js
 const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
 const ADMIN_SESSION_KEY = 'prr.adminPw'; // 管理画面と共通（このタブで管理画面にログインしている間は管理者モード）
+const ADMIN_LOGIN_KEY = 'prr.adminLogin'; // 管理画面と共通（ログインのトークン。期限内なら、タブを閉じても管理者モード）
 const ADMIN_ONLY = '管理者のみ';
 const FAV = '★fav', FAV_EDIT = '★edit'; // 絞り込みの欄の「★ お気に入り」「★ お気に入りを選ぶ…」
 const STOPPED = '使用停止';
@@ -63,7 +64,7 @@ const state = {
   skipConflicts: false,
   loadFailed: false,    // いまの表示の期間を読み込めなかった（前の期間の表を出さないため）
   bookSending: false,   // まとめて予約・まとめて変更を送っている間（送信ボタンを押せないままにする）
-  adminPw: sessionGet(ADMIN_SESSION_KEY),
+  adminPw: sessionGet(ADMIN_SESSION_KEY) || adminLoginGet(),
   cache: new Map(),     // 期間（"from|to"）→ { res, at }  取得済みの予約データ
   cacheGen: 0,          // キャッシュを破棄した回数（破棄前に始まった取得結果を保存しないため）
   inflight: new Map(),  // 取得中の期間 → Promise
@@ -123,13 +124,29 @@ function forgetSnapshot() {
 }
 /** 予約表の端末の覚え（key を指定して読む）。管理画面の sessionGet（admin/core.js）とは鍵の持ち方が違う */
 function sessionGet(key) { try { return sessionStorage.getItem(key) || ''; } catch (e) { return ''; } }
+function adminLoginGet() { try { return localStorage.getItem(ADMIN_LOGIN_KEY) || ''; } catch (e) { return ''; } }
 function isAdminMode() { return !!state.adminPw; }
 function exitAdminMode(message) {
   state.adminPw = '';
   try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) { /* 無視 */ }
+  try { localStorage.removeItem(ADMIN_LOGIN_KEY); } catch (e) { /* 無視 */ }
   forgetSnapshot();
   $('adminMode').hidden = true;
   if (message) toast(message, 'error');
+}
+
+/**
+ * 端末に保存したログインのトークンで管理者モードのとき、出してから1日以上たっていれば出し直す
+ * （予約表だけを開いていても、7日以内に開けば管理者モードが続くように。トークンの有効時間は7日、仕様書 3.3）
+ */
+async function renewAdminLogin() {
+  const m = /^pk1\.(\d+)\./.exec(state.adminPw || '');
+  if (!m || state.adminPw !== adminLoginGet() || Number(m[1]) - Date.now() / 1000 > 6 * 86400) return;
+  let res = null;
+  try { res = await callApi('adminGetData', { adminPassword: state.adminPw }); } catch (e) { return; }
+  if (!res || !res.ok || !res.loginToken || state.adminPw !== adminLoginGet()) return;
+  try { localStorage.setItem(ADMIN_LOGIN_KEY, res.loginToken); } catch (e) { return; }
+  state.adminPw = res.loginToken;
 }
 
 /** 部屋の表示名（特徴タグ付き）: 選択肢や詳細表示で使う。例「練習室16（大・GP）」 */
