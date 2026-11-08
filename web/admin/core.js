@@ -2,13 +2,14 @@
 'use strict';
 
 const SESSION_KEY = 'prr.adminPw';
+const LOGIN_KEY = 'prr.adminLogin'; // ログインのトークン（localStorage）。タブを閉じても、期限まではログインしたままにする
 // 管理画面を開いた印。予約表に戻ったとき、前回の表を使わずに最新を読み込ませる（部屋・設定の変更をすぐ反映するため）
 try { sessionStorage.setItem('prr.fromAdmin', '1'); } catch (e) { /* 保存できない環境では何もしない */ }
 const WEEKDAY_NAMES = '日月火水木金土';
 const RESTRICTIONS = [['', '制限なし'], ['管理者のみ', '管理者のみ'], ['限定公開', '限定公開'], ['使用停止', '使用停止']];
 const $ = (id) => document.getElementById(id);
 const state = {
-  pw: sessionGet(),
+  pw: sessionGet() || loginGet(),
   data: null,
   rooms: [],       // 編集中の部屋一覧
   closures: [],
@@ -21,6 +22,11 @@ const state = {
 /** 管理画面のログインの印（管理用パスワード）を読む。予約表の sessionGet（index/core.js）と違い、鍵は1つだけ */
 function sessionGet() { try { return sessionStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
 function sessionSet(v) { try { if (v) sessionStorage.setItem(SESSION_KEY, v); else sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* 保存できない環境では毎回ログイン */ } }
+/** ログインのトークン（パスワードそのものではない）を端末に保存する。空なら消す */
+function loginGet() { try { return localStorage.getItem(LOGIN_KEY) || ''; } catch (e) { return ''; } }
+function loginSet(v) { try { if (v) localStorage.setItem(LOGIN_KEY, v); else localStorage.removeItem(LOGIN_KEY); } catch (e) { /* 保存できない環境では、タブを閉じたらログインし直し */ } }
+/** adminGetData の返事に新しいトークンがあれば保存する（開くたびに期限が延びる） */
+function keepLogin(res) { if (res && res.ok && res.loginToken) loginSet(res.loginToken); }
 function pad(n) { return String(n).padStart(2, '0'); }
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -58,6 +64,7 @@ async function api(fn, payload) {
 async function fetchLatest() {
   const res = await api('adminGetData', {});
   if (!res.ok) throw new Error(res.message);
+  keepLogin(res);
   return res;
 }
 /** 保存を待っている間、form などの中を触れなくする（見た目は変えない）。保存後の描き直しで、その間の入力が消えないように */

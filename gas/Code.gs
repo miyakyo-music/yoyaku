@@ -61,7 +61,7 @@ const SYSTEM = {
   MAX_LIMITED_FAILURES: 30, // 限定公開のパスワードを、全体でこの回数間違えると一定時間受け付けない
   MAX_VIEW_FAILURES: 30, // 閲覧パスワードを、全体でこの回数間違えると一定時間受け付けない
   FAILURE_LOCK_SECONDS: 600,
-  PASSKEY_TOKEN_HOURS: 12, // パスキーでのログインの印の有効時間（cache/worker.js の TOKEN_HOURS と同じ）
+  PASSKEY_TOKEN_HOURS: 168, // ログインのトークン（pk1）の有効時間。7日。管理画面を開くたびに出し直す（cache/worker.js の TOKEN_HOURS・cache/store.js と同じ）
   // 予約の登録・変更・取消を、全体で1分あたりこの件数までにする（Google の無料枠を使い切らないための上限）。
   // 1件の処理に約1秒かかり、同時には1件ずつしか書き込めないので、実際に受け付けられるのは多くても毎分60件ほど。
   // 練習室の予約で毎分30件を超えることは通常ないため、ふだんの利用には影響しない
@@ -119,7 +119,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-11-04.1';
+const GAS_BUILD = '2026-11-09.1';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -729,6 +729,7 @@ function adminGetData(p) {
     spreadsheetUrl: ss.getUrl(), // 管理画面の「スプレッドシートを開く」用（開けるのは共有されている人だけ）
     openBugs: openBugCount_(ss),
     adminDevice: rememberDevice_(REQ_DEVICE_), // この端末を「ログインしたことのある端末」として覚える
+    loginToken: loginToken_(p.adminPassword), // 管理画面が端末に保存し、次に開いたときのログインに使う
   };
 }
 
@@ -1892,15 +1893,28 @@ function verifyPasskeyToken_(token) {
   const m = /^pk1\.(\d+)\.([\w-]{1,64})\.([\w-]+)$/.exec(token);
   const key = passkeyKey_();
   if (!m || !key || hmac_(key, 'pk1.' + m[1] + '.' + m[2]) !== m[3]) return '管理用パスワードが一致しません。';
-  if (Number(m[1]) < Date.now() / 1000) return 'パスキーでのログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
-  // パスキーの削除・管理用パスワードの変更より前に出た印は使えない（なくした端末に残った印で入られないように）
-  if (Number(m[1]) - SYSTEM.PASSKEY_TOKEN_HOURS * 3600 <= Number(prop_('PK_NOT_BEFORE') || 0)) {
+  if (Number(m[1]) < Date.now() / 1000) return 'ログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
+  // パスキーの削除・管理用パスワードの変更より前に出た印は使えない（なくした端末に残った印で入られないように）。
+  // 同じ秒に出たものは使える（パスワードを変えた直後に出し直したトークンを使えるように）
+  if (Number(m[1]) - SYSTEM.PASSKEY_TOKEN_HOURS * 3600 < Number(prop_('PK_NOT_BEFORE') || 0)) {
     return 'パスキーの削除か管理用パスワードの変更があったため、ログインし直してください（パスキーか管理用パスワード）。';
   }
   return null;
 }
 
-/** この時刻（秒）までに出たパスキーでのログインの印を使えなくする（今より前の時刻には戻さない） */
+/**
+ * ログインのトークン（pk1.有効期限.番号.署名）を出し直す。管理画面がこれを端末に保存し、次に開いたときに自動でログインする。
+ * 番号は、パスキーのトークンならそのまま引き継ぎ、管理用パスワードなら pw。合言葉が設定されていなければ出さない（cache/store.js と同じ）
+ */
+function loginToken_(password) {
+  const key = passkeyKey_();
+  if (!key) return '';
+  const m = /^pk1\.\d+\.([\w-]{1,64})\./.exec(String(password || ''));
+  const body = 'pk1.' + (Math.floor(Date.now() / 1000) + SYSTEM.PASSKEY_TOKEN_HOURS * 3600) + '.' + (m ? m[1] : 'pw');
+  return body + '.' + hmac_(key, body);
+}
+
+/** この時刻（秒）より前に出たパスキーでのログインの印を使えなくする（今より前の時刻には戻さない） */
 function revokePasskeyTokens_(at) {
   if (at > Number(prop_('PK_NOT_BEFORE') || 0)) setProp_('PK_NOT_BEFORE', String(at));
 }

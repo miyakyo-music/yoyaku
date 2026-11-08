@@ -95,7 +95,7 @@ async function ensureTable(env) {
 
 // ---------------- パスキー ----------------
 
-const TOKEN_HOURS = 12;   // パスキーでのログインが続く時間
+const TOKEN_HOURS = 168;  // パスキーでのログインが続く時間（7日。gas/Code.gs・store.js の PASSKEY_TOKEN_HOURS と同じ）
 const CHALLENGE_SEC = 180; // 確認用の文字列の有効時間
 const MAX_PASSKEYS = 30;
 

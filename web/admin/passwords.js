@@ -82,6 +82,8 @@ $('pwForm').addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(res.message);
     state.pw = pw;
     sessionSet(pw);
+    loginSet(''); // 変える前のトークンは使えなくなったので、新しいパスワードで出し直してもらう
+    fetchLatest().catch(() => { /* 出し直せなくても、このタブではログインしたまま */ });
     $('pwNew').value = $('pwNew2').value = '';
     toast('管理用パスワードを変更しました');
   } catch (ex) {

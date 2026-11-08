@@ -208,14 +208,19 @@
   // パスワード変更・パスキー（パスワードを変えると、それより前に出たパスキーでのログインの印は使えない）
   const pkToken = (exp) => 'pk1.' + exp + '.devtag.' + hmac_('devtoken', 'pk1.' + exp + '.devtag');
   const nowSec = Math.floor(Date.now() / 1000);
-  const pkOld = pkToken(nowSec + 12 * 3600 - 60);
+  const pkOld = pkToken(nowSec + 168 * 3600 - 60);
   rec('pkBefore', await c('adminGetData', { adminPassword: pkOld }), null);
   rec('pwShort', await c('adminChangePassword', { adminPassword: A, newPassword: '123' }));
   rec('pwChange', await c('adminChangePassword', { adminPassword: A, newPassword: 'newpass1' }));
   rec('pkAfter', await c('adminGetData', { adminPassword: pkOld }));
-  rec('pkNew', await c('adminGetData', { adminPassword: pkToken(nowSec + 12 * 3600 + 60) }), null);
+  // 管理画面を開くたびに、ログインのトークンを出し直す（パスキーの番号は引き継ぐ。パスワードなら pw）
+  r = rec('pkNew', await c('adminGetData', { adminPassword: pkToken(nowSec + 168 * 3600 + 60) }), null);
+  out[out.length - 1][4] = /^pk1\.\d+\.devtag\.[\w-]+$/.test(r.loginToken || '');
   rec('pwOld', await c('adminGetData', { adminPassword: A }));
-  rec('pwNew', await c('adminGetData', { adminPassword: 'newpass1' }), null);
+  r = rec('pwNew', await c('adminGetData', { adminPassword: 'newpass1' }), null);
+  out[out.length - 1][4] = /^pk1\.\d+\.pw\.[\w-]+$/.test(r.loginToken || '');
+  rec('tokenLogin', await c('adminGetData', { adminPassword: r.loginToken }), null);
+  rec('tokenBad', await c('adminGetData', { adminPassword: String(r.loginToken).replace(/\.pw\./, '.px.') }));
   rec('pwBack', await c('adminChangePassword', { adminPassword: 'newpass1', newPassword: A }));
   r = rec('ticket', await c('adminPasskeyTicket', { adminPassword: A }));
   out[out.length - 1][4] = /^pkt\.\d+\.[\w-]+$/.test(r.ticket || '');
