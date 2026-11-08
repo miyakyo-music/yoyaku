@@ -28,3 +28,4 @@ window.addEventListener('pageshow', (e) => {
 });
 updateChrome();
 load(state.skipSnapshot ? { force: true } : undefined);
+renewAdminLogin();
