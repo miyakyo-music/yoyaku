@@ -33,7 +33,7 @@
     MAX_LIMITED_FAILURES: 30,
     MAX_VIEW_FAILURES: 30,
     FAILURE_LOCK_SECONDS: 600,
-    PASSKEY_TOKEN_HOURS: 12, // パスキーでのログインの印の有効時間（worker.js の TOKEN_HOURS と同じ）
+    PASSKEY_TOKEN_HOURS: 168, // ログインのトークン（pk1）の有効時間。7日（worker.js の TOKEN_HOURS・gas/Code.gs と同じ）
     MAX_WRITES_PER_MINUTE: 60, // GAS のときより速いので、上限は GAS の倍にする（いたずらで埋め尽くされないための上限）
     MAX_ADMIN_DEVICES: 30,
     PBKDF2_ROUNDS: 20000, // 管理用パスワードを、元に戻せない形（ハッシュ）にして置くときの計算回数
@@ -152,6 +152,12 @@
       if (action === 'adminChangePassword' && call.memo.admin[String(p.adminPassword || '')] === null && String(p.newPassword || '').length >= 6) {
         call.memo.newHash = await hashPassword(String(p.newPassword));
       }
+      // ログインのトークンを出し直す（gas/Code.gs の loginToken_ と同じ）。管理者だと確かめられたときだけ
+      if (action === 'adminGetData' && this.passkeyKey() && call.memo.admin[String(p.adminPassword || '')] === null) {
+        const m = /^pk1\.\d+\.([\w-]{1,64})\./.exec(String(p.adminPassword || ''));
+        const body = 'pk1.' + (Math.floor(Date.now() / 1000) + SYSTEM.PASSKEY_TOKEN_HOURS * 3600) + '.' + (m ? m[1] : 'pw');
+        call.memo.loginToken = body + '.' + await hmac(this.passkeyKey(), body);
+      }
       if (action === 'adminPasskeyTicket' && this.passkeyKey()) {
         const exp = Math.floor(Date.now() / 1000) + 300;
         call.memo.ticket = 'pkt.' + exp + '.' + await hmac(this.passkeyKey(), 'pkt.' + exp);
@@ -232,9 +238,9 @@
       const m = /^pk1\.(\d+)\.([\w-]{1,64})\.([\w-]+)$/.exec(token);
       const key = this.passkeyKey();
       if (!m || !key || !safeEqual(await hmac(key, 'pk1.' + m[1] + '.' + m[2]), m[3])) return '管理用パスワードが一致しません。';
-      if (Number(m[1]) < Date.now() / 1000) return 'パスキーでのログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
-      // パスキーの削除・管理用パスワードの変更より前に出た印は使えない（なくした端末に残った印で入られないように）
-      if (Number(m[1]) - SYSTEM.PASSKEY_TOKEN_HOURS * 3600 <= Number(this.kget('pkNotBefore') || 0)) {
+      if (Number(m[1]) < Date.now() / 1000) return 'ログインの有効期限が切れました。もう一度ログインしてください（パスキーか管理用パスワード）。';
+      // パスキーの削除・管理用パスワードの変更より前に出た印は使えない（なくした端末に残った印で入られないように）。同じ秒に出たものは使える
+      if (Number(m[1]) - SYSTEM.PASSKEY_TOKEN_HOURS * 3600 < Number(this.kget('pkNotBefore') || 0)) {
         return 'パスキーの削除か管理用パスワードの変更があったため、ログインし直してください（パスキーか管理用パスワード）。';
       }
       return null;
@@ -891,6 +897,7 @@
       spreadsheetUrl: this.kget('spreadsheetUrl') || '',
       openBugs: this.openBugCount(),
       adminDevice: this.rememberDevice(this.device),
+      loginToken: this.memo.loginToken || '', // 管理画面が端末に保存し、次に開いたときのログインに使う
     };
   }
 

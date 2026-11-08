@@ -11,7 +11,7 @@ window.addEventListener('beforeunload', (e) => {
   if (state.dirty.rooms || state.dirty.settings) { e.preventDefault(); e.returnValue = ''; }
 });
 
-// このタブで一度ログインしていれば、自動でログインし直す。確かめている間はパスワード欄を出さない
+// このタブか、この端末で期限内にログインしていれば（ログインのトークン）、自動でログインし直す。確かめている間はパスワード欄を出さない
 // （入力の途中で確認が終わり、画面が勝手に切り替わらないように）
 if (state.pw) {
   $('loginForm').hidden = true;

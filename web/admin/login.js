@@ -10,6 +10,7 @@ async function login(pw) {
     const res = await api('adminGetData', {});
     if (!res.ok) throw new Error(res.message);
     sessionSet(pw);
+    keepLogin(res);
     state.data = res;
     showAdmin();
   } catch (e) {
@@ -23,6 +24,7 @@ async function login(pw) {
 function logout(message) {
   state.pw = '';
   sessionSet('');
+  loginSet('');
   $('adminView').hidden = true;
   $('logoutBtn').hidden = true;
   $('sheetLink').hidden = true;
