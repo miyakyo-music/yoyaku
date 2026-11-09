@@ -29,6 +29,13 @@ body.vt-morph dialog { transition: none !important; }
    また、後の姿の写しだけを見せる方法でも、iPhone の Safari ではその写しが本物と上下にずれて置かれ、詳細の開け閉めの
    たびに上部の設備・日付の行が上下に動いて見えた（2026-10-14） */
 html.vt-morph { view-transition-name: none; }
+/* ただし Chrome など（屈折あり）は、後ろの画面を写しにしないとカードのぼかしが効かない（View Transitions の
+   疑似要素は、写しになっていない本物の画面をぼかせない）。そのため動きの間は小窓の後ろが透けたままで、
+   終わって本物の小窓になった瞬間にぼかしがかかって見えた（2026-11-09）。Chrome では後の姿の写しだけを
+   動かさずに見せる（写しは本物と同時に変わるので、後ろが暗くなる変化もそのまま見える） */
+html.refract.vt-morph { view-transition-name: root; }
+html.refract.vt-morph::view-transition-old(root) { display: none; }
+html.refract.vt-morph::view-transition-new(root) { animation: none; }
 ::view-transition-group(morph) { animation-duration: .46s; animation-timing-function: cubic-bezier(.28, 1.12, .4, 1); }
 ::view-transition-image-pair(morph) {
   overflow: clip; border-radius: 22px;
