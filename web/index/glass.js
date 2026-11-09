@@ -149,7 +149,9 @@ function setDate(s) {
 }
 
 function setView(view) {
-  if (view === 'month' && state.view !== 'month') state.monthRoomId = '';
+  // 部屋別とカレンダーを行き来するときは、選んでいる部屋を引き継ぐ（一覧から開いたカレンダーは「すべての部屋」から）
+  if (view === 'month' && state.view !== 'month') state.monthRoomId = state.view === 'room' ? state.roomId : '';
+  if (view === 'room' && state.view === 'month' && state.monthRoomId) { state.roomId = state.monthRoomId; save_(LS.room, state.roomId); }
   state.view = view;
   save_(LS.view, view);
   if (view === 'room' && !state.roomId && state.rooms[0]) state.roomId = state.rooms[0].id;
