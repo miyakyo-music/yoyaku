@@ -48,7 +48,7 @@ const state = {
   view: load_(LS.view, 'day'),
   date: homeDate(),
   roomId: load_(LS.room, ''),  // 部屋別で表示している部屋
-  monthRoomId: '',      // カレンダーで表示している部屋（空＝すべての部屋。開くたびに「すべての部屋」から）
+  monthRoomId: '',      // カレンダーで表示している部屋（空＝すべての部屋。一覧から開いたときは「すべての部屋」、部屋別から開いたときはその部屋）
   data: null,           // 直近の getSchedule 応答
   settings: null,
   rooms: [],
