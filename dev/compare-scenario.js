@@ -14,7 +14,7 @@
   const put = (x) => {
     const row = toRow_(Object.assign({ affiliation: '', pin: '', createdAt: T + ' 06:00:00', groupId: '', memo: '', updatedAt: '', color: '' }, x));
     appendRows_(getSpreadsheet_().getSheetByName('予約台帳'), [row]);
-    devCf.core.db.exec('INSERT INTO reservations (id, date, room_id, st, en, affiliation, name, pin, created_at, group_id, memo, updated_at, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', ...row);
+    devCf.core.db.exec('INSERT INTO reservations (id, date, room_id, st, en, affiliation, name, pin, created_at, group_id, memo, updated_at, color, owner) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', ...row);
   };
 
   let r = rec('sched', await c('getSchedule', { from: T, to: D }), null);
@@ -224,6 +224,62 @@
   rec('pwBack', await c('adminChangePassword', { adminPassword: 'newpass1', newPassword: A }));
   r = rec('ticket', await c('adminPasskeyTicket', { adminPassword: A }));
   out[out.length - 1][4] = /^pkt\.\d+\.[\w-]+$/.test(r.ticket || '');
+  // 利用者の登録・ログイン（仕様書 2.12）。ログインして作った予約は、本人がログインしていれば編集用パスワードなしで変更・取消できる
+  CacheService.getScriptCache().remove('writes_' + Math.floor(Date.now() / 60000));
+  devCf.core.kdel('writes_' + Math.floor(Date.now() / 60000));
+  rec('regBadId', await c('userRegister', { studentId: '26E02', familyName: '登録', givenName: '一', password: '1111' }));
+  rec('regShortPw', await c('userRegister', { studentId: 'G1234', familyName: '登録', givenName: '一', password: '12a4' }));
+  rec('regNoName', await c('userRegister', { studentId: 'G1234', familyName: '登録', givenName: '  ', password: '1111' }));
+  r = rec('reg', await c('userRegister', { studentId: ' ｇ１２３４ ', familyName: ' 登 録 ', givenName: '　太郎', password: '4321' }));
+  const tok = r.token;
+  out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(tok || ''), JSON.stringify(r.user)];
+  rec('regAgain', await c('userRegister', { studentId: 'G1234', familyName: '別', givenName: '人', password: '5555' }));
+  rec('loginBad', await c('userLogin', { loginId: 'G1234', password: '0000' }));
+  rec('loginNone', await c('userLogin', { loginId: 'G0000', password: '4321' }));
+  r = rec('login', await c('userLogin', { loginId: 'g1234', password: '4321' }));
+  out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(r.token || ''), JSON.stringify(r.user)];
+  // ID は氏名でもよい（空白・ひらがなとカタカナの違いは無視）
+  r = rec('loginName', await c('userLogin', { loginId: '登録　太郎 ', password: '4321' }));
+  out[out.length - 1][4] = JSON.stringify(r.user);
+  rec('loginNameBad', await c('userLogin', { loginId: '登録 次郎', password: '4321' }));
+  // パスキー: 登録の許可証（ログイン中だけ）と、高速キャッシュが出す許可証（upl）からのログイン
+  rec('upkTicketNoLogin', await c('userPasskeyTicket', {}));
+  r = rec('upkTicket', await c('userPasskeyTicket', { userToken: tok }));
+  const upkGen = String(r.ticket || '').split('.')[3];
+  out[out.length - 1][4] = /^upt\.\d+\.G1234\.[\w-]+\.[\w-]+$/.test(r.ticket || '');
+  const upl = (exp, sid, gen) => 'upl.' + exp + '.' + sid + '.' + gen + '.' + hmac_('devtoken', 'upl.' + exp + '.' + sid + '.' + gen);
+  r = rec('upkLogin', await c('userPasskeyLogin', { ticket: upl(nowSec + 120, 'G1234', upkGen) }));
+  out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(r.token || ''), JSON.stringify(r.user)];
+  rec('upkLoginBadSig', await c('userPasskeyLogin', { ticket: upl(nowSec + 120, 'G1234', upkGen).replace(/.$/, (x) => (x === 'A' ? 'B' : 'A')) }));
+  rec('upkLoginExpired', await c('userPasskeyLogin', { ticket: upl(nowSec - 10, 'G1234', upkGen) }));
+  const ub = { roomId: 'room_16', date: D, affiliation: 'G1234', name: '登録 太郎', memo: '', pin: '', userToken: tok };
+  r = rec('userBook', await c('createReservation', Object.assign({}, ub, { start: '19:00', end: '20:00' })));
+  ids.u = r.reservation && r.reservation.id;
+  out[out.length - 1][4] = r.reservation && [r.reservation.owned, r.reservation.hasPin];
+  rec('userBookBadToken', await c('createReservation', Object.assign({}, ub, { start: '20:00', end: '21:00', userToken: 'us1.9999999999.G1234.x' })));
+  rec('userCancelOther', await c('cancelReservation', { id: ids.u }));
+  rec('userCancelOtherPin', await c('cancelReservation', { id: ids.u, pin: '1111' }));
+  r = rec('userUpdate', await c('updateReservation', Object.assign({}, ub, { id: ids.u, start: '19:30', end: '20:30' })));
+  out[out.length - 1][4] = r.reservation && [r.reservation.start, r.reservation.owned];
+  put({ id: 'res_dev_userpast', date: T, roomId: 'room_16', start: '07:00', end: '08:00', affiliation: 'g1234', name: '前' });
+  r = rec('userMine', await c('userGetMine', { userToken: tok }));
+  out[out.length - 1][4] = r.reservations && [JSON.stringify(r.user), r.reservations.map((x) => x.date + x.start + x.name + x.mine + x.owned).join(',')];
+  rec('userMineNoToken', await c('userGetMine', {}));
+  r = rec('usersNoAdmin', await c('adminGetUsers', {}));
+  r = rec('users', await c('adminGetUsers', { adminPassword: A }));
+  out[out.length - 1][4] = r.users && r.users.map((x) => x.studentId + x.name + (x.createdAt ? 'T' : '')).join(',');
+  rec('delUserNoAdmin', await c('adminDeleteUser', { studentId: 'G1234' }));
+  rec('delUser', await c('adminDeleteUser', { adminPassword: A, studentId: 'g1234' }));
+  rec('delUserAgain', await c('adminDeleteUser', { adminPassword: A, studentId: 'G1234' }));
+  rec('userMineAfterDel', await c('userGetMine', { userToken: tok }));
+  r = rec('reReg', await c('userRegister', { studentId: 'G1234', familyName: 'ﾄｳﾛｸ', givenName: 'Ｔａｒｏ', password: '6789' }));
+  rec('upkLoginOldGen', await c('userPasskeyLogin', { ticket: upl(nowSec + 120, 'G1234', upkGen) }));
+  rec('userOldToken', await c('cancelReservation', { id: ids.u, userToken: tok }));
+  r = rec('userCancel', await c('cancelReservation', { id: ids.u, userToken: r.token }));
+  out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.length;
+  for (let i = 0; i < 10; i++) await c('userLogin', { loginId: 'G1234', password: String(1000 + i) });
+  rec('loginLocked', await c('userLogin', { loginId: 'G1234', password: '6789' }));
+  rec('loginLockedByName', await c('userLogin', { loginId: 'ﾄｳﾛｸ Ｔａｒｏ', password: '6789' })); // 学籍番号で間違えた回数は、氏名で試しても同じ人として数える
   for (let i = 0; i < 10; i++) rec('adminBad' + i, await c('adminGetData', { adminPassword: 'wrong' + i }));
   rec('range', await c('getSchedule', { from: '2026-10-01', to: '2026-12-01' }));
   rec('unknown', await c('nope', {}));

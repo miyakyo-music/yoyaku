@@ -16,6 +16,7 @@ const LS = {
   myName: 'prr.myName',          // 「名前で探す」で最後に探した言葉
   fav: 'prr.favRooms',           // [roomId] お気に入りの練習室
   closeTime: 'prr.closeTime',    // 利用終了時刻（開いた直後、設定を読む前に「翌日を出すか」を決めるため）
+  user: 'prr.user',              // { token, studentId, name } 利用者のログイン（任意。index/user.js）
 };
 const APP_VERSION = window.APP_VERSION; // web/api.js
 const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う
@@ -189,17 +190,18 @@ function toast(message, type, ms, action) {
 }
 
 // ---------------- この端末で作成した予約 ----------------
-function getMine() { return load_(LS.mine, {}); }
+// ログインしているときは、ログインして作った自分の予約（state.userMine。index/user.js が読む）も「自分の予約」として扱う
+function getMine() { return Object.assign({}, load_(LS.mine, {}), state.userMine || {}); }
 function isMine(id) { return Object.prototype.hasOwnProperty.call(getMine(), id); }
 function addMine(list) {
-  const mine = getMine();
+  const mine = load_(LS.mine, {});
   const limit = addDays(todayStr(), -7);
   for (const k of Object.keys(mine)) if (mine[k] < limit) delete mine[k];
   for (const r of list) mine[r.id] = r.date;
   save_(LS.mine, mine);
   addHistory(list);
 }
-function removeMine(ids) { const mine = getMine(); ids.forEach((id) => delete mine[id]); save_(LS.mine, mine); }
+function removeMine(ids) { const mine = load_(LS.mine, {}); ids.forEach((id) => delete mine[id]); save_(LS.mine, mine); }
 // 練習時間の集計用の記録。「自分の予約」は終わって7日で消すが、こちらは約13か月残す
 // （取り消しは、集計のときにサーバーから読み直して除く）
 function addHistory(list) {
@@ -209,7 +211,7 @@ function addHistory(list) {
   for (const r of list) h[r.id] = r.date;
   save_(LS.history, h);
 }
-addHistory(Object.entries(getMine()).map(([id, date]) => ({ id, date }))); // この記録を作る前の予約も入れておく
+addHistory(Object.entries(load_(LS.mine, {})).map(([id, date]) => ({ id, date }))); // この記録を作る前の予約も入れておく
 const getFavs = () => new Set(load_(LS.fav, []));
 
 // マウスで使う広い画面では押したボタンの真下に出す（マウスの移動を短く）。タッチ端末（iPad など）・狭い画面・ボタン以外から開いたときは中央

@@ -1,4 +1,5 @@
-// 予約表: 自分の予約（この端末で作った予約、または名前・学籍番号で探した予約の一覧と練習時間）
+// 予約表: 自分の予約（この端末で作った予約、または名前・学籍番号で探した予約の一覧と練習時間。
+// ログインしているときは、探し方の切り替えを出さず、ログインした人の予約だけを出す。index/user.js）
 'use strict';
 
 // ---------------- この端末の予約一覧 ----------------
@@ -14,6 +15,8 @@ function setMyTab(tab) {
 }
 const myTab = () => ($('myTabs').querySelector('[aria-pressed="true"]') || {}).dataset.my || 'list';
 const byName = () => state.mySrc === 'name';
+/** サーバーから読んだ一覧を使うか（ログイン中、または名前で探す。この端末の記録ではなく） */
+const usesFound = () => !!state.user || byName();
 
 // ---------------- 探し方（この端末 / 名前で探す） ----------------
 // 「名前で探す」は、名前・団体名か学籍番号/所属が一致する予約を、過去の分も含めてサーバーから読む（findMyReservations）。
@@ -22,7 +25,8 @@ function setMySrc(src) {
   state.mySrc = src;
   save_(LS.mySrc, src);
   for (const b of $('mySrc').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.src === src));
-  $('myNameForm').hidden = src !== 'name';
+  $('mySrc').hidden = !!state.user;
+  $('myNameForm').hidden = src !== 'name' || !!state.user;
   state.myStats = null;
   setMyTab(myTab());
 }
@@ -45,6 +49,16 @@ async function findByName() {
   state.myFound = { q, reservations: res.reservations, rooms: res.rooms };
   return state.myFound;
 }
+/** ログインしている人の予約（登録者の列か、学籍番号/所属が一致するもの。小窓を開いている間は読み直さない） */
+async function findUser() {
+  if (state.myFound && state.myFound.q === '\u0000user') return state.myFound;
+  const res = await refreshUserMine(); // index/user.js
+  if (!res) return null;
+  if (!res.ok) throw new Error(res.message);
+  state.myFound = { q: '\u0000user', reservations: res.reservations, rooms: res.rooms };
+  return state.myFound;
+}
+const findMine = () => (state.user ? findUser() : findByName());
 $('myTabs').addEventListener('click', (e) => { const b = e.target.closest('button[data-my]'); if (b) setMyTab(b.dataset.my); });
 $('myPeriod').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-p]');
@@ -75,11 +89,11 @@ async function fetchByIds(ids) {
 }
 async function loadMyStats() {
   const body = $('myStatsBody');
-  if (byName()) {
+  if (usesFound()) {
     body.innerHTML = '<p class="ms-empty">読み込み中…</p>';
     try {
-      const f = await findByName();
-      if (!byName() || myTab() !== 'stats') return; // 読む間に切り替えた
+      const f = await findMine();
+      if (!usesFound() || myTab() !== 'stats') return; // 読む間に切り替えた
       if (!f) { body.innerHTML = ''; return; }
       state.myStatsRooms = f.rooms;
       state.myStats = f.reservations;
@@ -95,7 +109,7 @@ async function loadMyStats() {
   body.innerHTML = '<p class="ms-empty">読み込み中…</p>';
   try {
     const res = await fetchByIds(ids);
-    if (byName()) return; // 読む間に切り替えた
+    if (usesFound()) return; // 読む間に切り替えた
     state.myStatsRooms = res.rooms;
     state.myStats = res.reservations;
     renderMyStats();
@@ -117,7 +131,7 @@ function renderMyStats() {
   const planned = inRange.filter((r) => !ended(r));
   const total = done.reduce((a, r) => a + dur(r), 0);
   const plan = planned.reduce((a, r) => a + dur(r), 0);
-  if (!done.length && !planned.length) { body.innerHTML = `<p class="ms-empty">この期間の${byName() ? '' : '、この端末からの'}予約はありません。</p>`; return; }
+  if (!done.length && !planned.length) { body.innerHTML = `<p class="ms-empty">この期間の${usesFound() ? '' : '、この端末からの'}予約はありません。</p>`; return; }
   const hh = (m) => (m ? durationLabel(m) : '0分');
   // 部屋ごと（多い順、上位6つ）と曜日ごと（終わった分）
   const rooms = state.myStatsRooms || state.rooms;
@@ -144,7 +158,12 @@ function openMyList() {
   state.myFound = null;
   const src = load_(LS.mySrc, 'device') === 'name' ? 'name' : 'device';
   if (!$('myNameInput').value) $('myNameInput').value = load_(LS.myName, '') || (load_(LS.profile, {}).name || '');
-  $('myDialog').showModal();
+  const u = state.user;
+  $('myLogin').hidden = !!u;
+  $('myPasskey').hidden = !u || !userPkSupported;
+  $('myUser').hidden = !u;
+  if (u) { $('myUserName').textContent = u.name; $('myUserSid').textContent = u.studentId; }
+  if (!$('myDialog').open) $('myDialog').showModal();
   placeUnderBtn($('myDialog'), $('myBtn'));
   for (const b of $('myTabs').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.my === 'list'));
   setMySrc(src);
@@ -158,18 +177,18 @@ const myItem = (r, rooms) => {
 async function loadMyList() {
   const list = $('myList');
   const today = todayStr();
-  if (byName()) {
+  if (usesFound()) {
     list.innerHTML = '<li class="hint">読み込み中…</li>';
     try {
-      const f = await findByName();
-      if (!byName() || myTab() !== 'list') return; // 読む間に切り替えた
+      const f = await findMine();
+      if (!usesFound() || myTab() !== 'list') return; // 読む間に切り替えた
       if (!f) { list.innerHTML = ''; return; }
       const now = nowMin();
       const upcoming = f.reservations.filter((r) => !isEnded(r, today, now));
       const past = f.reservations.filter((r) => isEnded(r, today, now)).reverse(); // これまでの分は新しい順
       // 年の違う日付が混ざるので、これまでの分は年の変わり目に見出しを入れる
       let year = today.slice(0, 4);
-      list.innerHTML = !f.reservations.length ? '<li class="hint">見つかりませんでした。</li>' :
+      list.innerHTML = !f.reservations.length ? `<li class="hint">${state.user ? '予約はありません。' : '見つかりませんでした。'}</li>` :
         upcoming.map((r) => myItem(r, f.rooms)).join('') +
         (past.length ? '<li class="my-sep">これまで</li>' + past.map((r) => {
           const y = r.date.slice(0, 4);
@@ -188,7 +207,7 @@ async function loadMyList() {
   if (!ids.length) { list.innerHTML = '<li class="hint">予約はありません。</li>'; return; }
   try {
     const res = await fetchByIds(ids);
-    if (byName()) return;
+    if (usesFound()) return;
     const found = new Set(res.reservations.map((r) => r.id));
     removeMine(ids.filter((id) => !found.has(id))); // 取り消された予約は一覧から消す
     const now = nowMin();

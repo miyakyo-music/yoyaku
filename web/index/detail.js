@@ -28,12 +28,15 @@ function openDetail(id) {
   const ended = isEnded(r);
   const mine = isMine(r.id);
   const admin = isAdminMode();
+  const userMine = isUserMine(r.id); // ログインして作った自分の予約（編集用パスワードは要らない。index/user.js）
+  // ログインして作った他の人の予約で、編集用パスワードのないものは、本人と管理者しか変更・取消できない
+  const ownerOnly = r.owned && !r.hasPin && !userMine && !admin;
   // 終了した予約は変更できない（管理者でも、過去の時刻のままだとサーバーが断る。仕様 2.6）。
   // 取消だけは、サーバーが管理者に許しているので出す
-  const canCancel = !ended || admin;
+  const canCancel = (!ended || admin) && !ownerOnly;
   // 編集用パスワード欄は「編集用パスワードが設定された予約」を管理者モード以外で操作するときだけ出す
-  $('dOps').hidden = ended || admin || !r.hasPin;
-  $('dEdit').hidden = ended;
+  $('dOps').hidden = ended || admin || !r.hasPin || userMine;
+  $('dEdit').hidden = ended || ownerOnly;
   $('dCancel').hidden = !canCancel;
   $('dCancel').disabled = $('dEdit').disabled = false;
   $('dSeriesArea').hidden = !canCancel || !r.groupId;
@@ -41,7 +44,9 @@ function openDetail(id) {
   const notes = [];
   if (ended) notes.push('この予約は終了しています。');
   if (r.groupId) notes.push('まとめて登録された予約（くり返し・複数部屋）の1件です。');
-  if (mine) notes.push('この端末で作成した予約です。');
+  if (userMine) notes.push('ログイン中の自分の予約です。');
+  else if (mine) notes.push('この端末で作成した予約です。');
+  if (ownerOnly && !ended) notes.push('予約した人がログインしているときだけ変更・取消できます。');
   if (admin) notes.push(ended ? '管理者モード: 終了した予約は取り消せます（変更はできません）。' : '管理者モード: 編集用パスワードなしで変更・取消できます。');
   if (!admin && room && room.restriction === ADMIN_ONLY && !ended) notes.push('この部屋の予約の変更・取消は管理者のみ行えます。');
   $('dNote').hidden = !notes.length;

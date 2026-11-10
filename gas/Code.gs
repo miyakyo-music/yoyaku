@@ -30,16 +30,19 @@ const SHEETS = {
   settings: '設定',
   log: '操作ログ',
   bugs: '不具合報告',
+  users: '登録者',
 };
 
 const HEADERS = {
   // 列の順番は変えないこと（台帳は列の位置で読み書きしている）
-  reservations: ['予約ID', '予約日', '部屋ID', '開始時刻', '終了時刻', '学籍番号/所属', '氏名・団体名', '編集用パスワード', '作成日時', 'まとめ予約ID', '備考', '更新日時', '色'],
+  reservations: ['予約ID', '予約日', '部屋ID', '開始時刻', '終了時刻', '学籍番号/所属', '氏名・団体名', '編集用パスワード', '作成日時', 'まとめ予約ID', '備考', '更新日時', '色', '登録者（学籍番号）'],
   rooms: ['表示順', '部屋ID', '部屋表示名', '設備区分', '予約制限', '備考', '特徴タグ'],
   closures: ['日付', '部屋ID（空欄=全室）', '開始時刻（空欄=終日）', '終了時刻', '理由'],
   settings: ['項目', '値', '説明'],
   log: ['日時', '操作', '予約ID', '予約日', '部屋ID', '時間', '予約者', '詳細'],
   bugs: ['報告ID', '受付日時', '状態', '内容', '連絡先', '端末・ブラウザ', '画面サイズ', '表示していた画面', '環境情報（詳細）'],
+  // 利用者の登録（仕様書 2.12）。パスワードはソルト付きのハッシュ（us1$ソルト$HMAC）で置き、元のパスワードは残さない
+  users: ['学籍番号', '氏名', 'PIN（ハッシュ）', '登録日時'],
 };
 
 const BUG_STATUSES = ['未対応', '対応中', '対応済み', '対応しない'];
@@ -67,6 +70,8 @@ const SYSTEM = {
   // 練習室の予約で毎分30件を超えることは通常ないため、ふだんの利用には影響しない
   MAX_WRITES_PER_MINUTE: 30,
   MAX_ADMIN_DEVICES: 30, // 管理画面にログインしたことのある端末を覚えておく数（古いものから消える）
+  MAX_USER_FAILURES: 5, // 利用者のログインで、同じ人の PIN をこの回数間違えると10分受け付けない（予約の編集用パスワードと同じ）
+  USER_TOKEN_DAYS: 180, // 利用者のログインのトークン（us1）の有効日数
   CACHE_MONTHS_AHEAD: 4, // 高速キャッシュに置く範囲: 先月の1日から、4か月先の月末まで（その外は予約表が GAS から読む）
 };
 
@@ -119,7 +124,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-11-09.1';
+const GAS_BUILD = '2026-11-10.1';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -143,6 +148,13 @@ const API = {
   adminGetLog: adminGetLog,
   adminChangePassword: adminChangePassword,
   adminPasskeyTicket: adminPasskeyTicket,
+  userRegister: userRegister,
+  userLogin: userLogin,
+  userGetMine: userGetMine,
+  userPasskeyTicket: userPasskeyTicket,
+  userPasskeyLogin: userPasskeyLogin,
+  adminGetUsers: adminGetUsers,
+  adminDeleteUser: adminDeleteUser,
   mirrorNow: mirrorNow,
   passkeyRevoked: passkeyRevoked,
   monitorAlert: monitorAlert,
@@ -298,6 +310,8 @@ function createReservation(p) {
   if (denied) return denied;
   const admin = resolveAdmin_(p.adminPassword);
   if (admin.error) return fail_(admin.error);
+  const user = resolveUser_(p.userToken);
+  if (user.error) return fail_(user.error, 'USER_AUTH');
 
   const v = validateBooking_(ctx, p, admin.ok);
   if (v.error) return fail_(v.error);
@@ -313,7 +327,7 @@ function createReservation(p) {
       return fail_('すでに存在する予約と時間が重複しています（' + describe_(conflict) + '）。', 'CONFLICT');
     }
     const now = nowStr_('yyyy-MM-dd HH:mm:ss');
-    const created = Object.assign({}, r, { id: newId_('res'), groupId: '', createdAt: now, updatedAt: '', color: colorOf_(ctx, p, admin.ok, '') });
+    const created = Object.assign({}, r, { id: newId_('res'), groupId: '', createdAt: now, updatedAt: '', color: colorOf_(ctx, p, admin.ok, ''), owner: user.sid || '' });
     appendRows_(ctx.resSheet, [toRow_(created)]);
     MEMO_.resAfter = rows.concat([created]);
     log_(ctx.ss, '予約', created, '');
@@ -368,6 +382,8 @@ function createBulkReservations(p) {
   const admin = resolveAdmin_(p.adminPassword);
   if (admin.error) return fail_(admin.error);
   if (ctx.settings.bulkRequiresAdmin && total > 1 && !admin.ok) return fail_('くり返し予約・複数部屋の同時予約には管理用パスワードが必要です。');
+  const user = resolveUser_(p.userToken);
+  if (user.error) return fail_(user.error, 'USER_AUTH');
 
   const bases = {};
   for (const roomId of roomIds) {
@@ -400,7 +416,7 @@ function createBulkReservations(p) {
     const groupId = newId_('grp');
     const now = nowStr_('yyyy-MM-dd HH:mm:ss');
     const color = colorOf_(ctx, p, admin.ok, '');
-    const created = available.map(r => Object.assign({}, r, { id: newId_('res'), groupId: groupId, createdAt: now, updatedAt: '', color: color }));
+    const created = available.map(r => Object.assign({}, r, { id: newId_('res'), groupId: groupId, createdAt: now, updatedAt: '', color: color, owner: user.sid || '' }));
     appendRows_(ctx.resSheet, created.map(toRow_));
     MEMO_.resAfter = rows.concat(created);
     log_(ctx.ss, 'まとめて予約', created[0], created.length + '件（' + roomIds.length + '部屋・' + dates.length + '日: ' + dates.join(', ') + '）');
@@ -423,13 +439,15 @@ function updateReservation(p) {
   if (denied) return denied;
   const id = String(p.id || '').trim();
   if (!id) return fail_('予約IDが指定されていません。');
+  const user = resolveUser_(p.userToken);
+  if (user.error) return fail_(user.error, 'USER_AUTH');
 
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
     const target = rows.find(r => r.id === id);
     // 限定公開の部屋の予約は、見られない人には「存在しない」と返す
     if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin_(target, p.pin, p.adminPassword);
+    const auth = checkPin_(target, p.pin, p.adminPassword, user.sid);
     if (auth.error) return fail_(auth.error);
     if (!auth.admin && isPast_(target.date, target.end)) return fail_('終了した予約は変更できません。');
     if (!auth.admin && roomOf_(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) {
@@ -507,13 +525,15 @@ function cancelReservation(p) {
   if (denied) return denied;
   const id = String(p.id || '').trim();
   if (!id) return fail_('予約IDが指定されていません。');
+  const user = resolveUser_(p.userToken);
+  if (user.error) return fail_(user.error, 'USER_AUTH');
 
   return withLock_(() => {
     const rows = readReservations_(ctx.resSheet);
     const target = rows.find(r => r.id === id);
     // 限定公開の部屋の予約は、見られない人には「存在しない」と返す
     if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin_(target, p.pin, p.adminPassword);
+    const auth = checkPin_(target, p.pin, p.adminPassword, user.sid);
     if (auth.error) return fail_(auth.error);
     if (!auth.admin && isPast_(target.date, target.end)) return fail_('終了した予約は取り消せません。');
     if (!auth.admin && roomOf_(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) {
@@ -1035,6 +1055,235 @@ function adminPasskeyTicket(p) {
   return { ok: true, ticket: 'pkt.' + exp + '.' + hmac_(key, 'pkt.' + exp) };
 }
 
+// ---------------------------------------------------------------------------
+// 利用者の登録・ログイン（任意。仕様書 2.12。cache/store.js の同じ名前の処理と同じ）
+//
+// 登録は学籍番号（G1234 の形だけ）・姓・名・パスワード。氏名は空白なしの「姓名」の形で保存し、
+// ログインして作る予約の氏名もこの形にそろえる（全角・半角や空白の揺れを吸収する）。なりすましはない前提の自己申告で、確かめない。
+// ログインすると「us1.有効期限.学籍番号.署名」のトークンを返し、画面が端末に保存する。
+// ログイン中に作った予約は、予約台帳の最後の列（登録者）に学籍番号を入れ、その人がログインしていれば
+// 編集用パスワードなしで変更・取消できる。自分の予約は、登録者の列か学籍番号/所属が一致するもの。
+// ---------------------------------------------------------------------------
+
+/**
+ * 利用者を登録する（同じ学籍番号は1人だけ。登録し直すときは管理画面で消してから）。
+ * @param {{studentId, familyName, givenName, password}} p
+ */
+function userRegister(p) {
+  p = p || {};
+  const limited = writeLimit_();
+  if (limited) return limited;
+  const v = validateUser_(p);
+  if (v.error) return fail_(v.error);
+  const ss = getSpreadsheet_();
+  return withLock_(() => {
+    const sheet = ensureSheet_(ss, SHEETS.users, HEADERS.users);
+    if (readUsers_(ss).some(u => u.sid === v.sid)) {
+      return fail_('この学籍番号はすでに登録されています。登録し直すときは、管理者に前の登録の削除を頼んでください。', 'EXISTS');
+    }
+    const salt = Utilities.getUuid().replace(/-/g, '').slice(0, 22);
+    const u = { sid: v.sid, name: v.name, pw: 'us1$' + salt + '$' + hmac_(salt, v.password), createdAt: nowStr_('yyyy-MM-dd HH:mm:ss') };
+    appendRows_(sheet, [userRow_(u)]);
+    return { ok: true, token: userToken_(u), user: { studentId: u.sid, name: u.name } };
+  }, { noPush: true });
+}
+
+/**
+ * ログインする。ID は学籍番号か氏名（氏名は空白の有無・全角半角だけを無視して照合し、
+ * 同姓同名が複数いれば PIN で判別する）。誤入力は登録者ごとに数え、MAX_USER_FAILURES 回で10分ロックする
+ * （学籍番号と氏名のどちらで試しても同じ回数に数える）。
+ * @param {{loginId, password}} p
+ */
+function userLogin(p) {
+  p = p || {};
+  const loginId = String(p.loginId || '');
+  const password = String(p.password || '');
+  if (!loginId.trim() || !password) return fail_('学籍番号か氏名と、PIN を入力してください。');
+  const sid = normStudentId_(loginId);
+  const bySid = /^[A-Z]\d{4}$/.test(sid);
+  const key = bySid ? sid : normNamePart_(loginId);
+  const cache = CacheService.getScriptCache();
+  const locked = (k) => Number(cache.get(k) || 0) >= SYSTEM.MAX_USER_FAILURES;
+  const all = readUsers_(getSpreadsheet_()).filter(x => (bySid ? x.sid === sid : normNamePart_(x.name) === key));
+  const cands = all.filter(x => !locked('userfail_' + x.sid));
+  const failKeys = all.length ? cands.map(x => 'userfail_' + x.sid) : ['userfail_' + key.slice(0, 40)];
+  if (!failKeys.length || (!all.length && locked(failKeys[0]))) {
+    return fail_('PIN の誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
+  }
+  const u = cands.find(x => checkUserPassword_(password, x.pw));
+  if (!u) {
+    failKeys.forEach(countFailure_);
+    return fail_('学籍番号（氏名）か PIN が違います。');
+  }
+  cache.remove('userfail_' + u.sid);
+  return { ok: true, token: userToken_(u), user: { studentId: u.sid, name: u.name } };
+}
+
+/**
+ * パスキーの登録に使う許可証（5分間有効）。高速キャッシュ（Cloudflare）は利用者の登録を持たないので、
+ * ログインしていると確かめた印としてこれを渡す。中身は「upt.有効期限.学籍番号.登録の世代.署名」
+ * @param {{userToken}} p
+ */
+function userPasskeyTicket(p) {
+  p = p || {};
+  const user = resolveUser_(p.userToken);
+  if (user.error || !user.sid) return fail_(user.error || 'ログインしてください。', 'USER_AUTH');
+  const key = passkeyKey_();
+  if (!key) return fail_('高速キャッシュの合言葉（CACHE_PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
+  const u = readUsers_(getSpreadsheet_()).find(x => x.sid === user.sid);
+  const body = 'upt.' + (Math.floor(Date.now() / 1000) + 300) + '.' + u.sid + '.' + userGen_(key, u);
+  return { ok: true, ticket: body + '.' + hmac_(key, body) };
+}
+
+/**
+ * パスキーでログインする。高速キャッシュが署名を確かめて出した「upl.有効期限.学籍番号.登録の世代.署名」を受け取り、
+ * 普段のトークンを返す。登録を消して登録し直すと世代が変わるので、前の登録のパスキーは通らない
+ * @param {{ticket}} p
+ */
+function userPasskeyLogin(p) {
+  p = p || {};
+  const key = passkeyKey_();
+  const m = /^upl\.(\d+)\.([A-Z]\d{4})\.([\w-]+)\.([\w-]+)$/.exec(String(p.ticket || ''));
+  if (!key || !m || hmac_(key, 'upl.' + m[1] + '.' + m[2] + '.' + m[3]) !== m[4]) return fail_('パスキーを確かめられませんでした。もう一度お試しください。');
+  if (Number(m[1]) < Date.now() / 1000) return fail_('時間がたちすぎました。もう一度お試しください。');
+  const u = readUsers_(getSpreadsheet_()).find(x => x.sid === m[2]);
+  if (!u || userGen_(key, u) !== m[3]) return fail_('このパスキーの登録は削除されています。学籍番号か氏名とパスワードでログインしてください。');
+  return { ok: true, token: userToken_(u), user: { studentId: u.sid, name: u.name } };
+}
+
+/** 登録の世代（ソルトから作る。登録し直すと変わる） */
+function userGen_(key, u) {
+  return hmac_(key, 'upg.' + (String(u.pw).split('$')[1] || '')).slice(0, 12);
+}
+
+/**
+ * ログインしている人の予約（登録者の列か、学籍番号/所属が学籍番号と一致するもの。過去の分も含む）。
+ * @param {{userToken, viewKey?}} p
+ */
+function userGetMine(p) {
+  p = p || {};
+  const ctx = context_(p);
+  const badAdmin = adminRejected_(p, ctx);
+  if (badAdmin) return badAdmin;
+  const denied = checkView_(ctx, p.viewKey);
+  if (denied) return denied;
+  const user = resolveUser_(p.userToken);
+  if (user.error || !user.sid) return fail_(user.error || 'ログインしてください。', 'USER_AUTH');
+  const key = normName_(user.sid);
+  const visible = visibleIn_(ctx);
+  const list = readReservations_(ctx.resSheet)
+    .filter(r => (r.owner === user.sid || normName_(r.affiliation) === key) && visible(r))
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  return {
+    ok: true, user: { studentId: user.sid, name: user.name },
+    reservations: list.slice(-SYSTEM.MAX_MINE).map(r => Object.assign(toPublic_(r), { mine: r.owner === user.sid })),
+    rooms: ctx.rooms, serverNow: nowStr_('yyyy-MM-dd HH:mm'),
+  };
+}
+
+/** 管理画面: 登録者の一覧（新しい順） */
+function adminGetUsers(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const users = readUsers_(getSpreadsheet_())
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.sid.localeCompare(b.sid))
+    .map(u => ({ studentId: u.sid, name: u.name, createdAt: u.createdAt }));
+  return { ok: true, users: users };
+}
+
+/** 管理画面: 登録を消す（その人のログインは使えなくなる。予約はそのまま残り、同じ学籍番号で登録し直せば、また本人の予約になる） */
+function adminDeleteUser(p) {
+  const denied = requireAdmin_(p);
+  if (denied) return denied;
+  const sid = normStudentId_(p.studentId);
+  const ss = getSpreadsheet_();
+  return withLock_(() => {
+    const u = readUsers_(ss).find(x => x.sid === sid);
+    if (!u) return fail_('登録が見つかりません。画面を再読み込みしてください。', 'NOT_FOUND');
+    getSheet_(ss, SHEETS.users).deleteRow(u.row);
+    logAdmin_(ss, '登録の削除', u.sid + ' ' + u.name);
+    return { ok: true };
+  }, { noPush: true });
+}
+
+/** 学籍番号を比べる形（全角を半角に、英字を大文字に、空白を除く） */
+function normStudentId_(v) {
+  return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase();
+}
+
+/** 氏名・姓・名の空白（全角・半角）を除く。ほかの書き方（ひらがなとカタカナなど）は変えない */
+function normNamePart_(v) {
+  return String(v || '').replace(/\s+/g, '');
+}
+
+/** 登録の入力を確かめる。{sid, name（空白なしの「姓名」）, password} / {error} */
+function validateUser_(p) {
+  const sid = normStudentId_(p.studentId);
+  const family = normNamePart_(p.familyName);
+  const given = normNamePart_(p.givenName);
+  const name = family + given;
+  const password = String(p.password || '');
+  if (!/^[A-Z]\d{4}$/.test(sid)) return { error: '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。' };
+  if (!family || !given) return { error: '姓と名を入力してください。' };
+  if (name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
+  if (/^[=+\-@]/.test(family)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
+  if (!/^\d{4}$/.test(password)) return { error: 'PIN は数字4桁で入力してください。' };
+  return { sid: sid, name: name, password: password };
+}
+
+/** 登録者のシートを読む（シートがなければ空） */
+function readUsers_(ss) {
+  const sheet = ss.getSheetByName(SHEETS.users);
+  if (!sheet) return [];
+  return readTable_(sheet, HEADERS.users.length)
+    .map((r, i) => ({ row: i + 2, sid: normStudentId_(r[0]), name: r[1].trim(), pw: r[2].trim(), createdAt: r[3].trim() }))
+    .filter(u => u.sid);
+}
+function userRow_(u) { return [u.sid, u.name, u.pw, u.createdAt]; }
+
+/** パスワードがハッシュ（us1$ソルト$HMAC）と合うか */
+function checkUserPassword_(password, stored) {
+  const m = /^us1\$([\w-]+)\$([\w-]+)$/.exec(String(stored || ''));
+  return !!m && hmac_(m[1], password) === m[2];
+}
+
+/**
+ * トークンの署名に使う鍵。高速キャッシュとの合言葉があればそれ（Cloudflare が正本でも同じトークンが通る）、
+ * なければ GAS だけの鍵（スクリプトプロパティ USER_TOKEN_KEY。なければ作る）
+ */
+function userKey_() {
+  const shared = passkeyKey_();
+  if (shared) return shared;
+  let key = prop_('USER_TOKEN_KEY');
+  if (!key) { key = Utilities.getUuid() + Utilities.getUuid(); setProp_('USER_TOKEN_KEY', key); }
+  return key;
+}
+
+/**
+ * ログインのトークン「us1.有効期限.学籍番号.署名」。署名にはその人のソルトも混ぜる
+ * （登録を消して登録し直すとソルトが変わり、前のトークンは使えなくなる）
+ */
+function userToken_(u) {
+  const salt = String(u.pw).split('$')[1] || '';
+  const body = 'us1.' + (Math.floor(Date.now() / 1000) + SYSTEM.USER_TOKEN_DAYS * 86400) + '.' + u.sid;
+  return body + '.' + hmac_(userKey_(), body + '.' + salt);
+}
+
+/** トークンを確かめる。送られていなければ {}、通れば {sid, name}、通らなければ {error} */
+function resolveUser_(token) {
+  if (!token) return {};
+  if (MEMO_.user && MEMO_.user.token === token) return MEMO_.user.value;
+  let value;
+  const m = /^us1\.(\d+)\.([A-Z]\d{4})\.([\w-]+)$/.exec(String(token));
+  const u = m ? readUsers_(getSpreadsheet_()).find(x => x.sid === m[2]) : null;
+  const salt = u ? String(u.pw).split('$')[1] || '' : '';
+  if (!m || !u || hmac_(userKey_(), 'us1.' + m[1] + '.' + m[2] + '.' + salt) !== m[3]) value = { error: 'ログインし直してください（登録が見つかりません）。' };
+  else if (Number(m[1]) < Date.now() / 1000) value = { error: 'ログインの有効期限が切れました。もう一度ログインしてください。' };
+  else value = { sid: u.sid, name: u.name };
+  MEMO_.user = { token: token, value: value };
+  return value;
+}
+
 /** 読み込みで管理用パスワード（ログインの印）が送られたのに通らなかったら ADMIN_AUTH で断る
  *  （黙って一般の見え方で返すと、管理画面の統計などから限定公開の部屋が知らせもなく抜け落ちるため） */
 function adminRejected_(p, ctx) {
@@ -1381,6 +1630,7 @@ function mirrorPullLocked_(ss) {
 /** 変更の一覧を写す。予約は ID ごとに最後の状態だけを反映する（書き換え → 消す → 足す の順） */
 function applyMirror_(ss, changes) {
   const res = {};
+  const users = {};
   const bugs = {};
   const logs = [];
   let rooms = null, closures = null, settings = null;
@@ -1393,6 +1643,8 @@ function applyMirror_(ss, changes) {
     else if (c.kind === 'settings') settings = d;
     else if (c.kind === 'bug') bugs[d[0]] = d;
     else if (c.kind === 'log') logs.push(d);
+    else if (c.kind === 'user') users[d[0]] = d;
+    else if (c.kind === 'userdel') d.forEach(sid => { users[sid] = null; });
   });
 
   const ids = Object.keys(res);
@@ -1424,6 +1676,19 @@ function applyMirror_(ss, changes) {
       const row = rowOf[id] || sheet.getLastRow() + 1;
       sheet.getRange(row, 1, 1, HEADERS.bugs.length).setNumberFormat('@').setValues([bugs[id]]);
     });
+  }
+  const sids = Object.keys(users);
+  if (sids.length) {
+    const sheet = ensureSheet_(ss, SHEETS.users, HEADERS.users);
+    const rowOf = {};
+    readTable_(sheet, 1).forEach((r, i) => { const sid = String(r[0]).trim(); if (sid) rowOf[sid] = i + 2; });
+    const deletes = [];
+    sids.forEach(sid => {
+      const row = rowOf[sid];
+      if (users[sid]) sheet.getRange(row || sheet.getLastRow() + 1, 1, 1, HEADERS.users.length).setNumberFormat('@').setValues([users[sid]]);
+      else if (row) deletes.push(row);
+    });
+    deletes.sort((a, b) => b - a).forEach(row => sheet.deleteRow(row));
   }
   appendLog_(ss, logs); // 失敗したら例外にして、写した番号（MIRROR_SEQ）を進めない（次にやり直す）
 }
@@ -1477,6 +1742,7 @@ function mirrorFullOnly_(ss) {
   writeClosuresSheet_(ss, res.closures);
   writeSettingsSheet_(ss, res.settings);
   replaceRows_(ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs), HEADERS.bugs.length, res.bugs);
+  replaceRows_(ensureSheet_(ss, SHEETS.users, HEADERS.users), HEADERS.users.length, res.users || []);
   SpreadsheetApp.flush();
   PropertiesService.getScriptProperties().setProperty('MIRROR_SEQ', String(res.seq));
   revokePasskeyTokens_(Number(res.pkNotBefore) || 0); // Cloudflare で使えなくしたパスキーでのログインの印は、GAS でも使わない
@@ -1537,6 +1803,7 @@ function migrateToCloudflare() {
         closures: closureSheet ? readTable_(closureSheet, HEADERS.closures.length) : [],
         settings: rawSettings_(ss),
         bugs: bugSheet ? readTable_(bugSheet, HEADERS.bugs.length).filter(r => String(r[0]).trim()) : [],
+        users: readUsers_(ss).map(userRow_),
         adminPassword: prop_('ADMIN_PASSWORD'),
         adminDevices: prop_('ADMIN_DEVICES') || '{}',
         pkNotBefore: Number(prop_('PK_NOT_BEFORE') || 0),
@@ -1621,7 +1888,7 @@ function setup() {
   ss.setSpreadsheetTimeZone(SYSTEM.TIMEZONE);
 
   const resSheet = ensureSheet_(ss, SHEETS.reservations, HEADERS.reservations);
-  resSheet.getRange('A:L').setNumberFormat('@');
+  resSheet.getRange('A:N').setNumberFormat('@');
   // 列名を整理した版に合わせて、台帳とアーカイブの見出しを書き換える（列の位置は同じなのでデータはそのまま）
   ss.getSheets()
     .filter(sh => sh.getName() === SHEETS.reservations || sh.getName().indexOf(SHEETS.reservations + '_') === 0)
@@ -1649,6 +1916,7 @@ function setup() {
 
   ensureSheet_(ss, SHEETS.log, HEADERS.log);
   ensureSheet_(ss, SHEETS.bugs, HEADERS.bugs).getRange('A:I').setNumberFormat('@');
+  ensureSheet_(ss, SHEETS.users, HEADERS.users).getRange('A:D').setNumberFormat('@');
 
   const blank = ss.getSheetByName('シート1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
@@ -1967,11 +2235,13 @@ function writeLimit_() {
  * - 編集用パスワードが設定されていない予約 → 誰でも許可
  * - 編集用パスワードが設定されている予約 → 一致すれば許可（連続誤入力で一時ロック）
  */
-function checkPin_(target, pin, adminPassword) {
+function checkPin_(target, pin, adminPassword, userSid) {
   if (adminPassword) {
     const error = verifyAdmin_(adminPassword);
     return error ? { error: error } : { admin: true };
   }
+  // ログインして作った予約は、同じ人がログインしていれば編集用パスワードなしで許可（仕様書 2.12）
+  if (target.owner && userSid && userSid === target.owner) return { admin: false };
   const code = String(pin || '').trim();
   // 編集用パスワードの欄に管理用パスワードを入れた場合（4桁の数字以外）は、管理用パスワードとして照合する。
   // 外れたら管理用パスワードの誤入力として数える（ここで数えないと、編集用パスワードのない予約を使って
@@ -1981,7 +2251,10 @@ function checkPin_(target, pin, adminPassword) {
     if (!error) return { admin: true };
     return { error: /誤入力が続いた/.test(error) ? error : '編集用パスワードが一致しません。' };
   }
-  if (!target.pin) return { admin: false };
+  if (!target.pin) {
+    // ログインして作った予約で編集用パスワードがないものは、本人（ログイン中）と管理者だけ
+    return target.owner ? { error: 'この予約は、予約した人がログインしているときだけ変更・取消できます。' } : { admin: false };
+  }
   if (!code) return { error: 'この予約には編集用パスワードが設定されています。編集用パスワードを入力してください。' };
 
   const cache = CacheService.getScriptCache();
@@ -2184,6 +2457,7 @@ function readReservations_(sheet) {
       memo: r[10].trim(),
       updatedAt: r[11].trim(),
       color: RESERVATION_COLORS.indexOf(r[12].trim()) >= 0 ? r[12].trim() : '',
+      owner: String(r[13] || '').trim(),
     }))
     .filter(r => r.id);
 }
@@ -2259,7 +2533,7 @@ function colorOf_(ctx, p, isAdmin, current) {
 }
 
 function toRow_(r) {
-  return [r.id, r.date, r.roomId, r.start, r.end, r.affiliation, r.name, r.pin, r.createdAt || '', r.groupId || '', r.memo || '', r.updatedAt || '', r.color || ''];
+  return [r.id, r.date, r.roomId, r.start, r.end, r.affiliation, r.name, r.pin, r.createdAt || '', r.groupId || '', r.memo || '', r.updatedAt || '', r.color || '', r.owner || ''];
 }
 
 function toPublic_(r) {
@@ -2268,6 +2542,7 @@ function toPublic_(r) {
     affiliation: r.affiliation, name: r.name, memo: r.memo || '', groupId: r.groupId || '',
     hasPin: !!r.pin, // 編集用パスワードそのものは返さない
     color: r.color || '',
+    owned: !!r.owner, // 登録した人がログインして作った予約か（誰の予約かは返さない）
   };
 }
 

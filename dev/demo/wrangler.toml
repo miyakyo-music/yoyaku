@@ -1,0 +1,25 @@
+# デモサーバー（テスト環境を外から開ける形）。本番とは別の Worker。公開は dev/demo/deploy.sh。
+name = "yoyaku-demo"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+preview_urls = false
+
+[[durable_objects.bindings]]
+name = "SQL"
+class_name = "DemoSql"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DemoSql"]
+
+# パスキー（管理者・利用者）を確かめるための D1（公開鍵だけ）と設定。合言葉はテスト環境と同じ devtoken（本番とは別）
+[[d1_databases]]
+binding = "DB"
+database_name = "yoyaku-demo"
+database_id = "f5b2108c-c46f-40b5-9f33-a45500ff8096"
+
+[vars]
+PASSKEY_RP_ID = "yoyaku-demo.kuridanho.workers.dev"
+PASSKEY_ORIGIN = "https://yoyaku-demo.kuridanho.workers.dev"
+PUSH_TOKEN = "devtoken"

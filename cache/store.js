@@ -36,6 +36,8 @@
     PASSKEY_TOKEN_HOURS: 168, // ログインのトークン（pk1）の有効時間。7日（worker.js の TOKEN_HOURS・gas/Code.gs と同じ）
     MAX_WRITES_PER_MINUTE: 60, // GAS のときより速いので、上限は GAS の倍にする（いたずらで埋め尽くされないための上限）
     MAX_ADMIN_DEVICES: 30,
+    MAX_USER_FAILURES: 5, // 利用者のログインで、同じ人の PIN をこの回数間違えると10分受け付けない（gas/Code.gs と同じ）
+    USER_TOKEN_DAYS: 180, // 利用者のログインのトークン（us1）の有効日数
     PBKDF2_ROUNDS: 20000, // 管理用パスワードを、元に戻せない形（ハッシュ）にして置くときの計算回数
   };
 
@@ -60,7 +62,8 @@
   const BUG_STATUSES = ['未対応', '対応中', '対応済み', '対応しない'];
   const UNIT_OPTIONS = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60];
   const WEEKDAYS = '日月火水木金土';
-  const RES_COLS = 'id, date, room_id, st, en, affiliation, name, pin, created_at, group_id, memo, updated_at, color';
+  const RES_COLS = 'id, date, room_id, st, en, affiliation, name, pin, created_at, group_id, memo, updated_at, color, owner';
+  const RES_MARKS = RES_COLS.split(',').map(() => '?').join(', ');
 
   const MOVED = {
     ok: false, code: 'MOVED', primary: 'gas',
@@ -88,6 +91,8 @@
       x(`CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, date TEXT NOT NULL, room_id TEXT NOT NULL, st TEXT NOT NULL, en TEXT NOT NULL,
         affiliation TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', pin TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '',
         group_id TEXT NOT NULL DEFAULT '', memo TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '')`);
+      // 登録者（ログインして作った予約の、その人の学籍番号。仕様書 2.12）の列がなかったころの表には足す
+      try { x("ALTER TABLE reservations ADD COLUMN owner TEXT NOT NULL DEFAULT ''"); } catch (e) { /* もうある */ }
       x('CREATE INDEX IF NOT EXISTS res_day ON reservations (date, room_id)');
       x('CREATE INDEX IF NOT EXISTS res_group ON reservations (group_id)');
       x(`CREATE TABLE IF NOT EXISTS rooms (ord INTEGER NOT NULL, id TEXT PRIMARY KEY, name TEXT NOT NULL, equipment TEXT NOT NULL DEFAULT '',
@@ -95,6 +100,8 @@
       x(`CREATE TABLE IF NOT EXISTS closures (n INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, room_id TEXT NOT NULL DEFAULT '',
         st TEXT NOT NULL DEFAULT '', en TEXT NOT NULL DEFAULT '', reason TEXT NOT NULL DEFAULT '')`);
       x('CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)');
+      // 利用者の登録（gas/Code.gs の「登録者」シートと同じ。pw は us1$ソルト$HMAC）
+      x("CREATE TABLE IF NOT EXISTS users (sid TEXT PRIMARY KEY, name TEXT NOT NULL, pw TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT '')");
       x(`CREATE TABLE IF NOT EXISTS bugs (id TEXT PRIMARY KEY, received_at TEXT NOT NULL, status TEXT NOT NULL, message TEXT NOT NULL,
         contact TEXT NOT NULL, user_agent TEXT NOT NULL, screen TEXT NOT NULL, page TEXT NOT NULL, env TEXT NOT NULL)`);
       x(`CREATE TABLE IF NOT EXISTS oplog (n INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, action TEXT NOT NULL, res_id TEXT, date TEXT,
@@ -157,6 +164,42 @@
         const m = /^pk1\.\d+\.([\w-]{1,64})\./.exec(String(p.adminPassword || ''));
         const body = 'pk1.' + (Math.floor(Date.now() / 1000) + SYSTEM.PASSKEY_TOKEN_HOURS * 3600) + '.' + (m ? m[1] : 'pw');
         call.memo.loginToken = body + '.' + await hmac(this.passkeyKey(), body);
+      }
+      // 利用者のトークン・パスワードの計算も待ちが入るので、先に済ませる（gas/Code.gs の resolveUser_・userLogin・userRegister と同じ）
+      if (p.userToken) call.memo.user = await call.checkUserToken(String(p.userToken));
+      if (action === 'userLogin') {
+        // ID は学籍番号か氏名（同じ氏名の人が複数いればパスワードで見分ける）
+        const id = loginKey(p.loginId);
+        const list = !id.key ? [] : id.bySid ? [this.userBy(id.key)].filter(Boolean)
+          : this.db.exec('SELECT sid, name, pw, created_at FROM users').filter((r) => normNamePart(r.name) === id.key).map((r) => ({ sid: r.sid, name: r.name, pw: r.pw }));
+        // PIN の照合は先に全員分済ませ、ロック中かどうかは userLogin で判定する
+        call.memo.loginCands = [];
+        for (const u of list) {
+          const ok = safeEqual(await hmac(saltOf(u.pw), String(p.password || '')), u.pw.split('$')[2] || '');
+          call.memo.loginCands.push({ u, ok, token: ok ? await this.userToken(u) : '' });
+        }
+      }
+      if (action === 'userPasskeyTicket' && this.passkeyKey() && call.memo.user && call.memo.user.sid) {
+        const u = this.userBy(call.memo.user.sid);
+        const body = 'upt.' + (Math.floor(Date.now() / 1000) + 300) + '.' + u.sid + '.' + await this.userGen(u);
+        call.memo.ticket = body + '.' + await hmac(this.passkeyKey(), body);
+      }
+      if (action === 'userPasskeyLogin' && this.passkeyKey()) {
+        const m = /^upl\.(\d+)\.([A-Z]\d{4})\.([\w-]+)\.([\w-]+)$/.exec(String(p.ticket || ''));
+        if (m && safeEqual(await hmac(this.passkeyKey(), 'upl.' + m[1] + '.' + m[2] + '.' + m[3]), m[4])) {
+          const u = this.userBy(m[2]);
+          call.memo.pkLogin = { exp: Number(m[1]), user: u, genOk: !!u && (await this.userGen(u)) === m[3] };
+          if (u) call.memo.newToken = await this.userToken(u);
+        }
+      }
+      if (action === 'userRegister') {
+        const v = validateUser(p);
+        if (!v.error && this.passkeyKey()) {
+          const salt = uuid().replace(/-/g, '').slice(0, 22);
+          const u = { sid: v.sid, name: v.name, pw: 'us1$' + salt + '$' + await hmac(salt, v.password), createdAt: nowStr('yyyy-MM-dd HH:mm:ss') };
+          call.memo.newUser = u;
+          call.memo.newToken = await this.userToken(u);
+        }
       }
       if (action === 'adminPasskeyTicket' && this.passkeyKey()) {
         const exp = Math.floor(Date.now() / 1000) + 300;
@@ -246,6 +289,32 @@
       return null;
     }
     passkeyKey() { return String(this.env.PUSH_TOKEN || '').trim(); }
+
+    // ---------------- 利用者の登録・ログイン（gas/Code.gs と同じ。仕様書 2.12） ----------------
+    userBy(sid) {
+      const r = sid ? this.db.exec('SELECT sid, name, pw, created_at FROM users WHERE sid = ?', sid)[0] : null;
+      return r ? { sid: r.sid, name: r.name, pw: r.pw, createdAt: r.created_at } : null;
+    }
+    /** ログインのトークン「us1.有効期限.学籍番号.署名」。署名にはその人のソルトも混ぜる（登録し直すと前のトークンは使えない） */
+    async userToken(u) {
+      const body = 'us1.' + (Math.floor(Date.now() / 1000) + SYSTEM.USER_TOKEN_DAYS * 86400) + '.' + u.sid;
+      return body + '.' + await hmac(this.passkeyKey(), body + '.' + saltOf(u.pw));
+    }
+    /** 登録の世代（ソルトから作る。登録し直すと変わる。gas/Code.gs の userGen_ と同じ） */
+    async userGen(u) { return (await hmac(this.passkeyKey(), 'upg.' + saltOf(u.pw))).slice(0, 12); }
+    /** トークンを確かめる。通れば {sid, name}、通らなければ {error} */
+    async checkUserToken(token) {
+      const m = /^us1\.(\d+)\.([A-Z]\d{4})\.([\w-]+)$/.exec(token);
+      const u = m ? this.userBy(m[2]) : null;
+      const key = this.passkeyKey();
+      if (!m || !u || !key || !safeEqual(await hmac(key, 'us1.' + m[1] + '.' + m[2] + '.' + saltOf(u.pw)), m[3])) {
+        return { error: 'ログインし直してください（登録が見つかりません）。' };
+      }
+      if (Number(m[1]) < Date.now() / 1000) return { error: 'ログインの有効期限が切れました。もう一度ログインしてください。' };
+      return { sid: u.sid, name: u.name };
+    }
+    /** 先に確かめておいたトークンの結果（送られていなければ {}） */
+    user() { return this.memo.user || {}; }
     /** この時刻（秒）までに出たパスキーでのログインの印を使えなくする（今より前の時刻には戻さない。gas/Code.gs の revokePasskeyTokens_ と同じ） */
     revokePasskeyTokens(at) {
       if (at > Number(this.kget('pkNotBefore') || 0)) this.kput('pkNotBefore', at);
@@ -340,7 +409,7 @@
 
     // ---------------- 書き込みの共通処理 ----------------
     insertRes(r) {
-      this.db.exec(`INSERT OR REPLACE INTO reservations (${RES_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ...toRow(r));
+      this.db.exec(`INSERT OR REPLACE INTO reservations (${RES_COLS}) VALUES (${RES_MARKS})`, ...toRow(r));
       this.change('res', toRow(r));
     }
     deleteRes(ids) {
@@ -401,7 +470,7 @@
         if (op === 'begin') {
           // 前に Cloudflare が正本だったときの操作ログと管理用パスワードも消す（ログはシートに写してある。
           // パスワードは GAS のものを master で入れ直す。GAS で無効にしていたら、ここでも無効のまま）
-          for (const t of ['reservations', 'rooms', 'closures', 'settings', 'bugs', 'changes', 'oplog']) this.db.exec(`DELETE FROM ${t}`);
+          for (const t of ['reservations', 'rooms', 'closures', 'settings', 'bugs', 'changes', 'oplog', 'users']) this.db.exec(`DELETE FROM ${t}`);
           this.kdel('adminPw');
           return { ok: true };
         }
@@ -410,7 +479,7 @@
           for (const row of Array.isArray(body.rows) ? body.rows : []) {
             const r = fromSheetRow(row);
             if (!r.id) continue;
-            this.db.exec(`INSERT OR REPLACE INTO reservations (${RES_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ...toRow(r));
+            this.db.exec(`INSERT OR REPLACE INTO reservations (${RES_COLS}) VALUES (${RES_MARKS})`, ...toRow(r));
             n++;
           }
           return { ok: true, count: n };
@@ -434,6 +503,10 @@
             if (!str(b[0])) return;
             this.db.exec('INSERT OR REPLACE INTO bugs (id, received_at, status, message, contact, user_agent, screen, page, env) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
               ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (i === 2 ? str(b[i]) || BUG_STATUSES[0] : String(b[i] == null ? '' : b[i]))));
+          });
+          (body.users || []).forEach((u) => {
+            const sid = normStudentId(u[0]);
+            if (sid) this.db.exec('INSERT OR REPLACE INTO users (sid, name, pw, created_at) VALUES (?, ?, ?, ?)', sid, str(u[1]), str(u[2]), str(u[3]));
           });
           if (body.adminPassword) this.kput('adminPw', 'plain$' + String(body.adminPassword));
           if (body.adminDevices) this.kput('adminDevices', String(body.adminDevices));
@@ -507,6 +580,7 @@
         settings: raw,
         pkNotBefore: Number(this.kget('pkNotBefore') || 0), // GAS に戻したあとも、使えなくしたパスキーでのログインの印を使わせない
         bugs: this.db.exec('SELECT * FROM bugs ORDER BY received_at, id').map((b) => [b.id, b.received_at, b.status, b.message, b.contact, b.user_agent, b.screen, b.page, b.env]),
+        users: this.db.exec('SELECT * FROM users ORDER BY created_at, sid').map((u) => [u.sid, u.name, u.pw, u.created_at]),
       };
     }
   }
@@ -615,6 +689,8 @@
     if (denied) return denied;
     const admin = this.resolveAdmin(p.adminPassword);
     if (admin.error) return fail(admin.error);
+    const user = this.user();
+    if (user.error) return fail(user.error, 'USER_AUTH');
     const v = validateBooking(ctx, p, admin.ok);
     if (v.error) return fail(v.error);
     const r = v.value;
@@ -623,7 +699,7 @@
     if (ruleError) return fail(ruleError);
     const conflict = findConflict.call(this, r, null);
     if (conflict) return fail('すでに存在する予約と時間が重複しています（' + describe(conflict) + '）。', 'CONFLICT');
-    const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: nowStr('yyyy-MM-dd HH:mm:ss'), updatedAt: '', color: colorOf(ctx, p, admin.ok, '') });
+    const created = Object.assign({}, r, { id: newId('res'), groupId: '', createdAt: nowStr('yyyy-MM-dd HH:mm:ss'), updatedAt: '', color: colorOf(ctx, p, admin.ok, ''), owner: user.sid || '' });
     this.insertRes(created);
     this.log('予約', created, '');
     return { ok: true, reservation: toPublic(created) };
@@ -662,6 +738,8 @@
     const admin = this.resolveAdmin(p.adminPassword);
     if (admin.error) return fail(admin.error);
     if (ctx.settings.bulkRequiresAdmin && total > 1 && !admin.ok) return fail('くり返し予約・複数部屋の同時予約には管理用パスワードが必要です。');
+    const user = this.user();
+    if (user.error) return fail(user.error, 'USER_AUTH');
 
     const bases = {};
     for (const roomId of roomIds) {
@@ -688,7 +766,7 @@
     const groupId = newId('grp');
     const now = nowStr('yyyy-MM-dd HH:mm:ss');
     const color = colorOf(ctx, p, admin.ok, '');
-    const created = available.map((r) => Object.assign({}, r, { id: newId('res'), groupId, createdAt: now, updatedAt: '', color }));
+    const created = available.map((r) => Object.assign({}, r, { id: newId('res'), groupId, createdAt: now, updatedAt: '', color, owner: user.sid || '' }));
     created.forEach((r) => this.insertRes(r));
     this.log('まとめて予約', created[0], created.length + '件（' + roomIds.length + '部屋・' + dates.length + '日: ' + dates.join(', ') + '）');
     return { ok: true, groupId, reservations: created.map(toPublic), skipped: conflicts };
@@ -702,9 +780,11 @@
     if (denied) return denied;
     const id = String(p.id || '').trim();
     if (!id) return fail('予約IDが指定されていません。');
+    const user = this.user();
+    if (user.error) return fail(user.error, 'USER_AUTH');
     const target = this.resWhere('WHERE id = ?', id)[0];
     if (!target || !visibleIn(ctx)(target)) return fail('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin.call(this, target, p.pin, p.adminPassword);
+    const auth = checkPin.call(this, target, p.pin, p.adminPassword, user.sid);
     if (auth.error) return fail(auth.error);
     if (!auth.admin && isPast(target.date, target.end)) return fail('終了した予約は変更できません。');
     if (!auth.admin && roomOf(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) return fail('この部屋の予約は管理者のみ変更できます。');
@@ -763,9 +843,11 @@
     if (denied) return denied;
     const id = String(p.id || '').trim();
     if (!id) return fail('予約IDが指定されていません。');
+    const user = this.user();
+    if (user.error) return fail(user.error, 'USER_AUTH');
     const target = this.resWhere('WHERE id = ?', id)[0];
     if (!target || !visibleIn(ctx)(target)) return fail('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin.call(this, target, p.pin, p.adminPassword);
+    const auth = checkPin.call(this, target, p.pin, p.adminPassword, user.sid);
     if (auth.error) return fail(auth.error);
     if (!auth.admin && isPast(target.date, target.end)) return fail('終了した予約は取り消せません。');
     if (!auth.admin && roomOf(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) return fail('この部屋の予約は管理者のみ取り消せます。');
@@ -1100,28 +1182,145 @@
     return { ok: true, ticket: this.memo.ticket };
   }
 
+  // ---------------- 利用者の登録・ログイン（gas/Code.gs と同じ。仕様書 2.12） ----------------
+  function userRegister(p) {
+    const limited = this.writeLimit();
+    if (limited) return limited;
+    const v = validateUser(p);
+    if (v.error) return fail(v.error);
+    if (!this.memo.newUser) return fail('合言葉（PUSH_TOKEN）が設定されていないため、登録できません。');
+    if (this.userBy(v.sid)) return fail('この学籍番号はすでに登録されています。登録し直すときは、管理者に前の登録の削除を頼んでください。', 'EXISTS');
+    const u = this.memo.newUser;
+    this.db.exec('INSERT INTO users (sid, name, pw, created_at) VALUES (?, ?, ?, ?)', u.sid, u.name, u.pw, u.createdAt);
+    this.change('user', [u.sid, u.name, u.pw, u.createdAt]);
+    this.memo.wrote = false; // 予約表には関係しない
+    return { ok: true, token: this.memo.newToken, user: { studentId: u.sid, name: u.name } };
+  }
+
+  function userLogin(p) {
+    const id = loginKey(p.loginId);
+    const password = String(p.password || '');
+    if (!id.key || !password) return fail('学籍番号か氏名と、PIN を入力してください。');
+    // 誤入力は登録者ごとに数える（gas/Code.gs の userLogin と同じ）
+    const count = (k) => Number(this.kget(k) || 0);
+    const all = this.memo.loginCands || [];
+    const cands = all.filter((c) => count('userfail_' + c.u.sid) < SYSTEM.MAX_USER_FAILURES);
+    const failKeys = all.length ? cands.map((c) => 'userfail_' + c.u.sid) : ['userfail_' + id.key.slice(0, 40)];
+    if (!failKeys.length || (!all.length && count(failKeys[0]) >= SYSTEM.MAX_USER_FAILURES)) {
+      return fail('PIN の誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
+    }
+    const hit = cands.find((c) => c.ok);
+    if (!hit) {
+      for (const k of failKeys) this.kput(k, count(k) + 1, SYSTEM.FAILURE_LOCK_SECONDS);
+      return fail('学籍番号（氏名）か PIN が違います。');
+    }
+    this.kdel('userfail_' + hit.u.sid);
+    return { ok: true, token: hit.token, user: { studentId: hit.u.sid, name: hit.u.name } };
+  }
+
+  function userGetMine(p) {
+    const ctx = this.context(p);
+    const badAdmin = adminRejected.call(this, p, ctx);
+    if (badAdmin) return badAdmin;
+    const denied = checkView.call(this, ctx, p.viewKey);
+    if (denied) return denied;
+    const user = this.user();
+    if (user.error || !user.sid) return fail(user.error || 'ログインしてください。', 'USER_AUTH');
+    const key = normName(user.sid);
+    const visible = visibleIn(ctx);
+    const list = this.resWhere('ORDER BY date, st').filter((r) => (r.owner === user.sid || normName(r.affiliation) === key) && visible(r));
+    return {
+      ok: true, user: { studentId: user.sid, name: user.name },
+      reservations: list.slice(-SYSTEM.MAX_MINE).map((r) => Object.assign(toPublic(r), { mine: r.owner === user.sid })),
+      rooms: ctx.rooms, serverNow: nowStr('yyyy-MM-dd HH:mm'),
+    };
+  }
+
+  function userPasskeyTicket(p) {
+    const user = this.user();
+    if (user.error || !user.sid) return fail(user.error || 'ログインしてください。', 'USER_AUTH');
+    if (!this.memo.ticket) return fail('高速キャッシュの合言葉（PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
+    return { ok: true, ticket: this.memo.ticket };
+  }
+
+  function userPasskeyLogin() {
+    const pk = this.memo.pkLogin;
+    if (!pk) return fail('パスキーを確かめられませんでした。もう一度お試しください。');
+    if (pk.exp < Date.now() / 1000) return fail('時間がたちすぎました。もう一度お試しください。');
+    if (!pk.user || !pk.genOk) return fail('このパスキーの登録は削除されています。学籍番号か氏名とパスワードでログインしてください。');
+    return { ok: true, token: this.memo.newToken, user: { studentId: pk.user.sid, name: pk.user.name } };
+  }
+
+  function adminGetUsers(p) {
+    const denied = this.requireAdmin(p);
+    if (denied) return denied;
+    const users = this.db.exec('SELECT sid, name, created_at FROM users ORDER BY created_at DESC, sid')
+      .map((u) => ({ studentId: u.sid, name: u.name, createdAt: u.created_at }));
+    return { ok: true, users };
+  }
+
+  function adminDeleteUser(p) {
+    const denied = this.requireAdmin(p);
+    if (denied) return denied;
+    const u = this.userBy(normStudentId(p.studentId));
+    if (!u) return fail('登録が見つかりません。画面を再読み込みしてください。', 'NOT_FOUND');
+    this.db.exec('DELETE FROM users WHERE sid = ?', u.sid);
+    this.change('userdel', [u.sid]);
+    this.logAdmin('登録の削除', u.sid + ' ' + u.name);
+    this.memo.wrote = false;
+    return { ok: true };
+  }
+
+  /** ログインの ID（学籍番号か氏名）を比べる形にする。gas/Code.gs の userLogin と同じ */
+  function loginKey(v) {
+    const sid = normStudentId(v);
+    if (/^[A-Z]\d{4}$/.test(sid)) return { bySid: true, key: sid };
+    return { bySid: false, key: normNamePart(v) };
+  }
+  function normStudentId(v) { return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase(); }
+  function saltOf(pw) { return String(pw || '').split('$')[1] || ''; }
+  /** 姓・名の1つをそろえる（gas/Code.gs の normNamePart_ と同じ） */
+  function normNamePart(v) { return String(v || '').replace(/\s+/g, ''); }
+  /** 登録の入力を確かめる（gas/Code.gs の validateUser_ と同じ） */
+  function validateUser(p) {
+    const sid = normStudentId(p.studentId);
+    const family = normNamePart(p.familyName);
+    const given = normNamePart(p.givenName);
+    const name = family + given;
+    const password = String(p.password || '');
+    if (!/^[A-Z]\d{4}$/.test(sid)) return { error: '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。' };
+    if (!family || !given) return { error: '姓と名を入力してください。' };
+    if (name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
+    if (/^[=+\-@]/.test(family)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
+    if (!/^\d{4}$/.test(password)) return { error: 'PIN は数字4桁で入力してください。' };
+    return { sid, name, password };
+  }
+
   const API = {
     getSchedule, getReservationsByIds, findMyReservations, createReservation, createBulkReservations, updateReservation, cancelReservation,
     adminDeleteReservations, adminImportReservations, submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
     adminGetBugReports, adminSetBugStatus, adminGetLog, adminChangePassword, adminPasskeyTicket,
+    userRegister, userLogin, userGetMine, userPasskeyTicket, userPasskeyLogin, adminGetUsers, adminDeleteUser,
   };
 
   // ---------------------------------------------------------------------------
   // 確かめる処理（gas/Code.gs と同じ）
   // ---------------------------------------------------------------------------
 
-  function checkPin(target, pin, adminPassword) {
+  function checkPin(target, pin, adminPassword, userSid) {
     if (adminPassword) {
       const error = this.verifyAdmin(adminPassword);
       return error ? { error } : { admin: true };
     }
+    // ログインして作った予約は、同じ人がログインしていれば編集用パスワードなしで許可（gas/Code.gs と同じ）
+    if (target.owner && userSid && userSid === target.owner) return { admin: false };
     const code = String(pin || '').trim();
     if (code && !/^\d{4}$/.test(code)) {
       const error = this.verifyAdmin(code);
       if (!error) return { admin: true };
       return { error: /誤入力が続いた/.test(error) ? error : '編集用パスワードが一致しません。' };
     }
-    if (!target.pin) return { admin: false };
+    if (!target.pin) return target.owner ? { error: 'この予約は、予約した人がログインしているときだけ変更・取消できます。' } : { admin: false };
     if (!code) return { error: 'この予約には編集用パスワードが設定されています。編集用パスワードを入力してください。' };
     // まとめて作った予約は同じパスワードなので、間違いもまとめて数える（1件ずつ替えて当て続けられないように）
     const failKey = 'pinfail_' + (target.groupId || target.id);
@@ -1285,12 +1484,12 @@
 
   /** スプレッドシートの台帳と同じ列の順番（予約ID, 予約日, 部屋ID, 開始, 終了, 学籍番号/所属, 氏名, 編集用パスワード, 作成日時, まとめ予約ID, 備考, 更新日時, 色） */
   function toRow(r) {
-    return [r.id, r.date, r.roomId, r.start, r.end, r.affiliation || '', r.name || '', r.pin || '', r.createdAt || '', r.groupId || '', r.memo || '', r.updatedAt || '', r.color || ''];
+    return [r.id, r.date, r.roomId, r.start, r.end, r.affiliation || '', r.name || '', r.pin || '', r.createdAt || '', r.groupId || '', r.memo || '', r.updatedAt || '', r.color || '', r.owner || ''];
   }
   function fromDb(x) {
     return {
       id: x.id, date: x.date, roomId: x.room_id, start: x.st, end: x.en, affiliation: x.affiliation, name: x.name, pin: x.pin,
-      createdAt: x.created_at, groupId: x.group_id, memo: x.memo, updatedAt: x.updated_at, color: x.color,
+      createdAt: x.created_at, groupId: x.group_id, memo: x.memo, updatedAt: x.updated_at, color: x.color, owner: x.owner || '',
     };
   }
   /** スプレッドシートの行（表示どおりの文字）を、正本の形にそろえる（gas/Code.gs の readReservations_ と同じ） */
@@ -1299,14 +1498,14 @@
     return {
       id: c(0), date: normDate(r[1]), roomId: c(2), start: normTime(r[3]), end: normTime(r[4]), affiliation: c(5), name: c(6),
       pin: normPin(r[7]), createdAt: c(8), groupId: c(9), memo: c(10), updatedAt: c(11),
-      color: RESERVATION_COLORS.indexOf(c(12)) >= 0 ? c(12) : '',
+      color: RESERVATION_COLORS.indexOf(c(12)) >= 0 ? c(12) : '', owner: c(13),
     };
   }
   function toPublic(r) {
     return {
       id: r.id, date: r.date, roomId: r.roomId, start: r.start, end: r.end,
       affiliation: r.affiliation, name: r.name, memo: r.memo || '', groupId: r.groupId || '',
-      hasPin: !!r.pin, color: r.color || '',
+      hasPin: !!r.pin, color: r.color || '', owned: !!r.owner,
     };
   }
   function roomRow(r) { return [r.order, r.id, r.name, r.equipment, r.restriction, r.note, r.tags]; }
