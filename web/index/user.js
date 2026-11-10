@@ -1,5 +1,5 @@
 // 予約表: 利用者のログイン・新規登録（任意。仕様書 2.12）
-// 登録は学籍番号（G6508 の形）・氏名・パスワード。ログインのトークンを端末に保存し（LS.user）、
+// 登録は学籍番号（G1234 の形）・氏名・パスワード。ログインのトークンを端末に保存し（LS.user）、
 // 予約・変更・取消と自分の予約の読み込みに添える（index/data.js の api）。
 // ログインして作った予約は、ログイン中なら編集用パスワードなしで変更・取消できる
 'use strict';
@@ -7,7 +7,7 @@
 state.user = (() => { const u = load_(LS.user, null); return u && u.token ? u : null; })();
 state.userMine = {}; // ログインして作った自分の予約 { [予約ID]: 'YYYY-MM-DD' }（終わって7日以内まで。core.js の getMine が合わせて使う）
 
-const STUDENT_ID_FORM = /^[A-Z]\d{4}$/; // 登録できる学籍番号の形（G6508。大学院の 26E02 などは当面登録しない）
+const STUDENT_ID_FORM = /^[A-Z]\d{4}$/; // 登録できる学籍番号の形（G1234。大学院の 26E02 などは当面登録しない）
 const normSid = (v) => String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase();
 
 /** ログインして作った自分の予約の一覧を読み直す。userGetMine の応答を返す（ログインしていなければ null） */
@@ -74,7 +74,7 @@ $('userForm').addEventListener('submit', async (e) => {
   const password = $('uPass').value;
   err.textContent = '';
   if (!studentId) { err.textContent = '学籍番号を入力してください。'; $('uSid').focus(); return; }
-  if (reg && !STUDENT_ID_FORM.test(studentId)) { err.textContent = '登録できるのは、G6508 のような学籍番号（英字1文字と数字4桁）の学生だけです。'; $('uSid').focus(); return; }
+  if (reg && !STUDENT_ID_FORM.test(studentId)) { err.textContent = '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。'; $('uSid').focus(); return; }
   if (reg && !name) { err.textContent = '氏名を入力してください。'; $('uName').focus(); return; }
   if (!password) { err.textContent = 'パスワードを入力してください。'; $('uPass').focus(); return; }
   if (reg && password.length < 4) { err.textContent = 'パスワードは4文字以上にしてください。'; $('uPass').focus(); return; }
