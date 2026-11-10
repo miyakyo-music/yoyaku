@@ -65,15 +65,16 @@ function openBooking(o) {
   setTime($('bStartH'), $('bStartM'), start);
   setTime($('bEndH'), $('bEndM'), end);
 
-  const profile = load_(LS.profile, {});
+  // ログインしているときは、新しい予約の氏名・学籍番号に登録した値を入れる（団体名などに書き換えてもよい）
+  const profile = state.user ? { affiliation: state.user.studentId, name: state.user.name } : load_(LS.profile, {});
   const from = edit ? r : cp;
   $('bAff').value = from ? from.affiliation : (profile.affiliation || '');
   $('bPerson').value = from ? from.name : (profile.name || '');
   checkIdInName();
   $('bMemo').value = from ? (from.memo || '') : '';
   $('bPin').value = edit ? (o.pin || '') : (profile.pin || '');
-  // 変更時: 編集用パスワードのない予約・管理者モードでは編集用パスワード欄を出さない
-  $('bPinField').hidden = edit && (!r.hasPin || isAdminMode());
+  // 変更時: 編集用パスワードのない予約・管理者モード・ログインして作った自分の予約では編集用パスワード欄を出さない
+  $('bPinField').hidden = edit && (!r.hasPin || isAdminMode() || isUserMine(r.id));
   $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（4桁の数字）';
   $('bPinReq').hidden = !edit;
   $('bPinHint').hidden = edit;
@@ -493,7 +494,8 @@ function readBookingPayload() {
   if (bulk && total > s.maxBulkCount) return fail(`まとめて予約は最大${s.maxBulkCount}件までです（今回${total}件）。部屋か期間を減らしてください。`);
   // 氏名の欄に学籍番号が残っていれば、欄の下に知らせを出したまま送らずに氏名の欄へ戻る（管理者モードでは知らせない）
   if (checkIdInName()) return fail('', 'bPerson');
-  if (!edit) save_(LS.profile, { affiliation: payload.affiliation, name: payload.name, pin: payload.pin }); // 予約確定時にこの端末へ保存
+  // 予約確定時にこの端末へ保存（ログイン中は登録した値を使うので保存しない）
+  if (!edit && !state.user) save_(LS.profile, { affiliation: payload.affiliation, name: payload.name, pin: payload.pin });
   // まとめ予約の1件を変更するときに「この日以降もまとめて変更」を選んだか
   const seriesEdit = edit && !$('bSeriesBox').hidden && $('bSeries').checked;
   return { payload, edit, seriesEdit, bulk, total, roomIds, dates, pairs };
@@ -548,6 +550,7 @@ async function sendBulkBooking({ payload, edit, seriesEdit, bulk, total, roomIds
 
     if (res && res.ok) {
       const list = res.reservations || [res.reservation];
+      addUserMine(list); // index/user.js（ログインして作った予約）
       if (!edit) addMine(list);
       else if (list.some((r) => isMine(r.id))) addMine(list.filter((r) => isMine(r.id))); // 変更後の日付で記録し直す
       $('bookDialog').close();

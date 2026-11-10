@@ -24,7 +24,7 @@ for (const t of document.querySelectorAll('.tabs [data-tab]')) {
     for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== t.dataset.tab || p.dataset.unsupported === '1';
     placeTabThumb();
     if (t.dataset.tab === 'bugs') loadBugs();
-    if (t.dataset.tab === 'setup') pkRefresh();
+    if (t.dataset.tab === 'setup') { pkRefresh(); loadUsers(); }
     if (t.dataset.tab === 'stats') loadStats();
     if (t.dataset.tab === 'oplog') loadOplog(false);
   });

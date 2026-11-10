@@ -236,7 +236,14 @@
   <!-- 自分の予約（この端末で作った予約、または名前・学籍番号で探した予約） -->
   <dialog id="myDialog" aria-labelledby="myDialogTitle">
     <div class="body">
-      <h2 id="myDialogTitle" tabindex="-1" autofocus>自分の予約</h2>
+      <div class="my-head">
+        <h2 id="myDialogTitle" tabindex="-1" autofocus>自分の予約</h2>
+        <button type="button" class="btn my-login" id="myLogin">ログイン</button>
+      </div>
+      <div class="my-user" id="myUser" hidden>
+        <span><b id="myUserName"></b><span id="myUserSid"></span></span>
+        <button type="button" class="btn" id="myLogout">ログアウト</button>
+      </div>
       <div class="pill-tabs my-src" id="mySrc" role="group" aria-label="探し方">
         <button type="button" data-src="device" aria-pressed="true">この端末</button>
         <button type="button" data-src="name" aria-pressed="false">名前で探す</button>
@@ -263,6 +270,22 @@
       </div>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
     </div>
+  </dialog>
+
+  <!-- 利用者のログイン・新規登録（任意。仕様書 2.12） -->
+  <dialog id="userDialog" aria-labelledby="userDialogTitle">
+    <form id="userForm" novalidate>
+      <h2 id="userDialogTitle" tabindex="-1" autofocus>ログイン</h2>
+      <div class="pill-tabs" id="userMode" role="group" aria-label="ログインか新規登録か">
+        <button type="button" data-mode="login" aria-pressed="true">ログイン</button>
+        <button type="button" data-mode="register" aria-pressed="false">新規登録</button>
+      </div>
+      <label class="field">学籍番号<input id="uSid" autocomplete="username" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="G6508"></label>
+      <label class="field" id="uNameField" hidden>氏名<input id="uName" autocomplete="name" maxlength="50" placeholder="例：宮教 太郎"></label>
+      <label class="field">パスワード<input id="uPass" type="password" autocomplete="current-password" maxlength="64"></label>
+      <p class="error" role="alert" id="uError"></p>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button><button type="submit" class="btn primary" id="uSubmit">ログイン</button></div>
+    </form>
   </dialog>
 
   <!-- 予約の検索（氏名・団体名・学籍番号・備考・部屋名。今日から予約を受け付けている先まで） -->
@@ -384,6 +407,7 @@
 <script src="index/book-send.js"></script>
 <script src="index/detail.js"></script>
 <script src="index/my.js"></script>
+<script src="index/user.js"></script>
 <script src="index/access.js"></script>
 <script src="index/topbar.js"></script>
 <script src="index/search.js"></script>

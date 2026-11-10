@@ -29,6 +29,7 @@ async function createOptimistic(payload) {
     entry.status = 'done';
     if (state.celebrate) state.celebrate.ids.add(res.reservation.id);
     addMine([res.reservation]);
+    addUserMine([res.reservation]); // index/user.js（ログインして作った予約）
     toast('予約しました');
     invalidate([payload.date]);
     if (state.data) render();
@@ -77,6 +78,7 @@ async function updateOptimistic(payload, orig) {
     entry.status = 'done';
     // 再取得で台帳に反映されるまで、変更後の姿を出しておく。仮の id なので、その間は押しても詳細・動かす操作をさせない（settling）
     entry.r = Object.assign({}, res.reservation, { id: temp.id, settling: true });
+    addUserMine([res.reservation]);
     if (isMine(orig.id)) addMine([res.reservation]); // 日付を変えたときも、この端末の記録の日付を新しい日にする
     toast('予約を変更しました');
     invalidate([orig.date, payload.date]);

@@ -29,3 +29,5 @@ window.addEventListener('pageshow', (e) => {
 updateChrome();
 load(state.skipSnapshot ? { force: true } : undefined);
 renewAdminLogin();
+// ログインしているときは、ログインして作った自分の予約を読む（青い帯と、詳細で編集用パスワードを求めないため。index/user.js）
+if (state.user) refreshUserMine().then(() => { if (state.data) render(); }).catch(() => { /* 読めなければ次の操作のときに */ });
