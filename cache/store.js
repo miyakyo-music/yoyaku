@@ -171,7 +171,7 @@
         // ID は学籍番号か氏名（同じ氏名の人が複数いればパスワードで見分ける）
         const id = loginKey(p.loginId);
         const list = !id.key ? [] : id.bySid ? [this.userBy(id.key)].filter(Boolean)
-          : this.db.exec('SELECT sid, name, pw, created_at FROM users').filter((r) => normName(r.name) === id.key).map((r) => ({ sid: r.sid, name: r.name, pw: r.pw }));
+          : this.db.exec('SELECT sid, name, pw, created_at FROM users').filter((r) => normNamePart(r.name) === id.key).map((r) => ({ sid: r.sid, name: r.name, pw: r.pw }));
         for (const u of list) {
           if (safeEqual(await hmac(saltOf(u.pw), String(p.password || '')), u.pw.split('$')[2] || '')) {
             call.memo.loginUser = u;
@@ -1271,12 +1271,12 @@
   function loginKey(v) {
     const sid = normStudentId(v);
     if (/^[A-Z]\d{4}$/.test(sid)) return { bySid: true, key: sid };
-    return { bySid: false, key: normName(v) };
+    return { bySid: false, key: normNamePart(v) };
   }
   function normStudentId(v) { return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase(); }
   function saltOf(pw) { return String(pw || '').split('$')[1] || ''; }
   /** 姓・名の1つをそろえる（gas/Code.gs の normNamePart_ と同じ） */
-  function normNamePart(v) { return String(v || '').normalize('NFKC').replace(/\s+/g, ''); }
+  function normNamePart(v) { return String(v || '').replace(/\s+/g, ''); }
   /** 登録の入力を確かめる（gas/Code.gs の validateUser_ と同じ） */
   function validateUser(p) {
     const sid = normStudentId(p.studentId);

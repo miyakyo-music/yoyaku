@@ -48,7 +48,9 @@ function logoutUser(message) {
 function setUserMode(mode) {
   const reg = mode === 'register';
   for (const b of $('userMode').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
-  $('userDialogTitle').textContent = reg ? '新規登録' : 'ログイン';
+  // 学内の認証システムと取り違えないよう、登録では「予約表の」を付け、大学のパスワードを使わないよう欄に出す
+  $('userDialogTitle').textContent = reg ? '予約表の新規登録' : 'ログイン';
+  $('uPassLabel').textContent = reg ? '予約表用のパスワード' : 'パスワード';
   $('uSubmit').textContent = reg ? '登録' : 'ログイン';
   $('uSidLabel').textContent = reg ? '学籍番号' : '学籍番号または氏名';
   $('uSid').placeholder = reg ? 'G1234' : '';
@@ -56,7 +58,7 @@ function setUserMode(mode) {
   $('uNameField').hidden = !reg;
   $('uPkLogin').hidden = reg || !userPkSupported;
   $('uPass').autocomplete = reg ? 'new-password' : 'current-password';
-  $('uPass').placeholder = reg ? 'ほかで使っていないもの（4文字以上）' : '';
+  $('uPass').placeholder = reg ? '大学のパスワードとは別のもの' : '';
   $('uError').textContent = '';
 }
 const userMode = () => (($('userMode').querySelector('[aria-pressed="true"]') || {}).dataset || {}).mode || 'login';

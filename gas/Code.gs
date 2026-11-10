@@ -1089,7 +1089,7 @@ function userRegister(p) {
 }
 
 /**
- * ログインする。ID は学籍番号か氏名（氏名は空白・全角半角・ひらがなとカタカナの違いを無視して比べ、
+ * ログインする。ID は学籍番号か氏名（氏名は空白の有無・全角半角だけを無視して比べ、
  * 同じ氏名の人が複数いればパスワードで見分ける）。同じ ID で MAX_USER_FAILURES 回間違えると10分受け付けない。
  * @param {{loginId, password}} p
  */
@@ -1100,14 +1100,14 @@ function userLogin(p) {
   if (!loginId.trim() || !password) return fail_('学籍番号か氏名と、パスワードを入力してください。');
   const sid = normStudentId_(loginId);
   const bySid = /^[A-Z]\d{4}$/.test(sid);
-  const key = bySid ? sid : normName_(loginId);
+  const key = bySid ? sid : normNamePart_(loginId);
   const cache = CacheService.getScriptCache();
   const failKey = 'userfail_' + key.slice(0, 40);
   if (Number(cache.get(failKey) || 0) >= SYSTEM.MAX_USER_FAILURES) {
     return fail_('パスワードの誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
   }
   const u = readUsers_(getSpreadsheet_())
-    .filter(x => (bySid ? x.sid === sid : normName_(x.name) === key))
+    .filter(x => (bySid ? x.sid === sid : normNamePart_(x.name) === key))
     .find(x => checkUserPassword_(password, x.pw));
   if (!u) {
     countFailure_(failKey);
@@ -1209,9 +1209,9 @@ function normStudentId_(v) {
   return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase();
 }
 
-/** 姓・名の1つをそろえる（全角の英数字を半角に、半角のカタカナを全角に。中の空白は除く） */
+/** 氏名・姓・名の空白（全角・半角）を除く。ほかの書き方（ひらがなとカタカナなど）は変えない */
 function normNamePart_(v) {
-  return String(v || '').normalize('NFKC').replace(/\s+/g, '');
+  return String(v || '').replace(/\s+/g, '');
 }
 
 /** 登録の入力を確かめる。{sid, name（空白なしの「姓名」）, password} / {error} */

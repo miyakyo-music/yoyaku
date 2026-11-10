@@ -239,7 +239,7 @@
   r = rec('login', await c('userLogin', { loginId: 'g1234', password: 'pass' }));
   out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(r.token || ''), JSON.stringify(r.user)];
   // ID は氏名でもよい（空白・ひらがなとカタカナの違いは無視）
-  r = rec('loginName', await c('userLogin', { loginId: '登録太郎', password: 'pass' }));
+  r = rec('loginName', await c('userLogin', { loginId: '登録　太郎 ', password: 'pass' }));
   out[out.length - 1][4] = JSON.stringify(r.user);
   rec('loginNameBad', await c('userLogin', { loginId: '登録 次郎', password: 'pass' }));
   // パスキー: 登録の許可証（ログイン中だけ）と、高速キャッシュが出す許可証（upl）からのログイン
