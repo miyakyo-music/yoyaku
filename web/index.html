@@ -237,8 +237,9 @@
   <!-- マイページ（ログイン中の人の全画面のダッシュボード。index/me.js、仕様書 2.12） -->
   <section id="mePage" class="me-page" hidden aria-labelledby="meTitle">
     <header class="me-bar">
-      <button type="button" class="me-back" id="meBack"><svg width="11" height="18" viewBox="0 0 11 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 1.8 9 9 16.5"/></svg><span>予約表</span></button>
+      <button type="button" class="btn me-sm" id="meBack">‹ 予約表</button>
       <h2 id="meTitle" tabindex="-1">マイページ</h2>
+      <button type="button" class="btn me-sm" id="meLogout">ログアウト</button>
     </header>
     <div class="me-wrap">
       <div class="me-hero"><b id="meName"></b><span id="meSid"></span></div>
@@ -252,7 +253,6 @@
         <div class="me-col">
           <section class="me-card"><h3>これまでの予約</h3><ul class="me-list" id="mePast"></ul><button type="button" class="me-more" id="meMore" hidden>さらに表示</button></section>
           <section class="me-card" id="mePkSec" hidden><h3>パスキー</h3><ul class="me-pk" id="mePkList"></ul><button type="button" class="me-act" id="mePkAdd"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>パスキーを追加</button></section>
-          <button type="button" class="me-card me-logout" id="meLogout">ログアウト</button>
         </div>
       </div>
     </div>
