@@ -3,6 +3,7 @@
  * 開いた端末ごとに Cookie（demo_c）で別のデータベースを使う（テスト環境の localStorage と同じく、端末ごとに独立）。
  */
 import { DurableObject } from 'cloudflare:workers';
+import { handlePasskey } from '../../cache/worker.js';
 import FILES from './files.js'; // dev/demo/build.py が作る { パス: [種類, base64] }
 
 const COOKIE = 'demo_c';
@@ -15,6 +16,8 @@ export default {
       const id = env.SQL.idFromName(cookie ? cookie[1] : 'shared');
       return env.SQL.get(id).fetch(request);
     }
+    // パスキー（管理者・利用者）は本物の高速キャッシュと同じ処理で確かめる（rpId はこのデモのドメイン、合言葉は dev の devtoken）
+    if (url.pathname.startsWith('/passkey/')) return handlePasskey(url.pathname.slice(9), request, env, {});
     let path = url.pathname === '/' ? '/index.html' : url.pathname;
     if (!FILES[path] && FILES[path + '.html']) path += '.html';
     const file = FILES[path];

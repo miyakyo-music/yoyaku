@@ -39,6 +39,12 @@ shutil.copy(ROOT / "cache/store.js", DIST / "cache/store.js")
 (DIST / "dev").mkdir()
 for name in ("fixed-time.js", "gas-stub.js", "cf-stub.js", "seed.js"):
     shutil.copy(ROOT / "dev" / name, DIST / "dev" / name)
+# パスキーの呼び出し（http://dev-cf.test/passkey/〜）だけは、このデモの Worker に送る（dev/demo/worker.js が本物の処理で確かめる）
+stub = DIST / "dev/cf-stub.js"
+s = stub.read_text(encoding="utf-8")
+hook = "    if (!s.startsWith(BASE)) return prevFetch(url, init);\n"
+assert hook in s
+stub.write_text(s.replace(hook, hook + "    if (s.startsWith(BASE + '/passkey/')) return prevFetch(s.slice(BASE.length), init);\n", 1), encoding="utf-8")
 print(DIST)
 
 # 画面のファイルを Worker の中に埋め込む（Workers の静的アセットのアップロードを使わずに済むように）

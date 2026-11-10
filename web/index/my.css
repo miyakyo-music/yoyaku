@@ -63,3 +63,6 @@ dialog form.my-name[hidden] { display: none; }
 .my-user > span { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
 .my-user b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .my-user b + span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* ログインの小窓の「パスキーでログイン」: 横いっぱい、鍵の絵と文字を並べる */
+#userDialog .user-pk { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
+#userDialog .user-pk[hidden] { display: none; }

@@ -151,6 +151,8 @@ const API = {
   userRegister: userRegister,
   userLogin: userLogin,
   userGetMine: userGetMine,
+  userPasskeyTicket: userPasskeyTicket,
+  userPasskeyLogin: userPasskeyLogin,
   adminGetUsers: adminGetUsers,
   adminDeleteUser: adminDeleteUser,
   mirrorNow: mirrorNow,
@@ -1056,7 +1058,7 @@ function adminPasskeyTicket(p) {
 // ---------------------------------------------------------------------------
 // 利用者の登録・ログイン（任意。仕様書 2.12。cache/store.js の同じ名前の処理と同じ）
 //
-// 登録は学籍番号（G1234 の形だけ）・姓・名・パスワード。氏名は「姓 名」（半角の空白1つ）の形で保存し、
+// 登録は学籍番号（G1234 の形だけ）・姓・名・パスワード。氏名は空白なしの「姓名」の形で保存し、
 // ログインして作る予約の氏名もこの形にそろえる（全角・半角や空白の揺れを吸収する）。なりすましはない前提の自己申告で、確かめない。
 // ログインすると「us1.有効期限.学籍番号.署名」のトークンを返し、画面が端末に保存する。
 // ログイン中に作った予約は、予約台帳の最後の列（登録者）に学籍番号を入れ、その人がログインしていれば
@@ -1087,26 +1089,69 @@ function userRegister(p) {
 }
 
 /**
- * ログインする。同じ学籍番号で MAX_USER_FAILURES 回間違えると10分受け付けない。
- * @param {{studentId, password}} p
+ * ログインする。ID は学籍番号か氏名（氏名は空白・全角半角・ひらがなとカタカナの違いを無視して比べ、
+ * 同じ氏名の人が複数いればパスワードで見分ける）。同じ ID で MAX_USER_FAILURES 回間違えると10分受け付けない。
+ * @param {{loginId, password}} p
  */
 function userLogin(p) {
   p = p || {};
-  const sid = normStudentId_(p.studentId);
+  const loginId = String(p.loginId || '');
   const password = String(p.password || '');
-  if (!sid || !password) return fail_('学籍番号とパスワードを入力してください。');
+  if (!loginId.trim() || !password) return fail_('学籍番号か氏名と、パスワードを入力してください。');
+  const sid = normStudentId_(loginId);
+  const bySid = /^[A-Z]\d{4}$/.test(sid);
+  const key = bySid ? sid : normName_(loginId);
   const cache = CacheService.getScriptCache();
-  const failKey = 'userfail_' + sid.slice(0, 40);
+  const failKey = 'userfail_' + key.slice(0, 40);
   if (Number(cache.get(failKey) || 0) >= SYSTEM.MAX_USER_FAILURES) {
     return fail_('パスワードの誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
   }
-  const u = readUsers_(getSpreadsheet_()).find(x => x.sid === sid);
-  if (!u || !checkUserPassword_(password, u.pw)) {
+  const u = readUsers_(getSpreadsheet_())
+    .filter(x => (bySid ? x.sid === sid : normName_(x.name) === key))
+    .find(x => checkUserPassword_(password, x.pw));
+  if (!u) {
     countFailure_(failKey);
-    return fail_('学籍番号かパスワードが違います。');
+    return fail_('学籍番号（氏名）かパスワードが違います。');
   }
   cache.remove(failKey);
   return { ok: true, token: userToken_(u), user: { studentId: u.sid, name: u.name } };
+}
+
+/**
+ * パスキーの登録に使う許可証（5分間有効）。高速キャッシュ（Cloudflare）は利用者の登録を持たないので、
+ * ログインしていると確かめた印としてこれを渡す。中身は「upt.有効期限.学籍番号.登録の世代.署名」
+ * @param {{userToken}} p
+ */
+function userPasskeyTicket(p) {
+  p = p || {};
+  const user = resolveUser_(p.userToken);
+  if (user.error || !user.sid) return fail_(user.error || 'ログインしてください。', 'USER_AUTH');
+  const key = passkeyKey_();
+  if (!key) return fail_('高速キャッシュの合言葉（CACHE_PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
+  const u = readUsers_(getSpreadsheet_()).find(x => x.sid === user.sid);
+  const body = 'upt.' + (Math.floor(Date.now() / 1000) + 300) + '.' + u.sid + '.' + userGen_(key, u);
+  return { ok: true, ticket: body + '.' + hmac_(key, body) };
+}
+
+/**
+ * パスキーでログインする。高速キャッシュが署名を確かめて出した「upl.有効期限.学籍番号.登録の世代.署名」を受け取り、
+ * 普段のトークンを返す。登録を消して登録し直すと世代が変わるので、前の登録のパスキーは通らない
+ * @param {{ticket}} p
+ */
+function userPasskeyLogin(p) {
+  p = p || {};
+  const key = passkeyKey_();
+  const m = /^upl\.(\d+)\.([A-Z]\d{4})\.([\w-]+)\.([\w-]+)$/.exec(String(p.ticket || ''));
+  if (!key || !m || hmac_(key, 'upl.' + m[1] + '.' + m[2] + '.' + m[3]) !== m[4]) return fail_('パスキーを確かめられませんでした。もう一度お試しください。');
+  if (Number(m[1]) < Date.now() / 1000) return fail_('時間がたちすぎました。もう一度お試しください。');
+  const u = readUsers_(getSpreadsheet_()).find(x => x.sid === m[2]);
+  if (!u || userGen_(key, u) !== m[3]) return fail_('このパスキーの登録は削除されています。学籍番号か氏名とパスワードでログインしてください。');
+  return { ok: true, token: userToken_(u), user: { studentId: u.sid, name: u.name } };
+}
+
+/** 登録の世代（ソルトから作る。登録し直すと変わる） */
+function userGen_(key, u) {
+  return hmac_(key, 'upg.' + (String(u.pw).split('$')[1] || '')).slice(0, 12);
 }
 
 /**
@@ -1169,12 +1214,12 @@ function normNamePart_(v) {
   return String(v || '').normalize('NFKC').replace(/\s+/g, '');
 }
 
-/** 登録の入力を確かめる。{sid, name（「姓 名」）, password} / {error} */
+/** 登録の入力を確かめる。{sid, name（空白なしの「姓名」）, password} / {error} */
 function validateUser_(p) {
   const sid = normStudentId_(p.studentId);
   const family = normNamePart_(p.familyName);
   const given = normNamePart_(p.givenName);
-  const name = family + ' ' + given;
+  const name = family + given;
   const password = String(p.password || '');
   if (!/^[A-Z]\d{4}$/.test(sid)) return { error: '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。' };
   if (!family || !given) return { error: '姓と名を入力してください。' };

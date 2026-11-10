@@ -160,6 +160,7 @@ function openMyList() {
   if (!$('myNameInput').value) $('myNameInput').value = load_(LS.myName, '') || (load_(LS.profile, {}).name || '');
   const u = state.user;
   $('myLogin').hidden = !!u;
+  $('myPasskey').hidden = !u || !userPkSupported;
   $('myUser').hidden = !u;
   if (u) { $('myUserName').textContent = u.name; $('myUserSid').textContent = u.studentId; }
   if (!$('myDialog').open) $('myDialog').showModal();

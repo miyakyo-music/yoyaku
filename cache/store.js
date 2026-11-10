@@ -168,10 +168,29 @@
       // 利用者のトークン・パスワードの計算も待ちが入るので、先に済ませる（gas/Code.gs の resolveUser_・userLogin・userRegister と同じ）
       if (p.userToken) call.memo.user = await call.checkUserToken(String(p.userToken));
       if (action === 'userLogin') {
-        const u = this.userBy(normStudentId(p.studentId));
-        if (u) {
-          call.memo.loginOk = safeEqual(await hmac(saltOf(u.pw), String(p.password || '')), u.pw.split('$')[2] || '');
-          if (call.memo.loginOk) call.memo.newToken = await this.userToken(u);
+        // ID は学籍番号か氏名（同じ氏名の人が複数いればパスワードで見分ける）
+        const id = loginKey(p.loginId);
+        const list = !id.key ? [] : id.bySid ? [this.userBy(id.key)].filter(Boolean)
+          : this.db.exec('SELECT sid, name, pw, created_at FROM users').filter((r) => normName(r.name) === id.key).map((r) => ({ sid: r.sid, name: r.name, pw: r.pw }));
+        for (const u of list) {
+          if (safeEqual(await hmac(saltOf(u.pw), String(p.password || '')), u.pw.split('$')[2] || '')) {
+            call.memo.loginUser = u;
+            call.memo.newToken = await this.userToken(u);
+            break;
+          }
+        }
+      }
+      if (action === 'userPasskeyTicket' && this.passkeyKey() && call.memo.user && call.memo.user.sid) {
+        const u = this.userBy(call.memo.user.sid);
+        const body = 'upt.' + (Math.floor(Date.now() / 1000) + 300) + '.' + u.sid + '.' + await this.userGen(u);
+        call.memo.ticket = body + '.' + await hmac(this.passkeyKey(), body);
+      }
+      if (action === 'userPasskeyLogin' && this.passkeyKey()) {
+        const m = /^upl\.(\d+)\.([A-Z]\d{4})\.([\w-]+)\.([\w-]+)$/.exec(String(p.ticket || ''));
+        if (m && safeEqual(await hmac(this.passkeyKey(), 'upl.' + m[1] + '.' + m[2] + '.' + m[3]), m[4])) {
+          const u = this.userBy(m[2]);
+          call.memo.pkLogin = { exp: Number(m[1]), user: u, genOk: !!u && (await this.userGen(u)) === m[3] };
+          if (u) call.memo.newToken = await this.userToken(u);
         }
       }
       if (action === 'userRegister') {
@@ -282,6 +301,8 @@
       const body = 'us1.' + (Math.floor(Date.now() / 1000) + SYSTEM.USER_TOKEN_DAYS * 86400) + '.' + u.sid;
       return body + '.' + await hmac(this.passkeyKey(), body + '.' + saltOf(u.pw));
     }
+    /** 登録の世代（ソルトから作る。登録し直すと変わる。gas/Code.gs の userGen_ と同じ） */
+    async userGen(u) { return (await hmac(this.passkeyKey(), 'upg.' + saltOf(u.pw))).slice(0, 12); }
     /** トークンを確かめる。通れば {sid, name}、通らなければ {error} */
     async checkUserToken(token) {
       const m = /^us1\.(\d+)\.([A-Z]\d{4})\.([\w-]+)$/.exec(token);
@@ -1178,16 +1199,16 @@
   }
 
   function userLogin(p) {
-    const sid = normStudentId(p.studentId);
+    const id = loginKey(p.loginId);
     const password = String(p.password || '');
-    if (!sid || !password) return fail('学籍番号とパスワードを入力してください。');
-    const failKey = 'userfail_' + sid.slice(0, 40);
+    if (!id.key || !password) return fail('学籍番号か氏名と、パスワードを入力してください。');
+    const failKey = 'userfail_' + id.key.slice(0, 40);
     const failures = Number(this.kget(failKey) || 0);
     if (failures >= SYSTEM.MAX_USER_FAILURES) return fail('パスワードの誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
-    const u = this.userBy(sid);
-    if (!u || !this.memo.loginOk) {
+    const u = this.memo.loginUser;
+    if (!u) {
       this.kput(failKey, failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
-      return fail('学籍番号かパスワードが違います。');
+      return fail('学籍番号（氏名）かパスワードが違います。');
     }
     this.kdel(failKey);
     return { ok: true, token: this.memo.newToken, user: { studentId: u.sid, name: u.name } };
@@ -1211,6 +1232,21 @@
     };
   }
 
+  function userPasskeyTicket(p) {
+    const user = this.user();
+    if (user.error || !user.sid) return fail(user.error || 'ログインしてください。', 'USER_AUTH');
+    if (!this.memo.ticket) return fail('高速キャッシュの合言葉（PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
+    return { ok: true, ticket: this.memo.ticket };
+  }
+
+  function userPasskeyLogin() {
+    const pk = this.memo.pkLogin;
+    if (!pk) return fail('パスキーを確かめられませんでした。もう一度お試しください。');
+    if (pk.exp < Date.now() / 1000) return fail('時間がたちすぎました。もう一度お試しください。');
+    if (!pk.user || !pk.genOk) return fail('このパスキーの登録は削除されています。学籍番号か氏名とパスワードでログインしてください。');
+    return { ok: true, token: this.memo.newToken, user: { studentId: pk.user.sid, name: pk.user.name } };
+  }
+
   function adminGetUsers(p) {
     const denied = this.requireAdmin(p);
     if (denied) return denied;
@@ -1231,6 +1267,12 @@
     return { ok: true };
   }
 
+  /** ログインの ID（学籍番号か氏名）を比べる形にする。gas/Code.gs の userLogin と同じ */
+  function loginKey(v) {
+    const sid = normStudentId(v);
+    if (/^[A-Z]\d{4}$/.test(sid)) return { bySid: true, key: sid };
+    return { bySid: false, key: normName(v) };
+  }
   function normStudentId(v) { return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase(); }
   function saltOf(pw) { return String(pw || '').split('$')[1] || ''; }
   /** 姓・名の1つをそろえる（gas/Code.gs の normNamePart_ と同じ） */
@@ -1240,7 +1282,7 @@
     const sid = normStudentId(p.studentId);
     const family = normNamePart(p.familyName);
     const given = normNamePart(p.givenName);
-    const name = family + ' ' + given;
+    const name = family + given;
     const password = String(p.password || '');
     if (!/^[A-Z]\d{4}$/.test(sid)) return { error: '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。' };
     if (!family || !given) return { error: '姓と名を入力してください。' };
@@ -1254,7 +1296,7 @@
     getSchedule, getReservationsByIds, findMyReservations, createReservation, createBulkReservations, updateReservation, cancelReservation,
     adminDeleteReservations, adminImportReservations, submitBugReport, adminGetData, adminSaveSettings, adminSetNotice, adminSaveRooms, adminSaveClosures,
     adminGetBugReports, adminSetBugStatus, adminGetLog, adminChangePassword, adminPasskeyTicket,
-    userRegister, userLogin, userGetMine, adminGetUsers, adminDeleteUser,
+    userRegister, userLogin, userGetMine, userPasskeyTicket, userPasskeyLogin, adminGetUsers, adminDeleteUser,
   };
 
   // ---------------------------------------------------------------------------

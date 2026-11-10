@@ -234,10 +234,24 @@
   const tok = r.token;
   out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(tok || ''), JSON.stringify(r.user)];
   rec('regAgain', await c('userRegister', { studentId: 'G1234', familyName: '別', givenName: '人', password: 'pass2' }));
-  rec('loginBad', await c('userLogin', { studentId: 'G1234', password: 'nope' }));
-  rec('loginNone', await c('userLogin', { studentId: 'G0000', password: 'pass' }));
-  r = rec('login', await c('userLogin', { studentId: 'g1234', password: 'pass' }));
+  rec('loginBad', await c('userLogin', { loginId: 'G1234', password: 'nope' }));
+  rec('loginNone', await c('userLogin', { loginId: 'G0000', password: 'pass' }));
+  r = rec('login', await c('userLogin', { loginId: 'g1234', password: 'pass' }));
   out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(r.token || ''), JSON.stringify(r.user)];
+  // ID は氏名でもよい（空白・ひらがなとカタカナの違いは無視）
+  r = rec('loginName', await c('userLogin', { loginId: '登録太郎', password: 'pass' }));
+  out[out.length - 1][4] = JSON.stringify(r.user);
+  rec('loginNameBad', await c('userLogin', { loginId: '登録 次郎', password: 'pass' }));
+  // パスキー: 登録の許可証（ログイン中だけ）と、高速キャッシュが出す許可証（upl）からのログイン
+  rec('upkTicketNoLogin', await c('userPasskeyTicket', {}));
+  r = rec('upkTicket', await c('userPasskeyTicket', { userToken: tok }));
+  const upkGen = String(r.ticket || '').split('.')[3];
+  out[out.length - 1][4] = /^upt\.\d+\.G1234\.[\w-]+\.[\w-]+$/.test(r.ticket || '');
+  const upl = (exp, sid, gen) => 'upl.' + exp + '.' + sid + '.' + gen + '.' + hmac_('devtoken', 'upl.' + exp + '.' + sid + '.' + gen);
+  r = rec('upkLogin', await c('userPasskeyLogin', { ticket: upl(nowSec + 120, 'G1234', upkGen) }));
+  out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(r.token || ''), JSON.stringify(r.user)];
+  rec('upkLoginBadSig', await c('userPasskeyLogin', { ticket: upl(nowSec + 120, 'G1234', upkGen).replace(/.$/, (x) => (x === 'A' ? 'B' : 'A')) }));
+  rec('upkLoginExpired', await c('userPasskeyLogin', { ticket: upl(nowSec - 10, 'G1234', upkGen) }));
   const ub = { roomId: 'room_16', date: D, affiliation: 'G1234', name: '登録 太郎', memo: '', pin: '', userToken: tok };
   r = rec('userBook', await c('createReservation', Object.assign({}, ub, { start: '19:00', end: '20:00' })));
   ids.u = r.reservation && r.reservation.id;
@@ -259,11 +273,12 @@
   rec('delUserAgain', await c('adminDeleteUser', { adminPassword: A, studentId: 'G1234' }));
   rec('userMineAfterDel', await c('userGetMine', { userToken: tok }));
   r = rec('reReg', await c('userRegister', { studentId: 'G1234', familyName: 'ﾄｳﾛｸ', givenName: 'Ｔａｒｏ', password: 'new1' }));
+  rec('upkLoginOldGen', await c('userPasskeyLogin', { ticket: upl(nowSec + 120, 'G1234', upkGen) }));
   rec('userOldToken', await c('cancelReservation', { id: ids.u, userToken: tok }));
   r = rec('userCancel', await c('cancelReservation', { id: ids.u, userToken: r.token }));
   out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.length;
-  for (let i = 0; i < 10; i++) await c('userLogin', { studentId: 'G1234', password: 'bad' + i });
-  rec('loginLocked', await c('userLogin', { studentId: 'G1234', password: 'new1' }));
+  for (let i = 0; i < 10; i++) await c('userLogin', { loginId: 'G1234', password: 'bad' + i });
+  rec('loginLocked', await c('userLogin', { loginId: 'G1234', password: 'new1' }));
   for (let i = 0; i < 10; i++) rec('adminBad' + i, await c('adminGetData', { adminPassword: 'wrong' + i }));
   rec('range', await c('getSchedule', { from: '2026-10-01', to: '2026-12-01' }));
   rec('unknown', await c('nope', {}));

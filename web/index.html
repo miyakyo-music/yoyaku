@@ -239,6 +239,7 @@
       <div class="my-head">
         <h2 id="myDialogTitle" tabindex="-1" autofocus>自分の予約</h2>
         <button type="button" class="btn my-login" id="myLogin">ログイン</button>
+        <button type="button" class="btn my-login" id="myPasskey" hidden aria-label="この端末をパスキーに登録">パスキー登録</button>
       </div>
       <div class="my-user" id="myUser" hidden>
         <span><b id="myUserName"></b><span id="myUserSid"></span></span>
@@ -280,13 +281,14 @@
         <button type="button" data-mode="login" aria-pressed="true">ログイン</button>
         <button type="button" data-mode="register" aria-pressed="false">新規登録</button>
       </div>
-      <label class="field">学籍番号<input id="uSid" autocomplete="username" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="G1234"></label>
+      <label class="field"><span id="uSidLabel">学籍番号または氏名</span><input id="uSid" autocomplete="username webauthn" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="50"></label>
       <div class="grid2" id="uNameField" hidden>
         <label class="field">姓<input id="uFamily" autocomplete="family-name" maxlength="24" placeholder="例：宮教"></label>
         <label class="field">名<input id="uGiven" autocomplete="given-name" maxlength="24" placeholder="例：太郎"></label>
       </div>
       <label class="field">パスワード<input id="uPass" type="password" autocomplete="current-password" maxlength="64"></label>
       <p class="error" role="alert" id="uError"></p>
+      <button type="button" class="btn user-pk" id="uPkLogin" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M17 6l3 3M14 9l2 2"/></svg>パスキーでログイン</button>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button><button type="submit" class="btn primary" id="uSubmit">ログイン</button></div>
     </form>
   </dialog>

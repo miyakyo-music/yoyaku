@@ -89,6 +89,8 @@ async function ensureTable(env) {
     // パスキー（公開鍵だけ）と、使い終わった確認用の文字列（同じものを2度使わせないため）
     env.DB.prepare('CREATE TABLE IF NOT EXISTS passkeys (id TEXT PRIMARY KEY, pubkey TEXT NOT NULL, alg INTEGER NOT NULL, name TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS passkey_used (c TEXT PRIMARY KEY, exp INTEGER NOT NULL)'),
+    // 利用者（学生）のパスキー。学籍番号と、登録の世代（登録し直すと変わる。gas/Code.gs の userGen_）を持つ
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS user_passkeys (id TEXT PRIMARY KEY, sid TEXT NOT NULL, gen TEXT NOT NULL, pubkey TEXT NOT NULL, alg INTEGER NOT NULL, name TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT)'),
   ]);
   tableReady = true;
 }
@@ -98,6 +100,14 @@ async function ensureTable(env) {
 const TOKEN_HOURS = 168;  // パスキーでのログインが続く時間（7日。gas/Code.gs・store.js の PASSKEY_TOKEN_HOURS と同じ）
 const CHALLENGE_SEC = 180; // 確認用の文字列の有効時間
 const MAX_PASSKEYS = 30;
+const MAX_USER_PASSKEYS = 10; // 利用者1人あたり。超えたら古いものから消す
+const USER_TICKET_SEC = 120;  // 利用者のパスキーで確かめたあと、GAS・正本でログインに換えるまでの時間
+
+/** デモサーバー（dev/demo/worker.js）から、パスキーの処理だけを使う */
+export async function handlePasskey(op, request, env, ctx) {
+  await ensureTable(env);
+  return passkey(op, request, env, ctx);
+}
 
 /** /passkey/〜 の処理。本文は JSON（CORS の事前確認を避けるため、画面は text/plain で送る） */
 async function passkey(op, request, env, ctx) {
@@ -132,14 +142,23 @@ async function passkey(op, request, env, ctx) {
     }
     return json({ ok: true });
   }
-  if (op !== 'register' && op !== 'login') return json({ ok: false, code: 'NOT_FOUND' }, 404);
+  // 利用者の登録は、GAS（または正本）が出した許可証「upt.有効期限.学籍番号.世代.署名」が要る
+  let userTicket = null;
+  if (op === 'userRegister') {
+    userTicket = /^upt\.(\d+)\.([A-Z]\d{4})\.([\w-]+)\.([\w-]+)$/.exec(String(body.ticket || ''));
+    if (!userTicket || Number(userTicket[1]) < now || !safeEqual(userTicket[4], await hmac(key, `upt.${userTicket[1]}.${userTicket[2]}.${userTicket[3]}`))) {
+      return ng('ログインし直してから、もう一度お試しください。', 401);
+    }
+  }
+  const isRegister = op === 'register' || op === 'userRegister';
+  if (!isRegister && op !== 'login' && op !== 'userLogin') return json({ ok: false, code: 'NOT_FOUND' }, 404);
 
   // ここから登録・ログインに共通の確認（端末が作った「どのサイトで・何に答えたか」の記録）
   const clientData = b64urlDecode(body.clientDataJSON);
   const authData = b64urlDecode(body.authenticatorData);
   let cd;
   try { cd = JSON.parse(new TextDecoder().decode(clientData)); } catch (e) { return ng('形式が正しくありません。'); }
-  if (cd.type !== (op === 'register' ? 'webauthn.create' : 'webauthn.get')) return ng('形式が正しくありません。');
+  if (cd.type !== (isRegister ? 'webauthn.create' : 'webauthn.get')) return ng('形式が正しくありません。');
   if (cd.origin !== String(env.PASSKEY_ORIGIN || `https://${rpId}`)) return ng('このサイトからは使えません。', 403);
   const chal = new TextDecoder().decode(b64urlDecode(cd.challenge));
   const cm = /^(\d+)\.([\w-]+)\.([\w-]+)$/.exec(chal);
@@ -153,7 +172,7 @@ async function passkey(op, request, env, ctx) {
   if (used.meta && used.meta.changes === 0) return ng('この確認はすでに使われています。もう一度お試しください。');
   const stamp = nowJst();
 
-  if (op === 'register') {
+  if (isRegister) {
     const alg = Number(body.alg);
     if (alg !== -7 && alg !== -257) return ng('この端末のパスキーの方式には対応していません。');
     // 端末が作ったパスキーの番号が、本人確認の記録に含まれているものと同じか
@@ -162,6 +181,14 @@ async function passkey(op, request, env, ctx) {
     const credId = b64url(authData.slice(55, 55 + len));
     if (credId !== String(body.id || '')) return ng('形式が正しくありません。');
     await importKey(b64urlDecode(body.publicKey), alg); // 読める鍵か（読めなければここで失敗する）
+    if (op === 'userRegister') {
+      const name = String(body.name || '').trim().slice(0, 40) || '名前なし';
+      await env.DB.prepare('INSERT OR REPLACE INTO user_passkeys (id, sid, gen, pubkey, alg, name, created) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(credId, userTicket[2], userTicket[3], String(body.publicKey), alg, name, stamp).run();
+      await env.DB.prepare('DELETE FROM user_passkeys WHERE sid = ? AND id NOT IN (SELECT id FROM user_passkeys WHERE sid = ? ORDER BY created DESC LIMIT ?)')
+        .bind(userTicket[2], userTicket[2], MAX_USER_PASSKEYS).run();
+      return json({ ok: true, id: credId, name });
+    }
     const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys').first();
     if (count && count.n >= MAX_PASSKEYS) return ng(`パスキーは${MAX_PASSKEYS}個までです。使っていないものを削除してください。`);
     const name = String(body.name || '').trim().slice(0, 40) || '名前なし';
@@ -171,7 +198,8 @@ async function passkey(op, request, env, ctx) {
   }
 
   // ログイン: 登録してある公開鍵で、端末の署名を確かめる
-  const row = await env.DB.prepare('SELECT id, pubkey, alg, name FROM passkeys WHERE id = ?').bind(String(body.id || '')).first();
+  const table = op === 'userLogin' ? 'user_passkeys' : 'passkeys';
+  const row = await env.DB.prepare(`SELECT * FROM ${table} WHERE id = ?`).bind(String(body.id || '')).first();
   if (!row) return ng('このパスキーは登録されていないか、削除されています。', 401);
   const signed = concat(authData, await sha256(clientData));
   let sig = b64urlDecode(body.signature);
@@ -179,7 +207,12 @@ async function passkey(op, request, env, ctx) {
   const algo = row.alg === -7 ? { name: 'ECDSA', hash: 'SHA-256' } : { name: 'RSASSA-PKCS1-v1_5' };
   if (row.alg === -7) sig = derToRaw(sig);
   if (!sig || !(await crypto.subtle.verify(algo, pub, sig, signed))) return ng('パスキーを確かめられませんでした。', 401);
-  await env.DB.prepare('UPDATE passkeys SET last_used = ? WHERE id = ?').bind(stamp, row.id).run();
+  await env.DB.prepare(`UPDATE ${table} SET last_used = ? WHERE id = ?`).bind(stamp, row.id).run();
+  if (op === 'userLogin') {
+    // 利用者の登録は GAS・正本が持つので、ここでは「この学籍番号の人のパスキーだった」という短い許可証だけを返す
+    const body2 = `upl.${now + USER_TICKET_SEC}.${row.sid}.${row.gen}`;
+    return json({ ok: true, ticket: `${body2}.${await hmac(key, body2)}` });
+  }
   const exp = now + TOKEN_HOURS * 3600;
   const tag = b64url(await sha256(new TextEncoder().encode(row.id))).slice(0, 12); // どのパスキーか（記録用の短い印）
   return json({ ok: true, name: row.name, token: `pk1.${exp}.${tag}.${await hmac(key, `pk1.${exp}.${tag}`)}` });
