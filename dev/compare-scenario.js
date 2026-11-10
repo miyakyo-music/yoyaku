@@ -227,13 +227,13 @@
   // 利用者の登録・ログイン（仕様書 2.12）。ログインして作った予約は、本人がログインしていれば編集用パスワードなしで変更・取消できる
   CacheService.getScriptCache().remove('writes_' + Math.floor(Date.now() / 60000));
   devCf.core.kdel('writes_' + Math.floor(Date.now() / 60000));
-  rec('regBadId', await c('userRegister', { studentId: '26E02', name: '登録', password: 'abcd' }));
-  rec('regShortPw', await c('userRegister', { studentId: 'G1234', name: '登録', password: 'abc' }));
-  rec('regNoName', await c('userRegister', { studentId: 'G1234', name: '  ', password: 'abcd' }));
-  r = rec('reg', await c('userRegister', { studentId: ' ｇ１２３４ ', name: ' 登録  太郎 ', password: 'pass' }));
+  rec('regBadId', await c('userRegister', { studentId: '26E02', familyName: '登録', givenName: '一', password: 'abcd' }));
+  rec('regShortPw', await c('userRegister', { studentId: 'G1234', familyName: '登録', givenName: '一', password: 'abc' }));
+  rec('regNoName', await c('userRegister', { studentId: 'G1234', familyName: '登録', givenName: '  ', password: 'abcd' }));
+  r = rec('reg', await c('userRegister', { studentId: ' ｇ１２３４ ', familyName: ' 登 録 ', givenName: '　太郎', password: 'pass' }));
   const tok = r.token;
   out[out.length - 1][4] = [/^us1\.\d+\.G1234\.[\w-]+$/.test(tok || ''), JSON.stringify(r.user)];
-  rec('regAgain', await c('userRegister', { studentId: 'G1234', name: '別', password: 'pass2' }));
+  rec('regAgain', await c('userRegister', { studentId: 'G1234', familyName: '別', givenName: '人', password: 'pass2' }));
   rec('loginBad', await c('userLogin', { studentId: 'G1234', password: 'nope' }));
   rec('loginNone', await c('userLogin', { studentId: 'G0000', password: 'pass' }));
   r = rec('login', await c('userLogin', { studentId: 'g1234', password: 'pass' }));
@@ -258,7 +258,7 @@
   rec('delUser', await c('adminDeleteUser', { adminPassword: A, studentId: 'g1234' }));
   rec('delUserAgain', await c('adminDeleteUser', { adminPassword: A, studentId: 'G1234' }));
   rec('userMineAfterDel', await c('userGetMine', { userToken: tok }));
-  r = rec('reReg', await c('userRegister', { studentId: 'G1234', name: '登録太郎', password: 'new1' }));
+  r = rec('reReg', await c('userRegister', { studentId: 'G1234', familyName: 'ﾄｳﾛｸ', givenName: 'Ｔａｒｏ', password: 'new1' }));
   rec('userOldToken', await c('cancelReservation', { id: ids.u, userToken: tok }));
   r = rec('userCancel', await c('cancelReservation', { id: ids.u, userToken: r.token }));
   out[out.length - 1][4] = r.cancelledIds && r.cancelledIds.length;

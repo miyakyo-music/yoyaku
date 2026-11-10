@@ -1056,7 +1056,8 @@ function adminPasskeyTicket(p) {
 // ---------------------------------------------------------------------------
 // 利用者の登録・ログイン（任意。仕様書 2.12。cache/store.js の同じ名前の処理と同じ）
 //
-// 登録は学籍番号（G1234 の形だけ）・氏名・パスワード。なりすましはない前提の自己申告で、確かめない。
+// 登録は学籍番号（G1234 の形だけ）・姓・名・パスワード。氏名は「姓 名」（半角の空白1つ）の形で保存し、
+// ログインして作る予約の氏名もこの形にそろえる（全角・半角や空白の揺れを吸収する）。なりすましはない前提の自己申告で、確かめない。
 // ログインすると「us1.有効期限.学籍番号.署名」のトークンを返し、画面が端末に保存する。
 // ログイン中に作った予約は、予約台帳の最後の列（登録者）に学籍番号を入れ、その人がログインしていれば
 // 編集用パスワードなしで変更・取消できる。自分の予約は、登録者の列か学籍番号/所属が一致するもの。
@@ -1064,7 +1065,7 @@ function adminPasskeyTicket(p) {
 
 /**
  * 利用者を登録する（同じ学籍番号は1人だけ。登録し直すときは管理画面で消してから）。
- * @param {{studentId, name, password}} p
+ * @param {{studentId, familyName, givenName, password}} p
  */
 function userRegister(p) {
   p = p || {};
@@ -1163,14 +1164,22 @@ function normStudentId_(v) {
   return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase();
 }
 
-/** 登録の入力を確かめる。{sid, name, password} / {error} */
+/** 姓・名の1つをそろえる（全角の英数字を半角に、半角のカタカナを全角に。中の空白は除く） */
+function normNamePart_(v) {
+  return String(v || '').normalize('NFKC').replace(/\s+/g, '');
+}
+
+/** 登録の入力を確かめる。{sid, name（「姓 名」）, password} / {error} */
 function validateUser_(p) {
   const sid = normStudentId_(p.studentId);
-  const name = String(p.name || '').trim().replace(/\s+/g, ' ');
+  const family = normNamePart_(p.familyName);
+  const given = normNamePart_(p.givenName);
+  const name = family + ' ' + given;
   const password = String(p.password || '');
   if (!/^[A-Z]\d{4}$/.test(sid)) return { error: '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。' };
-  if (!name || name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
-  if (/^[=+\-@]/.test(name)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
+  if (!family || !given) return { error: '姓と名を入力してください。' };
+  if (name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
+  if (/^[=+\-@]/.test(family)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
   if (password.length < 4 || password.length > 64) return { error: 'パスワードは4〜64文字で入力してください。' };
   return { sid: sid, name: name, password: password };
 }

@@ -105,7 +105,7 @@
   ["ticket",true,"","",true],
   ["regBadId",false,"ERROR","登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。",""],
   ["regShortPw",false,"ERROR","パスワードは4〜64文字で入力してください。",""],
-  ["regNoName",false,"ERROR","氏名を50文字以内で入力してください。",""],
+  ["regNoName",false,"ERROR","姓と名を入力してください。",""],
   ["reg",true,"","",[true,"{\"studentId\":\"G1234\",\"name\":\"登録 太郎\"}"]],
   ["regAgain",false,"EXISTS","この学籍番号はすでに登録されています。登録し直すときは、管理者に前の登録の削除を頼んでください。",""],
   ["loginBad",false,"ERROR","学籍番号かパスワードが違います。",""],

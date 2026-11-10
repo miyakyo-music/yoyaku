@@ -1,5 +1,5 @@
 // 予約表: 利用者のログイン・新規登録（任意。仕様書 2.12）
-// 登録は学籍番号（G1234 の形）・氏名・パスワード。ログインのトークンを端末に保存し（LS.user）、
+// 登録は学籍番号（G1234 の形）・姓・名・パスワード（氏名はサーバーが「姓 名」の形にそろえる）。ログインのトークンを端末に保存し（LS.user）、
 // 予約・変更・取消と自分の予約の読み込みに添える（index/data.js の api）。
 // ログインして作った予約は、ログイン中なら編集用パスワードなしで変更・取消できる
 'use strict';
@@ -58,7 +58,8 @@ function setUserMode(mode) {
 const userMode = () => (($('userMode').querySelector('[aria-pressed="true"]') || {}).dataset || {}).mode || 'login';
 function openUserDialog() {
   $('uSid').value = '';
-  $('uName').value = '';
+  $('uFamily').value = '';
+  $('uGiven').value = '';
   $('uPass').value = '';
   hideSecrets($('userDialog'));
   setUserMode('login');
@@ -70,18 +71,20 @@ $('userForm').addEventListener('submit', async (e) => {
   const reg = userMode() === 'register';
   const err = $('uError');
   const studentId = normSid($('uSid').value);
-  const name = $('uName').value.trim();
+  const familyName = $('uFamily').value.trim();
+  const givenName = $('uGiven').value.trim();
   const password = $('uPass').value;
   err.textContent = '';
   if (!studentId) { err.textContent = '学籍番号を入力してください。'; $('uSid').focus(); return; }
   if (reg && !STUDENT_ID_FORM.test(studentId)) { err.textContent = '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。'; $('uSid').focus(); return; }
-  if (reg && !name) { err.textContent = '氏名を入力してください。'; $('uName').focus(); return; }
+  if (reg && !familyName) { err.textContent = '姓を入力してください。'; $('uFamily').focus(); return; }
+  if (reg && !givenName) { err.textContent = '名を入力してください。'; $('uGiven').focus(); return; }
   if (!password) { err.textContent = 'パスワードを入力してください。'; $('uPass').focus(); return; }
   if (reg && password.length < 4) { err.textContent = 'パスワードは4文字以上にしてください。'; $('uPass').focus(); return; }
   if (isOffline()) { err.textContent = OFFLINE_MSG; return; }
   $('uSubmit').disabled = true;
   try {
-    const res = reg ? await api('userRegister', { studentId, name, password }) : await api('userLogin', { studentId, password });
+    const res = reg ? await api('userRegister', { studentId, familyName, givenName, password }) : await api('userLogin', { studentId, password });
     if (!res || !res.ok) throw new Error((res && res.message) || 'ログインできませんでした。');
     loginUser(res);
     $('uSid').blur();

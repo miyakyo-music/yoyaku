@@ -281,7 +281,10 @@
         <button type="button" data-mode="register" aria-pressed="false">新規登録</button>
       </div>
       <label class="field">学籍番号<input id="uSid" autocomplete="username" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="G1234"></label>
-      <label class="field" id="uNameField" hidden>氏名<input id="uName" autocomplete="name" maxlength="50" placeholder="例：宮教 太郎"></label>
+      <div class="grid2" id="uNameField" hidden>
+        <label class="field">姓<input id="uFamily" autocomplete="family-name" maxlength="24" placeholder="例：宮教"></label>
+        <label class="field">名<input id="uGiven" autocomplete="given-name" maxlength="24" placeholder="例：太郎"></label>
+      </div>
       <label class="field">パスワード<input id="uPass" type="password" autocomplete="current-password" maxlength="64"></label>
       <p class="error" role="alert" id="uError"></p>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button><button type="submit" class="btn primary" id="uSubmit">ログイン</button></div>

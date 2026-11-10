@@ -1233,14 +1233,19 @@
 
   function normStudentId(v) { return String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase(); }
   function saltOf(pw) { return String(pw || '').split('$')[1] || ''; }
+  /** 姓・名の1つをそろえる（gas/Code.gs の normNamePart_ と同じ） */
+  function normNamePart(v) { return String(v || '').normalize('NFKC').replace(/\s+/g, ''); }
   /** 登録の入力を確かめる（gas/Code.gs の validateUser_ と同じ） */
   function validateUser(p) {
     const sid = normStudentId(p.studentId);
-    const name = String(p.name || '').trim().replace(/\s+/g, ' ');
+    const family = normNamePart(p.familyName);
+    const given = normNamePart(p.givenName);
+    const name = family + ' ' + given;
     const password = String(p.password || '');
     if (!/^[A-Z]\d{4}$/.test(sid)) return { error: '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。' };
-    if (!name || name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
-    if (/^[=+\-@]/.test(name)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
+    if (!family || !given) return { error: '姓と名を入力してください。' };
+    if (name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
+    if (/^[=+\-@]/.test(family)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
     if (password.length < 4 || password.length > 64) return { error: 'パスワードは4〜64文字で入力してください。' };
     return { sid, name, password };
   }
