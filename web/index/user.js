@@ -37,7 +37,7 @@ function loginUser(res) {
 function logoutUser(message) {
   if (!state.user) return;
   state.user = null;
-  if ($('meDialog').open) $('meDialog').close();
+  closeMePage();
   state.userMine = {};
   try { localStorage.removeItem(LS.user); } catch (e) { /* 保存できない環境では何もしない */ }
   if (message) toast(message, 'error');
@@ -82,8 +82,9 @@ async function afterUserLogin(res, message) {
   $('uSid').blur();
   $('userDialog').close();
   toast(message);
+  // 自分の予約の小窓から入ったときは、小窓を閉じてマイページを開く
+  if ($('myDialog').open) { $('myDialog').close(); openMePage(); }
   try { await refreshUserMine(); } catch (ex) { /* 読めなくても、ログインはできている */ }
-  if ($('myDialog').open) openMyList();
   if (state.data) render();
 }
 $('uSwitch').addEventListener('click', () => { setUserMode(userModeNow === 'register' ? 'login' : 'register'); $('uSid').focus(); });

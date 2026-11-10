@@ -160,8 +160,6 @@ function openMyList() {
   if (!$('myNameInput').value) $('myNameInput').value = load_(LS.myName, '') || (load_(LS.profile, {}).name || '');
   const u = state.user;
   $('myLogin').hidden = !!u;
-  $('myUser').hidden = !u;
-  if (u) { $('myUserName').textContent = u.name; $('myUserSid').textContent = u.studentId; }
   if (!$('myDialog').open) $('myDialog').showModal();
   placeUnderBtn($('myDialog'), $('myBtn'));
   for (const b of $('myTabs').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.my === 'list'));

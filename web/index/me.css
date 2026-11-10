@@ -1,24 +1,105 @@
-/* 予約表: マイページ（index/me.js）。iPhone の設定アプリのような灰色の角丸のまとまりを縦に並べる。
-   色は変数だけなので、ダークモードもそのまま */
-.me-group { background: var(--fill-field); border-radius: 12px; overflow: hidden; }
-.me-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 14px; border: 0; background: none; color: var(--text); font: inherit; font-size: 15px; text-align: left; }
-.me-row + .me-row, .me-pk li + li, .me-pk:not(:empty) + .me-row { border-top: 0.5px solid var(--sep); }
-.me-row > span:first-child { flex: none; color: var(--muted); }
-.me-row > b { flex: 1; min-width: 0; text-align: right; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.me-h { margin: 6px 0 -4px 14px; font-size: 13px; font-weight: 400; color: var(--muted); }
+/* 予約表: マイページ（index/me.js）。予約表の上に全画面で重ねる。iOS の設定アプリのように、灰色の背景に白いカードを並べる。
+   スマホは1列、幅600px以上で期間のタイルを横1列、900px以上でカードを2列にする。色は変数だけなので、ダークモードもほぼそのまま */
+html.me-open, html.me-open body { overflow: hidden; }
+.me-page {
+  position: fixed; inset: 0; z-index: 150; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  background: var(--bg); color: var(--text);
+}
+.me-page[hidden] { display: none; }
+
+/* 上の帯: 左に「‹ 予約表」、中央に見出し。スクロールしても残る */
+.me-bar {
+  position: sticky; top: 0; z-index: 2;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  min-height: 44px; padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 .5px 0 var(--sep);
+}
+.me-bar h2 { grid-column: 2; margin: 0; font-size: 17px; font-weight: 600; outline: none; }
+.me-back {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px;
+  border: 0; background: none; color: var(--accent); font: inherit; font-size: 17px; cursor: pointer;
+}
+
+.me-wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding: 16px max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  display: flex; flex-direction: column; gap: 16px;
+}
+.me-hero { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 4px 4px 0; }
+.me-hero b { font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
+.me-hero span { font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 期間のタイル（押すと下の内訳がその期間になる） */
+.me-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.me-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0;
+  padding: 12px 14px; border: 0; border-radius: 14px; background: var(--surface); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 0 0 1.5px transparent;
+}
+.me-tile span { font-size: 13px; color: var(--muted); }
+.me-tile b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.me-tile small { font-size: 12px; color: var(--muted); }
+.me-tile[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.me-tile[aria-pressed="true"] span { color: var(--accent); }
+
+.me-grid { display: grid; gap: 16px; }
+.me-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.me-card { background: var(--surface); border-radius: 14px; padding: 14px 16px; }
+.me-card h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+.me-note { color: var(--muted); font-size: 14px; margin: 0; padding: 4px 0; }
+
+/* 予約の一覧: 1行ずつ区切り線で分ける */
+.me-list { list-style: none; margin: 0 -16px; padding: 0; }
+.me-list li > button {
+  display: block; width: 100%; padding: 9px 16px; border: 0; background: none; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.me-list li + li, .me-pk li + li { background: linear-gradient(var(--sep), var(--sep)) 16px 0 / 100% .5px no-repeat; } /* 区切り線は左を16pxあける */
+.me-list b { display: block; font-weight: 500; font-size: 15px; font-variant-numeric: tabular-nums; }
+.me-list span { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-list li > button:active { background: var(--fill-field); }
+@media (hover: hover) { .me-list li > button:hover { background: var(--fill-field); } }
+.me-list .me-note { padding: 4px 16px; }
+.me-list .me-sep { padding: 12px 16px 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.me-more { display: block; margin: 8px auto 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 15px; padding: 6px 12px; cursor: pointer; }
+.me-more[hidden] { display: none; }
+
+/* 月ごとの練習時間: 12本の縦棒。上に時間、下に月。今月の月の数字は青く */
+.me-month { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; align-items: end; height: 132px; }
+.me-month > div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; min-width: 0; }
+.me-month i { display: block; width: 100%; max-width: 22px; min-height: 2px; border-radius: 4px 4px 2px 2px; background: var(--accent); max-height: 96px; }
+.me-month em { font-style: normal; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.me-month span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.me-month span.cur { color: var(--accent); font-weight: 600; }
+.me-unit { margin: 4px 0 0; font-size: 11px; color: var(--muted); text-align: right; }
+#meBreak .ms-h:first-child { margin-top: 0; }
+#meBreak .ms-bars { margin: 6px 0 12px; }
+#meBreak .ms-week { margin-top: 6px; }
+
+/* パスキー: 名前と、下に「この端末・登録日・最後の使用」。右に「削除」 */
 #mePkSec[hidden] { display: none; }
-#mePkSec { display: flex; flex-direction: column; gap: 10px; }
-/* 押せる行（パスキーを追加・ログアウト） */
-.me-act { color: var(--accent); cursor: pointer; }
-.me-act svg { flex: none; }
-.me-act:active { background: var(--fill-field); }
-.me-act:disabled { opacity: .5; cursor: default; }
-.me-out { justify-content: center; color: var(--danger); }
-/* 登録したパスキー: 名前と、下に最後に使った日時。右に「削除」 */
-.me-pk { list-style: none; margin: 0; padding: 0; }
-.me-pk li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 9px 14px; }
+.me-pk { list-style: none; margin: 0 -16px; padding: 0; }
+.me-pk li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 16px; }
 .me-pk li > div { flex: 1; min-width: 0; }
 .me-pk li b { display: block; font-weight: 400; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .me-pk li small { display: block; font-size: 12px; color: var(--muted); }
 .me-pk li button { flex: none; border: 0; background: none; padding: 6px 0; color: var(--danger); font: inherit; font-size: 14px; cursor: pointer; }
-.me-pk li.me-note { color: var(--muted); font-size: 14px; }
+.me-pk li.me-note { min-height: 0; }
+.me-act {
+  display: flex; align-items: center; gap: 8px; width: calc(100% + 32px); margin: 0 -16px -14px; padding: 12px 16px;
+  border: 0; border-top: .5px solid var(--sep); background: none; color: var(--accent); font: inherit; font-size: 15px; cursor: pointer;
+}
+.me-pk:empty + .me-act { border-top: 0; margin-top: -10px; }
+.me-act:disabled { opacity: .5; cursor: default; }
+.me-logout { border: 0; color: var(--danger); font: inherit; font-size: 15px; text-align: center; cursor: pointer; padding: 13px 16px; }
+
+@media (min-width: 600px) {
+  .me-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) {
+  .me-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; }
+  .me-wrap { padding-top: 24px; }
+}
+

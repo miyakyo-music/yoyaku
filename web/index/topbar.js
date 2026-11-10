@@ -14,7 +14,8 @@ $('newBtn').addEventListener('click', () => {
   const date = state.view === 'day' && state.date >= todayStr() ? state.date : todayStr();
   openBooking({ mode: 'create', date, roomId: shownRoomId() });
 });
-$('myBtn').addEventListener('click', openMyList);
+// ログイン中は全画面のマイページ（index/me.js）、そうでなければ自分の予約の小窓
+$('myBtn').addEventListener('click', () => (state.user ? openMePage() : openMyList()));
 $('adminMode').addEventListener('click', () => {
   if (!confirm('管理者モードを終了しますか？（管理画面からもログアウトします）')) return;
   exitAdminMode();
