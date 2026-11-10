@@ -57,12 +57,15 @@ dialog form.my-name[hidden] { display: none; }
 /* 見出しの行（右に「ログイン」）と、ログイン中の人の行（氏名・学籍番号と「ログアウト」）。色は変数だけなので、ダークモードもそのまま */
 .my-head { display: flex; align-items: center; gap: 8px; }
 .my-head h2 { flex: 1; min-width: 0; }
-.my-head .btn, .my-user .btn { flex: none; height: 32px; padding: 0 14px; font-size: 14px; }
+.my-head .btn { flex: none; height: 32px; padding: 0 14px; font-size: 14px; }
 .my-head .btn[hidden], .my-user[hidden] { display: none; }
-.my-user { display: flex; align-items: center; gap: 8px; }
-.my-user > span { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
-.my-user b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+/* ログイン中の人: 入力欄と同じ灰色の角丸の1行に、氏名・学籍番号と「マイページ ›」。押すとマイページ（index/me.js） */
+.my-user { display: flex; align-items: baseline; gap: 8px; width: 100%; min-height: 44px; padding: 12px 14px; border: 0; border-radius: 12px; background: var(--fill-field); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.my-user b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .my-user b + span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.my-user .my-user-go { margin-left: auto; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.my-user svg { flex: none; align-self: center; color: var(--muted); opacity: .7; }
+.my-user:active { filter: brightness(.95); }
 /* ログインの小窓の「パスキーでログイン」: 横いっぱい、鍵の絵と文字を並べる */
 #userDialog .user-pk { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
 #userDialog .user-pk[hidden] { display: none; }

@@ -1,0 +1,24 @@
+/* 予約表: マイページ（index/me.js）。iPhone の設定アプリのような灰色の角丸のまとまりを縦に並べる。
+   色は変数だけなので、ダークモードもそのまま */
+.me-group { background: var(--fill-field); border-radius: 12px; overflow: hidden; }
+.me-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 14px; border: 0; background: none; color: var(--text); font: inherit; font-size: 15px; text-align: left; }
+.me-row + .me-row, .me-pk li + li, .me-pk:not(:empty) + .me-row { border-top: 0.5px solid var(--sep); }
+.me-row > span:first-child { flex: none; color: var(--muted); }
+.me-row > b { flex: 1; min-width: 0; text-align: right; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.me-h { margin: 6px 0 -4px 14px; font-size: 13px; font-weight: 400; color: var(--muted); }
+#mePkSec[hidden] { display: none; }
+#mePkSec { display: flex; flex-direction: column; gap: 10px; }
+/* 押せる行（パスキーを追加・ログアウト） */
+.me-act { color: var(--accent); cursor: pointer; }
+.me-act svg { flex: none; }
+.me-act:active { background: var(--fill-field); }
+.me-act:disabled { opacity: .5; cursor: default; }
+.me-out { justify-content: center; color: var(--danger); }
+/* 登録したパスキー: 名前と、下に最後に使った日時。右に「削除」 */
+.me-pk { list-style: none; margin: 0; padding: 0; }
+.me-pk li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 9px 14px; }
+.me-pk li > div { flex: 1; min-width: 0; }
+.me-pk li b { display: block; font-weight: 400; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-pk li small { display: block; font-size: 12px; color: var(--muted); }
+.me-pk li button { flex: none; border: 0; background: none; padding: 6px 0; color: var(--danger); font: inherit; font-size: 14px; cursor: pointer; }
+.me-pk li.me-note { color: var(--muted); font-size: 14px; }

@@ -784,7 +784,7 @@
     if (user.error) return fail(user.error, 'USER_AUTH');
     const target = this.resWhere('WHERE id = ?', id)[0];
     if (!target || !visibleIn(ctx)(target)) return fail('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin.call(this, target, p.pin, p.adminPassword, user.sid);
+    const auth = checkPin.call(this, target, p.pin, p.adminPassword, user);
     if (auth.error) return fail(auth.error);
     if (!auth.admin && isPast(target.date, target.end)) return fail('終了した予約は変更できません。');
     if (!auth.admin && roomOf(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) return fail('この部屋の予約は管理者のみ変更できます。');
@@ -847,7 +847,7 @@
     if (user.error) return fail(user.error, 'USER_AUTH');
     const target = this.resWhere('WHERE id = ?', id)[0];
     if (!target || !visibleIn(ctx)(target)) return fail('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin.call(this, target, p.pin, p.adminPassword, user.sid);
+    const auth = checkPin.call(this, target, p.pin, p.adminPassword, user);
     if (auth.error) return fail(auth.error);
     if (!auth.admin && isPast(target.date, target.end)) return fail('終了した予約は取り消せません。');
     if (!auth.admin && roomOf(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) return fail('この部屋の予約は管理者のみ取り消せます。');
@@ -1231,7 +1231,7 @@
     const list = this.resWhere('ORDER BY date, st').filter((r) => (r.owner === user.sid || normName(r.affiliation) === key) && visible(r));
     return {
       ok: true, user: { studentId: user.sid, name: user.name },
-      reservations: list.slice(-SYSTEM.MAX_MINE).map((r) => Object.assign(toPublic(r), { mine: r.owner === user.sid })),
+      reservations: list.slice(-SYSTEM.MAX_MINE).map((r) => Object.assign(toPublic(r), { mine: ownedBy(r, user) })),
       rooms: ctx.rooms, serverNow: nowStr('yyyy-MM-dd HH:mm'),
     };
   }
@@ -1281,6 +1281,12 @@
   function saltOf(pw) { return String(pw || '').split('$')[1] || ''; }
   /** 姓・名の1つをそろえる（gas/Code.gs の normNamePart_ と同じ） */
   function normNamePart(v) { return String(v || '').replace(/\s+/g, ''); }
+  /** ログイン中の人の予約か（gas/Code.gs の ownedBy_ と同じ） */
+  function ownedBy(r, user) {
+    if (!user || !user.sid) return false;
+    if (r.owner) return r.owner === user.sid;
+    return normStudentId(r.affiliation) === user.sid && normNamePart(r.name) === user.name;
+  }
   /** 登録の入力を確かめる（gas/Code.gs の validateUser_ と同じ） */
   function validateUser(p) {
     const sid = normStudentId(p.studentId);
@@ -1307,13 +1313,13 @@
   // 確かめる処理（gas/Code.gs と同じ）
   // ---------------------------------------------------------------------------
 
-  function checkPin(target, pin, adminPassword, userSid) {
+  function checkPin(target, pin, adminPassword, user) {
     if (adminPassword) {
       const error = this.verifyAdmin(adminPassword);
       return error ? { error } : { admin: true };
     }
-    // ログインして作った予約は、同じ人がログインしていれば編集用パスワードなしで許可（gas/Code.gs と同じ）
-    if (target.owner && userSid && userSid === target.owner) return { admin: false };
+    // 本人の予約は、ログインしていれば編集用パスワードなしで許可（gas/Code.gs と同じ）
+    if (ownedBy(target, user)) return { admin: false };
     const code = String(pin || '').trim();
     if (code && !/^\d{4}$/.test(code)) {
       const error = this.verifyAdmin(code);

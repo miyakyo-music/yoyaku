@@ -150,6 +150,19 @@ async function passkey(op, request, env, ctx) {
       return ng('ログインし直してから、もう一度お試しください。', 401);
     }
   }
+  // 利用者の一覧・削除（マイページ）も同じ許可証で、その人の今の世代のパスキーだけを扱う
+  if (op === 'userList' || op === 'userDelete') {
+    const t = /^upt\.(\d+)\.([A-Z]\d{4})\.([\w-]+)\.([\w-]+)$/.exec(String(body.ticket || ''));
+    if (!t || Number(t[1]) < now || !safeEqual(t[4], await hmac(key, `upt.${t[1]}.${t[2]}.${t[3]}`))) {
+      return ng('ログインし直してから、もう一度お試しください。', 401);
+    }
+    if (op === 'userDelete') {
+      await env.DB.prepare('DELETE FROM user_passkeys WHERE id = ? AND sid = ?').bind(String(body.id || ''), t[2]).run();
+      return json({ ok: true });
+    }
+    const rows = await env.DB.prepare('SELECT id, name, created, last_used FROM user_passkeys WHERE sid = ? AND gen = ? ORDER BY created').bind(t[2], t[3]).all();
+    return json({ ok: true, passkeys: (rows.results || []).map((r) => ({ id: r.id, name: r.name, created: r.created, lastUsed: r.last_used || '' })) });
+  }
   const isRegister = op === 'register' || op === 'userRegister';
   if (!isRegister && op !== 'login' && op !== 'userLogin') return json({ ok: false, code: 'NOT_FOUND' }, 404);
 

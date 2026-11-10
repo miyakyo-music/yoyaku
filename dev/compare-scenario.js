@@ -262,6 +262,12 @@
   r = rec('userUpdate', await c('updateReservation', Object.assign({}, ub, { id: ids.u, start: '19:30', end: '20:30' })));
   out[out.length - 1][4] = r.reservation && [r.reservation.start, r.reservation.owned];
   put({ id: 'res_dev_userpast', date: T, roomId: 'room_16', start: '07:00', end: '08:00', affiliation: 'g1234', name: '前' });
+  // 登録前に同じ学籍番号・氏名で作った予約は本人のもの（編集用パスワードなしで変更できる）。氏名が違えば本人のものではない
+  put({ id: 'res_dev_legacy', date: D, roomId: 'room_16', start: '21:00', end: '21:30', affiliation: 'g1234', name: '登録　太郎', pin: '2468' });
+  put({ id: 'res_dev_other', date: D, roomId: 'room_15', start: '20:30', end: '21:00', affiliation: 'G1234', name: '別人', pin: '2468' });
+  r = rec('userUpdateLegacy', await c('updateReservation', Object.assign({}, ub, { id: 'res_dev_legacy', start: '21:00', end: '21:30', memo: '本人' })));
+  out[out.length - 1][4] = r.reservation && [r.reservation.memo, r.reservation.hasPin, r.reservation.owned];
+  rec('userCancelNotMine', await c('cancelReservation', { id: 'res_dev_other', userToken: tok }));
   r = rec('userMine', await c('userGetMine', { userToken: tok }));
   out[out.length - 1][4] = r.reservations && [JSON.stringify(r.user), r.reservations.map((x) => x.date + x.start + x.name + x.mine + x.owned).join(',')];
   rec('userMineNoToken', await c('userGetMine', {}));

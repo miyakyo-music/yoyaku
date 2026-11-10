@@ -17,6 +17,7 @@ const LS = {
   fav: 'prr.favRooms',           // [roomId] お気に入りの練習室
   closeTime: 'prr.closeTime',    // 利用終了時刻（開いた直後、設定を読む前に「翌日を出すか」を決めるため）
   user: 'prr.user',              // { token, studentId, name } 利用者のログイン（任意。index/user.js）
+  userPk: 'prr.userPk',          // この端末で登録・使用した利用者のパスキーの ID（マイページで「この端末」と示す。index/me.js）
 };
 const APP_VERSION = window.APP_VERSION; // web/api.js
 const CACHE_TTL_MS = 3 * 60 * 1000; // 取得済みの予約データをこの時間は再取得せずに使う

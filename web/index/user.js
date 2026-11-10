@@ -37,6 +37,7 @@ function loginUser(res) {
 function logoutUser(message) {
   if (!state.user) return;
   state.user = null;
+  if ($('meDialog').open) $('meDialog').close();
   state.userMine = {};
   try { localStorage.removeItem(LS.user); } catch (e) { /* 保存できない環境では何もしない */ }
   if (message) toast(message, 'error');
@@ -114,11 +115,6 @@ $('userForm').addEventListener('submit', async (e) => {
   }
 });
 $('myLogin').addEventListener('click', openUserDialog);
-$('myLogout').addEventListener('click', () => {
-  if (!confirm('ログアウトしますか？')) return;
-  logoutUser();
-  toast('ログアウトしました');
-});
 addRevealButtons($('userDialog'));
 
 // ---------------- パスキー（Face ID / Touch ID。高速キャッシュが動いているときだけ） ----------------
@@ -142,7 +138,7 @@ const upkCancelled = (e) => e && (e.name === 'NotAllowedError' || e.name === 'Ab
 function upkDeviceName() {
   const ua = navigator.userAgent;
   const kind = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad'
-    : /Macintosh/.test(ua) ? 'Mac' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : 'この端末';
+    : /Macintosh/.test(ua) ? 'Mac' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'その他の端末';
   const d = new Date();
   return `${kind}（${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} 登録）`;
 }
@@ -164,43 +160,10 @@ $('uPkLogin').addEventListener('click', async () => {
     });
     const res = await api('userPasskeyLogin', { ticket: t.ticket });
     if (!res || !res.ok) throw new Error((res && res.message) || 'ログインできませんでした。');
+    save_(LS.userPk, cred.id); // マイページで「この端末」と示すため
     await afterUserLogin(res, 'ログインしました');
   } catch (ex) {
     if (!upkCancelled(ex) && !(ex instanceof AuthError)) err.textContent = errMessage(ex);
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-// ログイン中だけ、見出しの右（「ログイン」の場所）に出す（index/my.js の openMyList が切り替える）
-$('myPasskey').addEventListener('click', async () => {
-  if (!state.user) return;
-  const btn = $('myPasskey');
-  if (isOffline()) { toast(OFFLINE_MSG, 'error'); return; }
-  btn.disabled = true;
-  try {
-    const t = await api('userPasskeyTicket', {});
-    if (!t || !t.ok) throw new Error((t && t.message) || 'パスキーを登録できませんでした。');
-    const c = await upkCall('challenge');
-    const label = `${state.user.name}（${state.user.studentId}）`; // パスキーの一覧に出る名前（ID は学籍番号と氏名）
-    const cred = await navigator.credentials.create({ publicKey: {
-      challenge: new TextEncoder().encode(c.challenge),
-      rp: { id: c.rpId, name: '練習室予約' },
-      // 同じ人が同じ端末で登録し直したときは置き換わるよう、学籍番号から作る
-      user: { id: new TextEncoder().encode('user:' + state.user.studentId), name: label, displayName: label },
-      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: { residentKey: 'required', requireResidentKey: true, userVerification: 'required' },
-      attestation: 'none', timeout: 60000,
-    } });
-    const r = cred.response;
-    if (typeof r.getPublicKey !== 'function') throw new Error('このブラウザではパスキーを登録できません。Safari・Chrome を新しくしてからお試しください。');
-    await upkCall('userRegister', {
-      ticket: t.ticket, name: upkDeviceName(), id: cred.id, publicKey: upkB64(r.getPublicKey()), alg: r.getPublicKeyAlgorithm(),
-      clientDataJSON: upkB64(r.clientDataJSON), authenticatorData: upkB64(r.getAuthenticatorData()),
-    });
-    toast('この端末をパスキーに登録しました');
-  } catch (ex) {
-    if (!upkCancelled(ex) && !(ex instanceof AuthError)) toast(errMessage(ex), 'error');
   } finally {
     btn.disabled = false;
   }

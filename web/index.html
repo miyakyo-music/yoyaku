@@ -50,6 +50,7 @@
 <link rel="stylesheet" href="index/dialog.css">
 <link rel="stylesheet" href="index/book.css">
 <link rel="stylesheet" href="index/my.css">
+<link rel="stylesheet" href="index/me.css">
 <link rel="stylesheet" href="index/hovercard.css">
 <link rel="stylesheet" href="index/fab.css">
 <link rel="stylesheet" href="index/morph.css">
@@ -239,12 +240,8 @@
       <div class="my-head">
         <h2 id="myDialogTitle" tabindex="-1" autofocus>自分の予約</h2>
         <button type="button" class="btn my-login" id="myLogin">ログイン</button>
-        <button type="button" class="btn my-login" id="myPasskey" hidden aria-label="この端末をパスキーに登録">パスキー登録</button>
       </div>
-      <div class="my-user" id="myUser" hidden>
-        <span><b id="myUserName"></b><span id="myUserSid"></span></span>
-        <button type="button" class="btn" id="myLogout">ログアウト</button>
-      </div>
+      <button type="button" class="my-user" id="myUser" hidden><b id="myUserName"></b><span id="myUserSid"></span><span class="my-user-go">マイページ</span><svg width="8" height="13" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 1.5 6.5 6.5 1.5 11.5"/></svg></button>
       <div class="pill-tabs my-src" id="mySrc" role="group" aria-label="探し方">
         <button type="button" data-src="device" aria-pressed="true">この端末</button>
         <button type="button" data-src="name" aria-pressed="false">名前で探す</button>
@@ -268,6 +265,28 @@
           <button type="button" data-p="all" aria-pressed="false">すべて</button>
         </div>
         <div id="myStatsBody"></div>
+      </div>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
+    </div>
+  </dialog>
+
+  <!-- マイページ（ログイン中の人の登録内容・パスキー・ログアウト。仕様書 2.12） -->
+  <dialog id="meDialog" aria-labelledby="meDialogTitle">
+    <div class="body">
+      <h2 id="meDialogTitle" tabindex="-1" autofocus>マイページ</h2>
+      <div class="me-group">
+        <div class="me-row"><span>氏名</span><b id="meName"></b></div>
+        <div class="me-row"><span>学籍番号</span><b id="meSid"></b></div>
+      </div>
+      <section id="mePkSec" hidden>
+        <h3 class="me-h">パスキー</h3>
+        <div class="me-group">
+          <ul class="me-pk" id="mePkList"></ul>
+          <button type="button" class="me-row me-act" id="mePkAdd"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>パスキーを追加</button>
+        </div>
+      </section>
+      <div class="me-group">
+        <button type="button" class="me-row me-act me-out" id="meLogout">ログアウト</button>
       </div>
       <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
     </div>
@@ -410,6 +429,7 @@
 <script src="index/detail.js"></script>
 <script src="index/my.js"></script>
 <script src="index/user.js"></script>
+<script src="index/me.js"></script>
 <script src="index/access.js"></script>
 <script src="index/topbar.js"></script>
 <script src="index/search.js"></script>

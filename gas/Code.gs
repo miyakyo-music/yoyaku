@@ -124,7 +124,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-11-10.2';
+const GAS_BUILD = '2026-11-10.3';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
@@ -447,7 +447,7 @@ function updateReservation(p) {
     const target = rows.find(r => r.id === id);
     // 限定公開の部屋の予約は、見られない人には「存在しない」と返す
     if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin_(target, p.pin, p.adminPassword, user.sid);
+    const auth = checkPin_(target, p.pin, p.adminPassword, user);
     if (auth.error) return fail_(auth.error);
     if (!auth.admin && isPast_(target.date, target.end)) return fail_('終了した予約は変更できません。');
     if (!auth.admin && roomOf_(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) {
@@ -533,7 +533,7 @@ function cancelReservation(p) {
     const target = rows.find(r => r.id === id);
     // 限定公開の部屋の予約は、見られない人には「存在しない」と返す
     if (!target || !visibleIn_(ctx)(target)) return fail_('この予約は既に取り消されているか、存在しません。', 'NOT_FOUND');
-    const auth = checkPin_(target, p.pin, p.adminPassword, user.sid);
+    const auth = checkPin_(target, p.pin, p.adminPassword, user);
     if (auth.error) return fail_(auth.error);
     if (!auth.admin && isPast_(target.date, target.end)) return fail_('終了した予約は取り消せません。');
     if (!auth.admin && roomOf_(ctx, target.roomId).restriction === ROOM_RESTRICTIONS.ADMIN_ONLY) {
@@ -1176,7 +1176,7 @@ function userGetMine(p) {
     .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   return {
     ok: true, user: { studentId: user.sid, name: user.name },
-    reservations: list.slice(-SYSTEM.MAX_MINE).map(r => Object.assign(toPublic_(r), { mine: r.owner === user.sid })),
+    reservations: list.slice(-SYSTEM.MAX_MINE).map(r => Object.assign(toPublic_(r), { mine: ownedBy_(r, user) })),
     rooms: ctx.rooms, serverNow: nowStr_('yyyy-MM-dd HH:mm'),
   };
 }
@@ -1214,6 +1214,16 @@ function normStudentId_(v) {
 /** 氏名・姓・名の空白（全角・半角）を除く。ほかの書き方（ひらがなとカタカナなど）は変えない */
 function normNamePart_(v) {
   return String(v || '').replace(/\s+/g, '');
+}
+
+/**
+ * ログイン中の人（{sid, name}）の予約か。ログインして作った予約（登録者の列が本人）と、
+ * 登録者の列が空で、学籍番号／所属と氏名（空白を除く）の両方が本人と一致する予約（登録前やログインせずに作った予約）
+ */
+function ownedBy_(r, user) {
+  if (!user || !user.sid) return false;
+  if (r.owner) return r.owner === user.sid;
+  return normStudentId_(r.affiliation) === user.sid && normNamePart_(r.name) === user.name;
 }
 
 /** 登録の入力を確かめる。{sid, name（空白なしの「姓名」）, password} / {error} */
@@ -2235,13 +2245,13 @@ function writeLimit_() {
  * - 編集用パスワードが設定されていない予約 → 誰でも許可
  * - 編集用パスワードが設定されている予約 → 一致すれば許可（連続誤入力で一時ロック）
  */
-function checkPin_(target, pin, adminPassword, userSid) {
+function checkPin_(target, pin, adminPassword, user) {
   if (adminPassword) {
     const error = verifyAdmin_(adminPassword);
     return error ? { error: error } : { admin: true };
   }
-  // ログインして作った予約は、同じ人がログインしていれば編集用パスワードなしで許可（仕様書 2.12）
-  if (target.owner && userSid && userSid === target.owner) return { admin: false };
+  // 本人の予約（ログインして作った予約と、登録前に同じ学籍番号・氏名で作った予約）は、ログインしていれば編集用パスワードなしで許可（仕様書 2.12）
+  if (ownedBy_(target, user)) return { admin: false };
   const code = String(pin || '').trim();
   // 編集用パスワードの欄に管理用パスワードを入れた場合（4桁の数字以外）は、管理用パスワードとして照合する。
   // 外れたら管理用パスワードの誤入力として数える（ここで数えないと、編集用パスワードのない予約を使って
