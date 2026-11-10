@@ -124,7 +124,7 @@ const API_VERSION = 1;
  * 見張り（.github/workflows/monitor.yml）が、リポジトリのこの値と違えば「GAS に貼り直していない」と知らせる。
  * 画面の版 APP_VERSION（web/api.js）とは別（APP_VERSION は利用者の指示で上げるが、こちらは Code.gs を変えるたびに変える）
  */
-const GAS_BUILD = '2026-11-10.1';
+const GAS_BUILD = '2026-11-10.2';
 
 /** 画面から呼び出せる処理。ここにない関数は外部から実行できない */
 const API = {
