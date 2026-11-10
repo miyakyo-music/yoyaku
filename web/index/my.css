@@ -66,3 +66,6 @@ dialog form.my-name[hidden] { display: none; }
 /* ログインの小窓の「パスキーでログイン」: 横いっぱい、鍵の絵と文字を並べる */
 #userDialog .user-pk { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
 #userDialog .user-pk[hidden] { display: none; }
+/* ログインの中の「新規登録」（登録の中では「ログインに戻る」）。ログインと同列のタブにせず、文字のリンクにする */
+#userDialog .user-switch { margin: 14px 0 0; text-align: center; }
+#userDialog .user-switch button { color: var(--accent); font: inherit; font-size: 14px; border: 0; background: none; padding: 4px 8px; cursor: pointer; text-decoration: underline; }

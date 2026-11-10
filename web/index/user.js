@@ -45,9 +45,11 @@ function logoutUser(message) {
 }
 
 // ---------------- ログイン・新規登録の小窓 ----------------
+let userModeNow = 'login';
 function setUserMode(mode) {
   const reg = mode === 'register';
-  for (const b of $('userMode').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+  userModeNow = mode;
+  $('uSwitch').textContent = reg ? 'ログインに戻る' : '新規登録';
   // 学内の認証システムと混同しないよう、登録では見出しと PIN の欄に「予約表」を付ける
   $('userDialogTitle').textContent = reg ? '予約表の新規登録' : 'ログイン';
   $('uPassLabel').textContent = reg ? '予約表用の PIN' : 'PIN';
@@ -57,10 +59,13 @@ function setUserMode(mode) {
   $('uSid').autocapitalize = reg ? 'characters' : 'off';
   $('uNameField').hidden = !reg;
   $('uPkLogin').hidden = reg || !userPkSupported;
+  // パスキーが使えるときは、ログインではパスキーのボタンを青くし、PIN のログインは控えめにする（管理画面と同じ）
+  $('uPkLogin').classList.toggle('primary', !reg && userPkSupported);
+  $('uSubmit').classList.toggle('primary', reg || !userPkSupported);
   $('uPass').autocomplete = reg ? 'new-password' : 'current-password';
   $('uError').textContent = '';
 }
-const userMode = () => (($('userMode').querySelector('[aria-pressed="true"]') || {}).dataset || {}).mode || 'login';
+const userMode = () => userModeNow;
 function openUserDialog() {
   $('uSid').value = '';
   $('uFamily').value = '';
@@ -80,7 +85,7 @@ async function afterUserLogin(res, message) {
   if ($('myDialog').open) openMyList();
   if (state.data) render();
 }
-$('userMode').addEventListener('click', (e) => { const b = e.target.closest('button[data-mode]'); if (b) setUserMode(b.dataset.mode); });
+$('uSwitch').addEventListener('click', () => { setUserMode(userModeNow === 'register' ? 'login' : 'register'); $('uSid').focus(); });
 $('userForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const reg = userMode() === 'register';
