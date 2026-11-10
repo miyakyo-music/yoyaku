@@ -1,0 +1,14 @@
+# デモサーバー（テスト環境を外から開ける形）。本番とは別の Worker。公開は dev/demo/deploy.sh。
+name = "yoyaku-demo"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+preview_urls = false
+
+[[durable_objects.bindings]]
+name = "SQL"
+class_name = "DemoSql"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DemoSql"]
