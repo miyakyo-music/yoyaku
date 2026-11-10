@@ -42,7 +42,7 @@ const HEADERS = {
   log: ['日時', '操作', '予約ID', '予約日', '部屋ID', '時間', '予約者', '詳細'],
   bugs: ['報告ID', '受付日時', '状態', '内容', '連絡先', '端末・ブラウザ', '画面サイズ', '表示していた画面', '環境情報（詳細）'],
   // 利用者の登録（仕様書 2.12）。パスワードはソルト付きのハッシュ（us1$ソルト$HMAC）で置き、元のパスワードは残さない
-  users: ['学籍番号', '氏名', 'パスワード（ハッシュ）', '登録日時'],
+  users: ['学籍番号', '氏名', 'PIN（ハッシュ）', '登録日時'],
 };
 
 const BUG_STATUSES = ['未対応', '対応中', '対応済み', '対応しない'];
@@ -70,7 +70,7 @@ const SYSTEM = {
   // 練習室の予約で毎分30件を超えることは通常ないため、ふだんの利用には影響しない
   MAX_WRITES_PER_MINUTE: 30,
   MAX_ADMIN_DEVICES: 30, // 管理画面にログインしたことのある端末を覚えておく数（古いものから消える）
-  MAX_USER_FAILURES: 10, // 利用者のログインで、同じ学籍番号のパスワードをこの回数間違えると一定時間受け付けない
+  MAX_USER_FAILURES: 5, // 利用者のログインで、同じ人の PIN をこの回数間違えると10分受け付けない（予約の編集用パスワードと同じ）
   USER_TOKEN_DAYS: 180, // 利用者のログインのトークン（us1）の有効日数
   CACHE_MONTHS_AHEAD: 4, // 高速キャッシュに置く範囲: 先月の1日から、4か月先の月末まで（その外は予約表が GAS から読む）
 };
@@ -1089,31 +1089,33 @@ function userRegister(p) {
 }
 
 /**
- * ログインする。ID は学籍番号か氏名（氏名は空白の有無・全角半角だけを無視して比べ、
- * 同じ氏名の人が複数いればパスワードで見分ける）。同じ ID で MAX_USER_FAILURES 回間違えると10分受け付けない。
+ * ログインする。ID は学籍番号か氏名（氏名は空白の有無・全角半角だけを無視して照合し、
+ * 同姓同名が複数いれば PIN で判別する）。誤入力は登録者ごとに数え、MAX_USER_FAILURES 回で10分ロックする
+ * （学籍番号と氏名のどちらで試しても同じ回数に数える）。
  * @param {{loginId, password}} p
  */
 function userLogin(p) {
   p = p || {};
   const loginId = String(p.loginId || '');
   const password = String(p.password || '');
-  if (!loginId.trim() || !password) return fail_('学籍番号か氏名と、パスワードを入力してください。');
+  if (!loginId.trim() || !password) return fail_('学籍番号か氏名と、PIN を入力してください。');
   const sid = normStudentId_(loginId);
   const bySid = /^[A-Z]\d{4}$/.test(sid);
   const key = bySid ? sid : normNamePart_(loginId);
   const cache = CacheService.getScriptCache();
-  const failKey = 'userfail_' + key.slice(0, 40);
-  if (Number(cache.get(failKey) || 0) >= SYSTEM.MAX_USER_FAILURES) {
-    return fail_('パスワードの誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
+  const locked = (k) => Number(cache.get(k) || 0) >= SYSTEM.MAX_USER_FAILURES;
+  const all = readUsers_(getSpreadsheet_()).filter(x => (bySid ? x.sid === sid : normNamePart_(x.name) === key));
+  const cands = all.filter(x => !locked('userfail_' + x.sid));
+  const failKeys = all.length ? cands.map(x => 'userfail_' + x.sid) : ['userfail_' + key.slice(0, 40)];
+  if (!failKeys.length || (!all.length && locked(failKeys[0]))) {
+    return fail_('PIN の誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
   }
-  const u = readUsers_(getSpreadsheet_())
-    .filter(x => (bySid ? x.sid === sid : normNamePart_(x.name) === key))
-    .find(x => checkUserPassword_(password, x.pw));
+  const u = cands.find(x => checkUserPassword_(password, x.pw));
   if (!u) {
-    countFailure_(failKey);
-    return fail_('学籍番号（氏名）かパスワードが違います。');
+    failKeys.forEach(countFailure_);
+    return fail_('学籍番号（氏名）か PIN が違います。');
   }
-  cache.remove(failKey);
+  cache.remove('userfail_' + u.sid);
   return { ok: true, token: userToken_(u), user: { studentId: u.sid, name: u.name } };
 }
 
@@ -1225,7 +1227,7 @@ function validateUser_(p) {
   if (!family || !given) return { error: '姓と名を入力してください。' };
   if (name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
   if (/^[=+\-@]/.test(family)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
-  if (password.length < 4 || password.length > 64) return { error: 'パスワードは4〜64文字で入力してください。' };
+  if (!/^\d{4}$/.test(password)) return { error: 'PIN は数字4桁で入力してください。' };
   return { sid: sid, name: name, password: password };
 }
 

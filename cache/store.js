@@ -36,7 +36,7 @@
     PASSKEY_TOKEN_HOURS: 168, // ログインのトークン（pk1）の有効時間。7日（worker.js の TOKEN_HOURS・gas/Code.gs と同じ）
     MAX_WRITES_PER_MINUTE: 60, // GAS のときより速いので、上限は GAS の倍にする（いたずらで埋め尽くされないための上限）
     MAX_ADMIN_DEVICES: 30,
-    MAX_USER_FAILURES: 10, // 利用者のログインで、同じ学籍番号のパスワードをこの回数間違えると一定時間受け付けない
+    MAX_USER_FAILURES: 5, // 利用者のログインで、同じ人の PIN をこの回数間違えると10分受け付けない（gas/Code.gs と同じ）
     USER_TOKEN_DAYS: 180, // 利用者のログインのトークン（us1）の有効日数
     PBKDF2_ROUNDS: 20000, // 管理用パスワードを、元に戻せない形（ハッシュ）にして置くときの計算回数
   };
@@ -172,12 +172,11 @@
         const id = loginKey(p.loginId);
         const list = !id.key ? [] : id.bySid ? [this.userBy(id.key)].filter(Boolean)
           : this.db.exec('SELECT sid, name, pw, created_at FROM users').filter((r) => normNamePart(r.name) === id.key).map((r) => ({ sid: r.sid, name: r.name, pw: r.pw }));
+        // PIN の照合は先に全員分済ませ、ロック中かどうかは userLogin で判定する
+        call.memo.loginCands = [];
         for (const u of list) {
-          if (safeEqual(await hmac(saltOf(u.pw), String(p.password || '')), u.pw.split('$')[2] || '')) {
-            call.memo.loginUser = u;
-            call.memo.newToken = await this.userToken(u);
-            break;
-          }
+          const ok = safeEqual(await hmac(saltOf(u.pw), String(p.password || '')), u.pw.split('$')[2] || '');
+          call.memo.loginCands.push({ u, ok, token: ok ? await this.userToken(u) : '' });
         }
       }
       if (action === 'userPasskeyTicket' && this.passkeyKey() && call.memo.user && call.memo.user.sid) {
@@ -1201,17 +1200,22 @@
   function userLogin(p) {
     const id = loginKey(p.loginId);
     const password = String(p.password || '');
-    if (!id.key || !password) return fail('学籍番号か氏名と、パスワードを入力してください。');
-    const failKey = 'userfail_' + id.key.slice(0, 40);
-    const failures = Number(this.kget(failKey) || 0);
-    if (failures >= SYSTEM.MAX_USER_FAILURES) return fail('パスワードの誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
-    const u = this.memo.loginUser;
-    if (!u) {
-      this.kput(failKey, failures + 1, SYSTEM.FAILURE_LOCK_SECONDS);
-      return fail('学籍番号（氏名）かパスワードが違います。');
+    if (!id.key || !password) return fail('学籍番号か氏名と、PIN を入力してください。');
+    // 誤入力は登録者ごとに数える（gas/Code.gs の userLogin と同じ）
+    const count = (k) => Number(this.kget(k) || 0);
+    const all = this.memo.loginCands || [];
+    const cands = all.filter((c) => count('userfail_' + c.u.sid) < SYSTEM.MAX_USER_FAILURES);
+    const failKeys = all.length ? cands.map((c) => 'userfail_' + c.u.sid) : ['userfail_' + id.key.slice(0, 40)];
+    if (!failKeys.length || (!all.length && count(failKeys[0]) >= SYSTEM.MAX_USER_FAILURES)) {
+      return fail('PIN の誤入力が続いたため、一時的にログインできません。10分ほど待ってから再度お試しください。');
     }
-    this.kdel(failKey);
-    return { ok: true, token: this.memo.newToken, user: { studentId: u.sid, name: u.name } };
+    const hit = cands.find((c) => c.ok);
+    if (!hit) {
+      for (const k of failKeys) this.kput(k, count(k) + 1, SYSTEM.FAILURE_LOCK_SECONDS);
+      return fail('学籍番号（氏名）か PIN が違います。');
+    }
+    this.kdel('userfail_' + hit.u.sid);
+    return { ok: true, token: hit.token, user: { studentId: hit.u.sid, name: hit.u.name } };
   }
 
   function userGetMine(p) {
@@ -1288,7 +1292,7 @@
     if (!family || !given) return { error: '姓と名を入力してください。' };
     if (name.length > SYSTEM.MAX_NAME_LENGTH) return { error: '氏名を' + SYSTEM.MAX_NAME_LENGTH + '文字以内で入力してください。' };
     if (/^[=+\-@]/.test(family)) return { error: '氏名の先頭に「= + - @」は使用できません。' };
-    if (password.length < 4 || password.length > 64) return { error: 'パスワードは4〜64文字で入力してください。' };
+    if (!/^\d{4}$/.test(password)) return { error: 'PIN は数字4桁で入力してください。' };
     return { sid, name, password };
   }
 

@@ -1,5 +1,5 @@
 // 予約表: 利用者のログイン・新規登録（任意。仕様書 2.12）
-// 登録は学籍番号（G1234 の形）・姓・名・パスワード（氏名はサーバーが空白なしの「姓名」の形にそろえる）。ログインは学籍番号か氏名と、パスワードかパスキー。ログインのトークンを端末に保存し（LS.user）、
+// 登録は学籍番号（G1234 の形式）・姓・名・PIN（数字4桁。氏名はサーバーが空白なしの「姓名」に正規化する）。ログインは学籍番号か氏名と、PIN かパスキー。ログインのトークンを端末に保存し（LS.user）、
 // 予約・変更・取消と自分の予約の読み込みに添える（index/data.js の api）。
 // ログインして作った予約は、ログイン中なら編集用パスワードなしで変更・取消できる
 'use strict';
@@ -48,9 +48,9 @@ function logoutUser(message) {
 function setUserMode(mode) {
   const reg = mode === 'register';
   for (const b of $('userMode').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
-  // 学内の認証システムと取り違えないよう、登録では「予約表の」を付け、大学のパスワードを使わないよう欄に出す
+  // 学内の認証システムと混同しないよう、登録では見出しと PIN の欄に「予約表」を付ける
   $('userDialogTitle').textContent = reg ? '予約表の新規登録' : 'ログイン';
-  $('uPassLabel').textContent = reg ? '予約表用のパスワード' : 'パスワード';
+  $('uPassLabel').textContent = reg ? '予約表用の PIN' : 'PIN';
   $('uSubmit').textContent = reg ? '登録' : 'ログイン';
   $('uSidLabel').textContent = reg ? '学籍番号' : '学籍番号または氏名';
   $('uSid').placeholder = reg ? 'G1234' : '';
@@ -58,7 +58,6 @@ function setUserMode(mode) {
   $('uNameField').hidden = !reg;
   $('uPkLogin').hidden = reg || !userPkSupported;
   $('uPass').autocomplete = reg ? 'new-password' : 'current-password';
-  $('uPass').placeholder = reg ? '大学のパスワードとは別のもの' : '';
   $('uError').textContent = '';
 }
 const userMode = () => (($('userMode').querySelector('[aria-pressed="true"]') || {}).dataset || {}).mode || 'login';
@@ -90,14 +89,13 @@ $('userForm').addEventListener('submit', async (e) => {
   const studentId = normSid(loginId);
   const familyName = $('uFamily').value.trim();
   const givenName = $('uGiven').value.trim();
-  const password = $('uPass').value;
+  const password = $('uPass').value.normalize('NFKC').trim(); // 全角の数字も受け付ける
   err.textContent = '';
   if (!loginId) { err.textContent = reg ? '学籍番号を入力してください。' : '学籍番号か氏名を入力してください。'; $('uSid').focus(); return; }
   if (reg && !STUDENT_ID_FORM.test(studentId)) { err.textContent = '登録できるのは、G1234 のような学籍番号（英字1文字と数字4桁）の学生だけです。'; $('uSid').focus(); return; }
   if (reg && !familyName) { err.textContent = '姓を入力してください。'; $('uFamily').focus(); return; }
   if (reg && !givenName) { err.textContent = '名を入力してください。'; $('uGiven').focus(); return; }
-  if (!password) { err.textContent = 'パスワードを入力してください。'; $('uPass').focus(); return; }
-  if (reg && password.length < 4) { err.textContent = 'パスワードは4文字以上にしてください。'; $('uPass').focus(); return; }
+  if (!/^\d{4}$/.test(password)) { err.textContent = 'PIN を数字4桁で入力してください。'; $('uPass').focus(); return; }
   if (isOffline()) { err.textContent = OFFLINE_MSG; return; }
   $('uSubmit').disabled = true;
   try {
