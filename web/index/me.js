@@ -13,6 +13,8 @@ const meDur = (r) => toMin(r.end) - toMin(r.start);
 /** 時間の数字だけ（グラフの上に出す。1.5 のように小数1桁まで） */
 const meHours = (m) => String(Math.round(m / 6) / 10);
 const meTime = (m) => (m ? durationLabel(m) : '0分');
+const meTotal = (rs) => rs.reduce((a, r) => a + meDur(r), 0);
+const meIn = (rs, { from, to }) => rs.filter((r) => r.date >= from && r.date <= to);
 
 function openMePage() {
   const u = state.user;
@@ -73,23 +75,13 @@ function meRender() {
   const ended = list.filter((r) => isEnded(r, today, now));
   const upcoming = list.filter((r) => !isEnded(r, today, now));
 
-  // 期間ごとの練習時間（終わった分）と、前の期間の練習時間。押した期間で、下の内訳を切り替える。
-  // 最後のタイルはこれからの予約の合計（期間ごとに残りの予定を出すと、どの期間も同じ数字が並ぶため1か所にまとめる）
-  const inRange = (rs, { from, to }) => rs.filter((r) => r.date >= from && r.date <= to);
-  const total = (rs) => rs.reduce((a, r) => a + meDur(r), 0);
-  const periods = [['week', '今週', '先週'], ['month', '今月', '先月'], ['fy', '今年度', '前年度']];
-  $('meTiles').innerHTML = periods.map(([p, label, prevLabel]) => {
-    const done = inRange(ended, myPeriodRange(p)); // index/my.js
-    const prev = total(inRange(ended, mePrevRange(p)));
-    return `<button type="button" class="me-tile" data-p="${p}" aria-pressed="${p === mePeriod}"><span>${label}</span>` +
-      `<b>${esc(meTime(total(done)))}</b>` +
-      `<small>${done.length}回${prev ? `・${prevLabel} ${esc(meTime(prev))}` : ''}</small></button>`;
-  }).join('') +
-    `<div class="me-tile me-tile-plan"><span>これから</span><b>${esc(meTime(total(upcoming)))}</b><small>${upcoming.length}回</small></div>`;
-
-  $('meUpcoming').innerHTML = upcoming.length ? upcoming.map((r) => meItem(r, f.rooms)).join('') : '<li class="me-note">予約はありません。</li>';
+  // これからの予約: 見出しの右に件数と合計時間。いちばん近い1件を大きく出す
+  $('meUpSum').textContent = upcoming.length ? `${upcoming.length}件・${meTime(meTotal(upcoming))}` : '';
+  $('meUpcoming').innerHTML = upcoming.length
+    ? upcoming.map((r, i) => meItem(r, f.rooms, i === 0 ? 'me-next' : '')).join('')
+    : '<li class="me-note">予約はありません。</li>';
   meRenderMonthly(ended, today);
-  meRenderBreak(ended);
+  meRenderStat(ended);
   meRenderPast(ended.slice().reverse(), f.rooms);
 }
 
@@ -102,36 +94,42 @@ function mePrevRange(p) {
 }
 
 /** 予約1件の行（押すと予約表のその日を開いて詳細を出す） */
-function meItem(r, rooms) {
+function meItem(r, rooms, cls) {
   const room = rooms.find((x) => x.id === r.roomId);
   const self = state.user && r.name.replace(/\s+/g, '') === state.user.name;
   const sub = [room ? roomText(room) : r.roomId, self ? '' : r.name, r.groupId ? '↻まとめ予約' : ''].filter(Boolean).map(esc).join('　');
-  return `<li><button type="button" data-date="${r.date}" data-id="${esc(r.id)}">` +
+  return `<li${cls ? ` class="${cls}"` : ''}><button type="button" data-date="${r.date}" data-id="${esc(r.id)}">` +
     `<b>${esc(mdLabel(r.date))} ${esc(hm(r.start))}〜${esc(hm(r.end))}</b><span>${sub}</span></button></li>`;
 }
 
-/** 月ごとの練習時間（今月までの12か月の縦棒） */
+/** 月ごとの練習時間（今月までの縦棒。最初に練習した月から、3〜12か月分。空の月ばかり並べないため） */
 function meRenderMonthly(ended, today) {
+  const cur = today.slice(0, 8) + '01';
+  const first = ended.length ? ended[0].date.slice(0, 8) + '01' : cur;
+  let n = 1;
+  while (n < 12 && addMonths(cur, -n) >= first) n++;
+  n = Math.max(3, n);
   const months = [];
-  for (let i = 11; i >= 0; i--) months.push(addMonths(today.slice(0, 8) + '01', -i).slice(0, 7));
+  for (let i = n - 1; i >= 0; i--) months.push(addMonths(cur, -i).slice(0, 7));
   const sum = Object.fromEntries(months.map((m) => [m, 0]));
   for (const r of ended) { const m = r.date.slice(0, 7); if (m in sum) sum[m] += meDur(r); }
   const max = Math.max(1, ...Object.values(sum));
-  $('meMonthly').innerHTML = '<div class="me-month">' + months.map((m) => {
+  $('meMonthly').innerHTML = `<div class="me-month" style="grid-template-columns:repeat(${n},minmax(0,1fr))">` + months.map((m) => {
     const v = sum[m];
     const mo = Number(m.slice(5));
     return `<div title="${esc(m.slice(0, 4))}年${mo}月 ${esc(meTime(v))}"><em>${v ? meHours(v) : ''}</em>` +
-      `<i style="height:${(v / max * 100).toFixed(1)}%"></i><span${m === today.slice(0, 7) ? ' class="cur"' : ''}>${mo}</span></div>`;
+      `<i style="height:${(v / max * 100).toFixed(1)}%"></i><span${m === today.slice(0, 7) ? ' class="cur"' : ''}>${mo}月</span></div>`;
   }).join('') + '</div><p class="me-unit">時間</p>';
 }
 
-/** 選んだ期間の内訳（部屋ごと・曜日ごと。終わった分） */
-function meRenderBreak(ended) {
-  const label = { week: '今週', month: '今月', fy: '今年度' }[mePeriod];
-  $('meBreakTitle').textContent = `${label}の内訳`;
-  const { from, to } = myPeriodRange(mePeriod);
-  const done = ended.filter((r) => r.date >= from && r.date <= to);
-  if (!done.length) { $('meBreak').innerHTML = '<p class="me-note">この期間に終わった予約はありません。</p>'; return; }
+/** 練習時間のカード（選んだ期間の合計・回数・前の期間、部屋ごと・曜日ごとの内訳。終わった分） */
+function meRenderStat(ended) {
+  const prevLabel = { week: '先週', month: '先月', fy: '前年度' }[mePeriod];
+  const done = meIn(ended, myPeriodRange(mePeriod)); // index/my.js
+  const prev = meTotal(meIn(ended, mePrevRange(mePeriod)));
+  $('meBig').innerHTML = `<b>${esc(meTime(meTotal(done)))}</b>` +
+    `<small>${done.length}回${prev ? `<span>${prevLabel} ${esc(meTime(prev))}</span>` : ''}</small>`;
+  if (!done.length) { $('meBreak').innerHTML = ''; return; }
   const rooms = state.me.rooms;
   const byRoom = {};
   for (const r of done) byRoom[r.roomId] = (byRoom[r.roomId] || 0) + meDur(r);
@@ -166,13 +164,14 @@ $('meMore').addEventListener('click', () => {
   const today = todayStr(), now = nowMin();
   meRenderPast(state.me.reservations.filter((r) => isEnded(r, today, now)).reverse(), state.me.rooms);
 });
-$('meTiles').addEventListener('click', (e) => {
+$('mePeriod').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-p]');
-  if (!b || !state.me) return;
+  if (!b) return;
   mePeriod = b.dataset.p;
-  for (const x of $('meTiles').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+  for (const x of $('mePeriod').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+  if (!state.me) return;
   const today = todayStr(), now = nowMin();
-  meRenderBreak(state.me.reservations.filter((r) => isEnded(r, today, now)));
+  meRenderStat(state.me.reservations.filter((r) => isEnded(r, today, now)));
 });
 for (const id of ['meUpcoming', 'mePast']) {
   $(id).addEventListener('click', (e) => {

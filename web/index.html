@@ -243,14 +243,23 @@
     </header>
     <div class="me-wrap">
       <div class="me-hero"><b id="meName"></b><span id="meSid"></span></div>
-      <div class="me-tiles" id="meTiles" role="group" aria-label="期間"></div>
       <div class="me-grid">
         <div class="me-col">
-          <section class="me-card"><h3>これからの予約</h3><ul class="me-list" id="meUpcoming"></ul></section>
-          <section class="me-card"><h3>月ごとの練習時間</h3><div id="meMonthly"></div></section>
-          <section class="me-card"><h3 id="meBreakTitle">内訳</h3><div id="meBreak"></div></section>
+          <section class="me-card me-stat">
+            <div class="me-head"><h3>練習時間</h3>
+              <div class="pill-tabs me-period" id="mePeriod" role="group" aria-label="期間">
+                <button type="button" data-p="week" aria-pressed="false">今週</button>
+                <button type="button" data-p="month" aria-pressed="true">今月</button>
+                <button type="button" data-p="fy" aria-pressed="false">今年度</button>
+              </div>
+            </div>
+            <div class="me-big" id="meBig"></div>
+            <div id="meBreak"></div>
+          </section>
+          <section class="me-card me-monthly"><h3>月ごとの練習時間</h3><div id="meMonthly"></div></section>
         </div>
         <div class="me-col">
+          <section class="me-card me-up"><div class="me-head"><h3>これからの予約</h3><span id="meUpSum"></span></div><ul class="me-list" id="meUpcoming"></ul></section>
           <section class="me-card"><h3>これまでの予約</h3><ul class="me-list" id="mePast"></ul><button type="button" class="me-more" id="meMore" hidden>さらに表示</button></section>
           <section class="me-card" id="mePkSec" hidden><h3>パスキー</h3><ul class="me-pk" id="mePkList"></ul><button type="button" class="me-act" id="mePkAdd"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>パスキーを追加</button></section>
         </div>
