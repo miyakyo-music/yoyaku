@@ -73,21 +73,32 @@ function meRender() {
   const ended = list.filter((r) => isEnded(r, today, now));
   const upcoming = list.filter((r) => !isEnded(r, today, now));
 
-  // 期間ごとの練習時間（終わった分）。押した期間で、下の内訳を切り替える
-  const periods = [['week', '今週'], ['month', '今月'], ['fy', '今年度'], ['all', 'これまで']];
-  $('meTiles').innerHTML = periods.map(([p, label]) => {
-    const { from, to } = p === 'all' ? { from: '', to: '9999' } : myPeriodRange(p); // index/my.js
-    const done = ended.filter((r) => r.date >= from && r.date <= to);
-    const plan = upcoming.filter((r) => r.date >= from && r.date <= to).reduce((a, r) => a + meDur(r), 0);
+  // 期間ごとの練習時間（終わった分）と、前の期間の練習時間。押した期間で、下の内訳を切り替える。
+  // 最後のタイルはこれからの予約の合計（期間ごとに残りの予定を出すと、どの期間も同じ数字が並ぶため1か所にまとめる）
+  const inRange = (rs, { from, to }) => rs.filter((r) => r.date >= from && r.date <= to);
+  const total = (rs) => rs.reduce((a, r) => a + meDur(r), 0);
+  const periods = [['week', '今週', '先週'], ['month', '今月', '先月'], ['fy', '今年度', '前年度']];
+  $('meTiles').innerHTML = periods.map(([p, label, prevLabel]) => {
+    const done = inRange(ended, myPeriodRange(p)); // index/my.js
+    const prev = total(inRange(ended, mePrevRange(p)));
     return `<button type="button" class="me-tile" data-p="${p}" aria-pressed="${p === mePeriod}"><span>${label}</span>` +
-      `<b>${esc(meTime(done.reduce((a, r) => a + meDur(r), 0)))}</b>` +
-      `<small>${done.length}回${plan ? `・予定 ${esc(meTime(plan))}` : ''}</small></button>`;
-  }).join('');
+      `<b>${esc(meTime(total(done)))}</b>` +
+      `<small>${done.length}回${prev ? `・${prevLabel} ${esc(meTime(prev))}` : ''}</small></button>`;
+  }).join('') +
+    `<div class="me-tile me-tile-plan"><span>これから</span><b>${esc(meTime(total(upcoming)))}</b><small>${upcoming.length}回</small></div>`;
 
   $('meUpcoming').innerHTML = upcoming.length ? upcoming.map((r) => meItem(r, f.rooms)).join('') : '<li class="me-note">予約はありません。</li>';
   meRenderMonthly(ended, today);
   meRenderBreak(ended);
   meRenderPast(ended.slice().reverse(), f.rooms);
+}
+
+/** 1つ前の期間（先週・先月・前年度） */
+function mePrevRange(p) {
+  const { from, to } = myPeriodRange(p);
+  if (p === 'week') return { from: addDays(from, -7), to: addDays(to, -7) };
+  if (p === 'month') return { from: addMonths(from, -1), to: addDays(from, -1) };
+  return { from: `${Number(from.slice(0, 4)) - 1}-04-01`, to: `${Number(to.slice(0, 4)) - 1}-03-31` };
 }
 
 /** 予約1件の行（押すと予約表のその日を開いて詳細を出す） */
@@ -116,9 +127,9 @@ function meRenderMonthly(ended, today) {
 
 /** 選んだ期間の内訳（部屋ごと・曜日ごと。終わった分） */
 function meRenderBreak(ended) {
-  const label = { week: '今週', month: '今月', fy: '今年度', all: 'これまで' }[mePeriod];
+  const label = { week: '今週', month: '今月', fy: '今年度' }[mePeriod];
   $('meBreakTitle').textContent = `${label}の内訳`;
-  const { from, to } = mePeriod === 'all' ? { from: '', to: '9999' } : myPeriodRange(mePeriod);
+  const { from, to } = myPeriodRange(mePeriod);
   const done = ended.filter((r) => r.date >= from && r.date <= to);
   if (!done.length) { $('meBreak').innerHTML = '<p class="me-note">この期間に終わった予約はありません。</p>'; return; }
   const rooms = state.me.rooms;
