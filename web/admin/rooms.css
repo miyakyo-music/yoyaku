@@ -19,7 +19,7 @@
 }
 .room.dragging { box-shadow: 0 8px 24px rgba(15, 23, 42, .18); position: relative; z-index: 2; }
 .room.dragging .no { cursor: grabbing; background: var(--accent-weak, #e8f0ff); color: var(--accent); }
-body.sorting, body.sorting * { cursor: grabbing !important; }
+body.sorting, body.sorting *, body.sorting .room .no { cursor: grabbing; }
 .room .ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 3px; }
 .rooms-head { padding: 0 9px 4px; font-size: 12px; color: var(--muted); }
 /* 1行に並べると欄が狭くなる幅では2段、スマホ幅では4段にする */

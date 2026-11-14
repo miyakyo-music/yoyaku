@@ -555,11 +555,12 @@ function json(obj, status = 200, headers = {}) {
   return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers } });
 }
 
-/** 予約表（GitHub Pages）から読めるようにする。読み込み（GET）だけを許す */
+/** 予約表（GitHub Pages）から読めるようにする */
 function cors(res) {
   const h = new Headers(res.headers);
   h.set('Access-Control-Allow-Origin', '*');
-  h.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  h.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  h.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   h.set('Access-Control-Max-Age', '86400');
   return new Response(res.body, { status: res.status, headers: h });
 }

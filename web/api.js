@@ -72,7 +72,14 @@
       data = await post(usesCloudflare() ? cfApiUrl() : window.GAS_API_URL, action, params, opts);
     }
     if (data && data.apiVersion !== API_VERSION) warnVersion();
-    if (data && data.adminDevice) { try { localStorage.setItem(DEVICE_KEY, data.adminDevice); } catch (e) { /* 無視 */ } }
+    if (data && data.adminDevice) {
+      try {
+        localStorage.setItem(DEVICE_KEY, data.adminDevice);
+      } catch (e) {
+        // プライベートブラウズや容量制限等で保存できない場合は警告ログを残し動作継続
+        console.warn('[Storage] adminDevice の保存失敗:', e);
+      }
+    }
     return data;
   };
 
@@ -127,6 +134,8 @@
       if (data.primary) setPrimary(true); // 正本から返ってきた（予約・変更も Cloudflare へ送る）
       return data;
     } catch (e) {
+      // 通信タイムアウト・CORS・切断時は警告ログを残し、GAS からの取得へフォールバックする
+      console.warn('[Cache] スケジュール取得スキップ (GAS フォールバック):', e);
       return null;
     } finally {
       if (timer) clearTimeout(timer);

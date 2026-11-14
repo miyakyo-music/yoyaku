@@ -1089,7 +1089,7 @@
   function adminPasskeyTicket(p) {
     const denied = this.requireAdmin(p);
     if (denied) return denied;
-    if (!this.memo.ticket) return fail('高速キャッシュの合言葉（PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
+    if (!this.memo.ticket) return fail('高速キャッシュの合言葉（CACHE_PUSH_TOKEN）が設定されていないため、パスキーは使えません。');
     return { ok: true, ticket: this.memo.ticket };
   }
 

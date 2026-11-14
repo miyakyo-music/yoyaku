@@ -97,7 +97,7 @@ html.dark .room-quick .rq.t-ep small { color: #8cc4ff; }
 html.dark .room-quick .rq.t-large { background: rgba(191, 90, 242, .15); }
 html.dark .room-quick .rq.t-large small { color: #dcaef7; }
 .room-quick .rq.t-up:active, .room-quick .rq.t-gp:active, .room-quick .rq.t-ep:active, .room-quick .rq.t-large:active { background: var(--accent); }
-.room-quick .rq:active small { color: #fff !important; }
+.room-quick .rq:active small, html.dark .room-quick .rq:active small { color: #fff; }
 @media (hover: hover) {
   .room-quick .rq:hover { background: var(--accent-weak); }
 }

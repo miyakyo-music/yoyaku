@@ -9,8 +9,8 @@ function fillSettings(s) {
   $('sNoticeLevel').value = s.noticeLevel === '重要' ? '重要' : '通常';
   timeSelects($('sOpenH'), $('sOpenM'), 23);
   timeSelects($('sCloseH'), $('sCloseM'), 24);
-  setTime($('sOpenH'), $('sOpenM'), s.openTime);
-  setTime($('sCloseH'), $('sCloseM'), s.closeTime);
+  setTimeFromStr($('sOpenH'), $('sOpenM'), s.openTime);
+  setTimeFromStr($('sCloseH'), $('sCloseM'), s.closeTime);
   $('sUnit').innerHTML = state.data.unitOptions.map((u) => `<option value="${u}">${u}</option>`).join('');
   $('sUnit').value = String(s.unitMinutes);
   $('sMaxDur').value = s.maxDurationMinutes;
@@ -34,8 +34,8 @@ $('saveSettingsBtn').addEventListener('click', async () => {
     title: $('sTitle').value,
     notice: $('sNotice').value,
     noticeLevel: $('sNoticeLevel').value,
-    openTime: getTime($('sOpenH'), $('sOpenM')),
-    closeTime: getTime($('sCloseH'), $('sCloseM')),
+    openTime: getTimeStr($('sOpenH'), $('sOpenM')),
+    closeTime: getTimeStr($('sCloseH'), $('sCloseM')),
     unitMinutes: Number($('sUnit').value),
     maxDurationMinutes: Number($('sMaxDur').value || 0),
     maxDaysAhead: Number($('sMaxDays').value || 0),

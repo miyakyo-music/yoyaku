@@ -14,8 +14,8 @@ function renderClosureForm() {
   showClosureDate();
   timeSelects($('cStartH'), $('cStartM'), 24);
   timeSelects($('cEndH'), $('cEndM'), 24);
-  setTime($('cStartH'), $('cStartM'), s.openTime);
-  setTime($('cEndH'), $('cEndM'), s.closeTime);
+  setTimeFromStr($('cStartH'), $('cStartM'), s.openTime);
+  setTimeFromStr($('cEndH'), $('cEndM'), s.closeTime);
 }
 
 function renderClosures() {
@@ -56,8 +56,8 @@ $('closureForm').addEventListener('submit', async (e) => {
   const item = {
     date: $('cDate').value,
     allDay: $('cAllDay').checked,
-    start: getTime($('cStartH'), $('cStartM')),
-    end: getTime($('cEndH'), $('cEndM')),
+    start: getTimeStr($('cStartH'), $('cStartM')),
+    end: getTimeStr($('cEndH'), $('cEndM')),
     reason: $('cReason').value.trim(),
   };
   if (!item.date) { $('closureError').textContent = '日付を指定してください。'; return; }

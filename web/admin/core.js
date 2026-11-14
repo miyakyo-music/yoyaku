@@ -8,7 +8,7 @@ const WEEKDAY_NAMES = '日月火水木金土';
 const RESTRICTIONS = [['', '制限なし'], ['管理者のみ', '管理者のみ'], ['限定公開', '限定公開'], ['使用停止', '使用停止']];
 const $ = (id) => document.getElementById(id);
 const state = {
-  pw: sessionGet(),
+  pw: adminSessionGet(),
   data: null,
   rooms: [],       // 編集中の部屋一覧
   closures: [],
@@ -18,8 +18,8 @@ const state = {
 };
 
 // ---------------- 汎用 ----------------
-/** 管理画面のログインの印（管理用パスワード）を読む。予約表の sessionGet（index/core.js）と違い、鍵は1つだけ */
-function sessionGet() { try { return sessionStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
+/** 管理画面のログインの印（管理用パスワード）を読む。予約表の sessionGet（index/core.js）と区別するため adminSessionGet */
+function adminSessionGet() { try { return sessionStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
 function sessionSet(v) { try { if (v) sessionStorage.setItem(SESSION_KEY, v); else sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* 保存できない環境では毎回ログイン */ } }
 function pad(n) { return String(n).padStart(2, '0'); }
 function esc(s) {
@@ -77,7 +77,7 @@ function timeSelects(hSel, mSel, maxHour) {
   mSel.innerHTML = '';
   for (let m = 0; m < 60; m += 5) mSel.add(new Option(pad(m), String(m)));
 }
-/** 管理画面の時刻の欄用。予約表の同名関数（index/time-wheel.js）と違い、HH:MM の文字列で扱う */
-function setTime(hSel, mSel, t) { const m = toMin(t); hSel.value = String(Math.floor(m / 60)); mSel.value = String(m % 60); }
-/** 管理画面の時刻の欄用。予約表の同名関数（index/time-wheel.js）と違い、HH:MM の文字列を返す */
-function getTime(hSel, mSel) { return toHHMM(Number(hSel.value) * 60 + Number(mSel.value)); }
+/** 管理画面の時刻の欄用。HH:MM の文字列から設定する */
+function setTimeFromStr(hSel, mSel, t) { const m = toMin(t); hSel.value = String(Math.floor(m / 60)); mSel.value = String(m % 60); }
+/** 管理画面の時刻の欄用。HH:MM の文字列を返す */
+function getTimeStr(hSel, mSel) { return toHHMM(Number(hSel.value) * 60 + Number(mSel.value)); }

@@ -1191,7 +1191,10 @@ function pushCache_() {
       if (String(all[k] || '') === next[k]) return;
       if (next[k]) props.setProperty(k, next[k]); else props.deleteProperty(k);
     });
-  } catch (e2) { /* 何もしない */ }
+  } catch (e2) {
+    // スクリプトプロパティの書き込み制限等で失敗した場合は警告を記録する
+    console.warn('キャッシュ状態プロパティの保存失敗:', e2);
+  }
   return ok;
 }
 
@@ -1738,7 +1741,12 @@ function invalidateMaster_() {
 function onEdit() {
   try { invalidateMaster_(); bumpScheduleVersion_(); } catch (e) { /* 単純トリガーで使えない環境では、最長2分で反映 */ }
   // 高速キャッシュの写しも5分以内に作り直す（シートで閲覧パスワードや限定公開を付けたとき、写しが公開のまま残らないように）
-  try { PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', '1'); } catch (e) { /* 何もしない */ }
+  // 単純トリガーは ScriptProperties への書き込み権限がない場合があるため、失敗時は警告を記録する（定期トリガーや変更時再送で補足）
+  try {
+    PropertiesService.getScriptProperties().setProperty('CACHE_DIRTY', '1');
+  } catch (e) {
+    console.warn('onEdit CACHE_DIRTY 更新失敗 (Simple Trigger 権限制約):', e);
+  }
 }
 
 /**

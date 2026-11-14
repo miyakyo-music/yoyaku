@@ -86,6 +86,8 @@ function cssReport() {
   for (const [sel, n] of tbDup.sort((a, b) => b[1] - a[1]).slice(0, 12)) console.log(`  ${String(n).padStart(2)}回  ${sel}`);
 
   // 使われていない疑い: セレクタのクラス・id が HTML/JS のどこにも出てこない
+  // JS 側で動的に組み立てるクラス名（lamp-${st}, c-${c.k} 等）はホワイトリストで除外する
+  const DYNAMIC_CLASS_PATTERNS = [/^lamp-/, /^c-aff$/];
   const code = [...list('web', '.html'), ...jsFiles].map(read).join('\n');
   const used = new Set();
   const suspects = [];
@@ -94,6 +96,7 @@ function cssReport() {
       const c = name.slice(1);
       if (used.has(c)) continue;
       used.add(c);
+      if (DYNAMIC_CLASS_PATTERNS.some((p) => p.test(c))) continue;
       const re = new RegExp('(^|[^\\w-])' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^\\w-]|$)');
       if (!re.test(code)) suspects.push(c);
     }
