@@ -73,8 +73,9 @@ function openBooking(o) {
   checkIdInName();
   $('bMemo').value = from ? (from.memo || '') : '';
   $('bPin').value = edit ? (o.pin || '') : (profile.pin || '');
-  // 変更時: 編集用パスワードのない予約・管理者モード・ログインして作った自分の予約では編集用パスワード欄を出さない
-  $('bPinField').hidden = edit && (!r.hasPin || isAdminMode() || isUserMine(r.id));
+  // 変更時: 編集用パスワードのない予約・管理者モード・ログインして作った自分の予約では編集用パスワード欄を出さない。
+  // 新規: ログイン中は出さない（本人がログインすれば変更・取消でき、編集用パスワードのない予約は他の人が操作できないため。仕様書 2.12）
+  $('bPinField').hidden = edit ? (!r.hasPin || isAdminMode() || isUserMine(r.id)) : !!state.user;
   $('bPinLabel').textContent = edit ? '編集用パスワード（予約時に設定した4桁）' : '編集用パスワード（4桁の数字）';
   $('bPinReq').hidden = !edit;
   $('bPinHint').hidden = edit;
@@ -446,7 +447,7 @@ function readBookingPayload() {
     affiliation: $('bAff').value.trim(),
     name: $('bPerson').value.trim(),
     memo: $('bMemo').value.trim(),
-    pin: $('bPin').value.trim(),
+    pin: $('bPinField').hidden && !edit ? '' : $('bPin').value.trim(),
   };
   // 学籍番号の欄が学籍番号だけ（g1234・Ｇ１２３４ など）なら、半角の大文字にそろえる（所属名などはそのまま）
   const aff = payload.affiliation.normalize('NFKC');
